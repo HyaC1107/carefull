@@ -1,0 +1,61 @@
+import time
+
+from auth.authenticate import authenticate
+from camera.camera import get_frame
+from config.settings import FACE_MATCH_THRESHOLD, SCHEDULE_POLL_SECONDS, TEST_MODE
+from face_detection.mediapipe_detector import detect_face
+from hardware.dispenser import dispense_medicine
+from scheduler.schedule import check_schedule
+from utils.logger import save_log
+
+
+def run_auth_flow(expected_user):
+    frame = get_frame()
+    if frame is None:
+        print("[AUTH] failed to get frame")
+        save_log(expected_user, "NO_FRAME")
+        return False
+
+    faces = detect_face(frame)
+    if not faces:
+        print(f"[AUTH] no face detected for {expected_user}")
+        save_log(expected_user, "NO_FACE")
+        return False
+
+    for (x, y, w, h) in faces:
+        face_img = frame[y : y + h, x : x + w]
+        name, score = authenticate(
+            face_img,
+            threshold=FACE_MATCH_THRESHOLD,
+            expected_user=expected_user,
+        )
+
+        if name:
+            print(f"[AUTH SUCCESS] {name} ({score:.2f})")
+            dispense_medicine(name)
+            save_log(name, "SUCCESS")
+            return True
+
+    print(f"[AUTH FAIL] expected={expected_user}")
+    save_log(expected_user, "FAIL")
+    return False
+
+
+def main():
+    mode = "TEST" if TEST_MODE else "PROD"
+    print(f"[SYSTEM] carefull start ({mode} mode)")
+
+    while True:
+        due_users = check_schedule()
+        if due_users:
+            print(f"[SCHEDULE] due users: {due_users}")
+
+            for user in due_users:
+                print(f"[AUTH] start for {user}")
+                run_auth_flow(user)
+
+        time.sleep(SCHEDULE_POLL_SECONDS)
+
+
+if __name__ == "__main__":
+    main()
