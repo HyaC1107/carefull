@@ -49,6 +49,7 @@ datasets/
 *.pth
 *.onnx
 *.tflite
+!models/*.tflite
 *.pb
 
 # 🔥 이미지 / 영상 (필요시 제외)
