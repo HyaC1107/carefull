@@ -2,7 +2,12 @@ import time
 
 from auth.authenticate import authenticate
 from camera.camera import get_frame
-from config.settings import FACE_MATCH_THRESHOLD, SCHEDULE_POLL_SECONDS, TEST_MODE
+from config.settings import (
+    AUTH_RETRY_COUNT,
+    AUTH_RETRY_DELAY_SECONDS,
+    FACE_MATCH_THRESHOLD,
+    SCHEDULE_POLL_SECONDS,
+)
 from face_detection.mediapipe_detector import detect_face
 from hardware.dispenser import dispense_medicine
 from scheduler.schedule import check_schedule
@@ -29,7 +34,6 @@ def run_auth_flow(expected_user):
             threshold=FACE_MATCH_THRESHOLD,
             expected_user=expected_user,
         )
-
         if name:
             print(f"[AUTH SUCCESS] {name} ({score:.2f})")
             dispense_medicine(name)
@@ -42,8 +46,7 @@ def run_auth_flow(expected_user):
 
 
 def main():
-    mode = "TEST" if TEST_MODE else "PROD"
-    print(f"[SYSTEM] carefull start ({mode} mode)")
+    print("[SYSTEM] carefull start (raspberry pi mode)")
 
     while True:
         due_users = check_schedule()
@@ -52,7 +55,10 @@ def main():
 
             for user in due_users:
                 print(f"[AUTH] start for {user}")
-                run_auth_flow(user)
+                for _ in range(AUTH_RETRY_COUNT):
+                    if run_auth_flow(user):
+                        break
+                    time.sleep(AUTH_RETRY_DELAY_SECONDS)
 
         time.sleep(SCHEDULE_POLL_SECONDS)
 
