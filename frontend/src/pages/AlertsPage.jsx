@@ -32,6 +32,8 @@ function AlertsPage() {
     return alerts.filter((item) => item.type === activeFilter)
   }, [alerts, activeFilter])
 
+  const unreadCount = alerts.filter((item) => !item.isRead).length
+
   const handleMarkAllRead = () => {
     setAlerts((prev) =>
       prev.map((item) => ({
@@ -44,7 +46,7 @@ function AlertsPage() {
   return (
     <div className="alerts-page">
       <div className="alerts-layout">
-        <Sidebar activeMenu="alerts" />
+        <Sidebar activeMenu="alerts" alertCount={unreadCount} />
 
         <div className="alerts-main">
           <TopHeader />
