@@ -1,0 +1,363 @@
+.stats-page {
+  min-height: 100vh;
+  background: #f3f5f8;
+}
+
+.stats-layout {
+  display: flex;
+  min-height: 100vh;
+}
+
+.stats-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.stats-content {
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+/* 페이지 헤더 */
+.stats-header__title {
+  margin: 0 0 6px;
+  font-size: 1.45rem;
+  font-weight: 800;
+  color: #111827;
+}
+
+.stats-header__subtitle {
+  margin: 0;
+  font-size: 0.84rem;
+  color: #6b7280;
+}
+
+/* 상단 요약 카드 */
+.stats-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.stats-summary-card {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 16px;
+  padding: 18px 18px 16px;
+  min-height: 136px;
+}
+
+.stats-summary-card__top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 18px;
+}
+
+.stats-summary-card__icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.stats-summary-card__icon--success {
+  background: #eaf9f0;
+  color: #10b981;
+}
+
+.stats-summary-card__icon--primary {
+  background: #eef4ff;
+  color: #3b82f6;
+}
+
+.stats-summary-card__icon--mint {
+  background: #ecfeff;
+  color: #14b8a6;
+}
+
+.stats-summary-card__icon--growth {
+  background: #eef4ff;
+  color: #2563eb;
+}
+
+.stats-summary-card__trend {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #10b981;
+}
+
+.stats-summary-card__title {
+  margin: 0 0 8px;
+  font-size: 0.82rem;
+  color: #4b5563;
+}
+
+.stats-summary-card__value {
+  margin: 0 0 6px;
+  font-size: 2.1rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.stats-summary-card__value--success {
+  color: #10b981;
+}
+
+.stats-summary-card__value--primary {
+  color: #2563eb;
+}
+
+.stats-summary-card__value--mint {
+  color: #14b8a6;
+}
+
+.stats-summary-card__value--growth {
+  color: #2563eb;
+}
+
+.stats-summary-card__subtext {
+  margin: 0;
+  font-size: 0.78rem;
+  color: #6b7280;
+}
+
+/* 차트 공통 카드 */
+.stats-chart-card,
+.weekly-insight-section {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 16px;
+  padding: 18px;
+}
+
+.stats-chart-card__title,
+.weekly-insight-section__title {
+  margin: 0 0 16px;
+  font-size: 1rem;
+  font-weight: 800;
+  color: #111827;
+}
+
+.stats-chart-card__body {
+  width: 100%;
+  height: 280px;
+}
+
+.stats-chart-card__body--large {
+  width: 100%;
+  height: 330px;
+}
+
+.stats-chart-card__caption {
+  margin: 12px 0 0;
+  font-size: 0.78rem;
+  color: #6b7280;
+  text-align: center;
+}
+
+.stats-chart-card--large {
+  padding-bottom: 12px;
+}
+
+/* 하단 2열 차트 */
+.stats-chart-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+
+/* 파이 범례 */
+.stats-pie-legend {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 12px;
+  margin-top: 8px;
+}
+
+.stats-pie-legend__item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.stats-pie-legend__dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  flex-shrink: 0;
+}
+
+.stats-pie-legend__label {
+  font-size: 0.78rem;
+  color: #4b5563;
+}
+
+/* 주간 인사이트 */
+.weekly-insight-section__grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.weekly-insight-card {
+  border-radius: 14px;
+  padding: 16px;
+  border: 1px solid transparent;
+}
+
+.weekly-insight-card--success {
+  background: #eefbf4;
+  border-color: #cdeeda;
+}
+
+.weekly-insight-card--warning {
+  background: #fff7ed;
+  border-color: #fed7aa;
+}
+
+.weekly-insight-card--info {
+  background: #eff6ff;
+  border-color: #bfdbfe;
+}
+
+.weekly-insight-card__label {
+  margin: 0 0 8px;
+  font-size: 0.78rem;
+  color: #6b7280;
+}
+
+.weekly-insight-card__value {
+  margin: 0 0 8px;
+  font-size: 1.7rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.weekly-insight-card__subtext {
+  margin: 0;
+  font-size: 0.78rem;
+  color: #4b5563;
+}
+
+/* 반응형 */
+@media (max-width: 1200px) {
+  .stats-content {
+    padding: 16px;
+    gap: 16px;
+  }
+
+  .stats-summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 900px) {
+  .stats-page {
+    padding-bottom: 74px;
+  }
+
+  .stats-layout {
+    flex-direction: column;
+  }
+
+  .stats-content {
+    padding: 14px;
+    gap: 14px;
+  }
+
+  .stats-chart-grid,
+  .weekly-insight-section__grid {
+    grid-template-columns: 1fr;
+  }
+
+  .stats-chart-card__body {
+    height: 250px;
+  }
+
+  .stats-chart-card__body--large {
+    height: 290px;
+  }
+}
+
+@media (max-width: 640px) {
+  .stats-content {
+    padding: 12px;
+    gap: 12px;
+  }
+
+  .stats-summary-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .stats-header__title {
+    font-size: 1.25rem;
+  }
+
+  .stats-header__subtitle {
+    font-size: 0.78rem;
+  }
+
+  .stats-summary-card,
+  .stats-chart-card,
+  .weekly-insight-section {
+    border-radius: 14px;
+    padding: 14px;
+  }
+
+  .stats-chart-card__title,
+  .weekly-insight-section__title {
+    font-size: 0.94rem;
+    margin-bottom: 12px;
+  }
+
+  .stats-chart-card__body {
+    height: 220px;
+  }
+
+  .stats-chart-card__body--large {
+    height: 260px;
+  }
+
+  .stats-pie-legend {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .weekly-insight-card {
+    padding: 14px;
+  }
+
+  .weekly-insight-card__value {
+    font-size: 1.45rem;
+  }
+}
+
+.stats-bar-legend {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 16px;
+  margin-top: 8px;
+}
+
+.stats-bar-legend__item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.stats-bar-legend__dot {
+  width: 14px;
+  height: 10px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.stats-bar-legend__label {
+  font-size: 0.78rem;
+  color: #4b5563;
+}
