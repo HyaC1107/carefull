@@ -1,0 +1,356 @@
+.patient-page {
+  min-height: 100vh;
+  background: #f3f5f8;
+}
+
+.patient-layout {
+  display: flex;
+  min-height: 100vh;
+}
+
+.patient-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.patient-content {
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.patient-page-header__title {
+  margin: 0 0 6px;
+  font-size: 1.45rem;
+  font-weight: 800;
+  color: #111827;
+}
+
+.patient-page-header__subtitle {
+  margin: 0;
+  font-size: 0.84rem;
+  color: #6b7280;
+}
+
+/* 공통 카드 */
+.patient-profile-card,
+.patient-medication-card,
+.patient-device-card {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 16px;
+  padding: 18px;
+}
+
+/* 카드 상단 제목 */
+.patient-card-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.patient-card-title-row__icon {
+  color: #0ea5e9;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.patient-card-title-row__title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 800;
+  color: #111827;
+}
+
+/* 프로필 카드 */
+.patient-profile-card__header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 18px;
+}
+
+.patient-profile-card__avatar {
+  width: 54px;
+  height: 54px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #0ea5e9, #3b82f6);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.patient-profile-card__name {
+  margin: 0 0 4px;
+  font-size: 1.4rem;
+  font-weight: 800;
+  color: #111827;
+}
+
+.patient-profile-card__summary {
+  margin: 0;
+  font-size: 0.84rem;
+  color: #4b5563;
+}
+
+.patient-profile-card__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px 24px;
+}
+
+.patient-profile-card__info-item {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.patient-profile-card__info-icon {
+  color: #0ea5e9;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 2px;
+  flex-shrink: 0;
+}
+
+.patient-profile-card__info-label {
+  margin: 0 0 4px;
+  font-size: 0.75rem;
+  color: #6b7280;
+}
+
+.patient-profile-card__info-value {
+  margin: 0;
+  font-size: 0.84rem;
+  color: #111827;
+  line-height: 1.4;
+}
+
+/* 약물 카드 */
+.patient-medication-card__list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.patient-medication-item {
+  border: 1px solid #e5e7eb;
+  border-radius: 14px;
+  background: #ffffff;
+  padding: 14px 16px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.patient-medication-item__left {
+  min-width: 0;
+}
+
+.patient-medication-item__name {
+  margin: 0 0 6px;
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: #111827;
+}
+
+.patient-medication-item__ingredient {
+  display: inline-block;
+  margin-bottom: 10px;
+  background: #ecfeff;
+  color: #0891b2;
+  font-size: 0.7rem;
+  font-weight: 700;
+  border-radius: 999px;
+  padding: 4px 8px;
+}
+
+.patient-medication-item__started-at {
+  margin: 0;
+  font-size: 0.76rem;
+  color: #6b7280;
+}
+
+.patient-medication-item__right {
+  text-align: right;
+  flex-shrink: 0;
+}
+
+.patient-medication-item__dose {
+  margin: 0 0 4px;
+  font-size: 0.92rem;
+  font-weight: 800;
+  color: #111827;
+}
+
+.patient-medication-item__amount {
+  margin: 0 0 10px;
+  font-size: 0.74rem;
+  color: #6b7280;
+}
+
+.patient-medication-item__timing {
+  margin: 0;
+  font-size: 0.76rem;
+  color: #6b7280;
+}
+
+/* 디바이스 카드 */
+.patient-device-card__status-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.patient-device-status-box {
+  border-radius: 12px;
+  padding: 14px;
+  border: 1px solid transparent;
+}
+
+.patient-device-status-box--success {
+  background: #eefbf4;
+  border-color: #cdeeda;
+}
+
+.patient-device-status-box--primary {
+  background: #eff6ff;
+  border-color: #bfdbfe;
+}
+
+.patient-device-status-box--info {
+  background: #eefcff;
+  border-color: #bae6fd;
+}
+
+.patient-device-status-box__label {
+  margin: 0 0 8px;
+  font-size: 0.76rem;
+  color: #6b7280;
+}
+
+.patient-device-status-box__value {
+  margin: 0;
+  font-size: 1.35rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.patient-device-status-box--success .patient-device-status-box__value {
+  color: #16a34a;
+}
+
+.patient-device-status-box--primary .patient-device-status-box__value {
+  color: #2563eb;
+}
+
+.patient-device-status-box--info .patient-device-status-box__value {
+  color: #0891b2;
+}
+
+.patient-device-card__detail-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.patient-device-card__detail-item {
+  min-width: 0;
+}
+
+.patient-device-card__detail-label {
+  margin: 0 0 6px;
+  font-size: 0.74rem;
+  color: #6b7280;
+}
+
+.patient-device-card__detail-value {
+  margin: 0;
+  font-size: 0.82rem;
+  color: #111827;
+  word-break: break-word;
+}
+
+/* 반응형 */
+@media (max-width: 1200px) {
+  .patient-content {
+    padding: 16px;
+    gap: 16px;
+  }
+
+  .patient-profile-card__grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .patient-device-card__detail-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 900px) {
+  .patient-page {
+    padding-bottom: 74px;
+  }
+
+  .patient-layout {
+    flex-direction: column;
+  }
+
+  .patient-content {
+    padding: 14px;
+    gap: 14px;
+  }
+
+  .patient-profile-card__grid,
+  .patient-device-card__status-grid,
+  .patient-device-card__detail-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .patient-content {
+    padding: 12px;
+    gap: 12px;
+  }
+
+  .patient-profile-card,
+  .patient-medication-card,
+  .patient-device-card {
+    border-radius: 14px;
+    padding: 14px;
+  }
+
+  .patient-page-header__title {
+    font-size: 1.25rem;
+  }
+
+  .patient-page-header__subtitle {
+    font-size: 0.78rem;
+  }
+
+  .patient-profile-card__header {
+    align-items: flex-start;
+  }
+
+  .patient-profile-card__name {
+    font-size: 1.2rem;
+  }
+
+  .patient-medication-item {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .patient-medication-item__right {
+    text-align: left;
+  }
+}
