@@ -86,3 +86,4 @@ backend/.env.local
 *.sqlite3
 *.db
 !raspberry/db/README.md # 폴더 구조 유지를 위해 README만 허용하는 센스!
+.gemini.md
