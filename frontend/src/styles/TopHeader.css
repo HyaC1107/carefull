@@ -1,0 +1,215 @@
+.top-header {
+  height: 82px;
+  background: #1f436f;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 18px;
+  box-sizing: border-box;
+}
+
+.top-header__title {
+  margin: 0;
+  font-size: 1.28rem;
+  font-weight: 800;
+}
+
+.top-header__subtitle {
+  margin: 6px 0 0;
+  font-size: 0.82rem;
+  opacity: 0.85;
+}
+
+.top-header__right {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.top-header__device {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.top-header__device-icon,
+.top-header__guardian-avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.18);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.top-header__device-status {
+  margin: 0;
+  font-size: 0.76rem;
+  color: #9ef0b6;
+  font-weight: 700;
+}
+
+.top-header__device-time {
+  margin: 3px 0 0;
+  font-size: 0.7rem;
+  opacity: 0.82;
+}
+
+.top-header__divider {
+  width: 1px;
+  height: 30px;
+  background: rgba(255, 255, 255, 0.24);
+}
+
+.top-header__guardian {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.top-header__guardian-role {
+  margin: 0;
+  font-size: 0.7rem;
+  opacity: 0.9;
+}
+
+.top-header__guardian-name {
+  margin: 3px 0 0;
+  font-size: 0.76rem;
+  font-weight: 700;
+}
+
+/* =========================
+   상단 헤더 반응형
+   ========================= */
+
+/* 화면이 조금 줄면 헤더 내부 간격/폰트 살짝 줄임 */
+@media (max-width: 1200px) {
+  .top-header {
+    padding: 0 16px;
+  }
+
+  .top-header__title {
+    font-size: 1.15rem;
+  }
+
+  .top-header__subtitle {
+    font-size: 0.78rem;
+  }
+
+  .top-header__right {
+    gap: 16px;
+  }
+}
+
+/* 태블릿 이하: 헤더를 위아래로 조금 여유 있게 */
+@media (max-width: 900px) {
+  .top-header {
+    height: auto;
+    padding: 14px 16px;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .top-header__title {
+    font-size: 1.05rem;
+  }
+
+  .top-header__subtitle {
+    margin: 4px 0 0;
+    font-size: 0.74rem;
+  }
+
+  .top-header__right {
+    gap: 14px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+
+  .top-header__device,
+  .top-header__guardian {
+    gap: 10px;
+  }
+
+  .top-header__device-icon,
+  .top-header__guardian-avatar {
+    width: 32px;
+    height: 32px;
+  }
+}
+
+/* 모바일: 제목 영역과 오른쪽 정보 영역을 세로로 정리 */
+@media (max-width: 640px) {
+  .top-header {
+    height: auto;
+    padding: 10px 12px;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+  }
+
+  .top-header__title {
+    font-size: 0.96rem;
+  }
+
+  .top-header__subtitle {
+    margin: 2px 0 0;
+    font-size: 0.68rem;
+  }
+
+  .top-header__right {
+    width: auto;
+    justify-content: flex-end;
+    gap: 10px;
+    flex-wrap: nowrap;
+  }
+
+  .top-header__device,
+  .top-header__guardian {
+    gap: 8px;
+  }
+
+  .top-header__device-icon,
+  .top-header__guardian-avatar {
+    width: 30px;
+    height: 30px;
+  }
+
+  .top-header__divider {
+    height: 24px;
+    display: block;
+  }
+
+  .top-header__device-status,
+  .top-header__guardian-name {
+    font-size: 0.68rem;
+  }
+
+  .top-header__device-time,
+  .top-header__guardian-role {
+    font-size: 0.62rem;
+  }
+}
+
+/* 아주 작은 화면에서만 위아래로 정리 */
+@media (max-width: 520px) {
+  .top-header {
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: flex-start;
+    gap: 8px;
+  }
+
+  .top-header__right {
+    width: 100%;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  .top-header__divider {
+    display: none;
+  }
+}
