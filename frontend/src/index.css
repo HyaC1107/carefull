@@ -1,0 +1,25 @@
+/* 이 파일이 하는 일
+사이트 전체 기본 스타일.
+브라우저 기본 여백을 없애고, 글꼴 같은 걸 맞춰줌. */
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+  margin: 0;
+}
+
+body {
+  font-family: 'Pretendard', 'Noto Sans KR', 'Apple SD Gothic Neo', sans-serif;
+  color: #111827;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
