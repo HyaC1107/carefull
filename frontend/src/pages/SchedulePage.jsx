@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import ScheduleAddModal from '../components/schedule/ScheduleAddModal'
 import Sidebar from '../components/layout/Sidebar'
 import TopHeader from '../components/layout/TopHeader'
 import MobileBottomNav from '../components/layout/MobileBottomNav'
@@ -18,6 +19,7 @@ import '../styles/MobileBottomNav.css'
 function SchedulePage() {
   const [calendarState, setCalendarState] = useState(initialScheduleState)
   const [scheduleMap, setScheduleMap] = useState(initialScheduleMap)
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false)
 
   const { year, month, selectedDate } = calendarState
 
@@ -90,7 +92,7 @@ function SchedulePage() {
 
           <main className="schedule-content">
             {/* 페이지 상단 제목/설명/추가 버튼 */}
-            <ScheduleHeader />
+            <ScheduleHeader onOpenAddModal={() => setIsAddModalOpen(true)} />
 
             {/* 핵심: 달력 카드 */}
             <MonthlyCalendar
@@ -125,6 +127,18 @@ function SchedulePage() {
       </div>
 
       <MobileBottomNav activeMenu="schedule" />
+
+      {isAddModalOpen ? (
+        <ScheduleAddModal
+          selectedDateLabel={selectedDateLabel}
+          onClose={() => setIsAddModalOpen(false)}
+          onSubmit={(newSchedule) => {
+            console.log('새 복약 일정', newSchedule)
+            setIsAddModalOpen(false)
+            alert('복약 일정이 추가되었습니다.')
+          }}
+        />
+      ) : null}
     </div>
   )
 }

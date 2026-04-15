@@ -6,6 +6,9 @@
   padding-bottom: 24px;
   display: flex;
   flex-direction: column;
+  position: sticky;
+  top: 0;
+  align-self: flex-start;
 }
 
 .sidebar__brand {

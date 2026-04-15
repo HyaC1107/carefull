@@ -68,10 +68,10 @@ function MobileBottomNav({ activeMenu = 'dashboard' }) {
           break
           
         case 'settings':
-          console.log(`${menuKey} 페이지는 나중에 연결 예정`)
+          navigate('/settings')
           setIsMoreOpen(false)
           break
-
+          
         default:
           break
       }

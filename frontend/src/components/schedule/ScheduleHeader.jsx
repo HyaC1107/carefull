@@ -1,4 +1,4 @@
-function ScheduleHeader() {
+function ScheduleHeader({ onOpenAddModal }) {
   return (
     <section className="schedule-header">
       <div>
@@ -11,7 +11,7 @@ function ScheduleHeader() {
       <button
         type="button"
         className="schedule-header__add-button"
-        onClick={() => console.log('복약 일정 추가 기능은 나중에 연결 예정')}
+        onClick={onOpenAddModal}
       >
         + 복약 일정 추가
       </button>
