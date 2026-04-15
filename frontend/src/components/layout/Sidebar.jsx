@@ -34,6 +34,9 @@ function Sidebar({ activeMenu = 'dashboard', alertCount = 0 }) {
       case 'patient':
         navigate('/patient')
         break
+      case 'settings':
+        navigate('/settings')
+        break 
     default:
         console.log(`${menuKey} 페이지는 나중에 연결 예정`)
         break
