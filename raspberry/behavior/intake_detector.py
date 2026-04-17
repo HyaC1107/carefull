@@ -3,6 +3,7 @@ import numpy as np
 import mediapipe as mp
 import os
 from picamera2 import Picamera2
+import time
 
 # ----------------------
 # MediaPipe 시각화 툴 설정 (추가됨!)
@@ -40,12 +41,17 @@ intake_counter = 0
 
 print(" 복약 행위 감지 중... (손을 입 근처로 가져가세요)")
 print(" ESC를 누르면 종료")
-
+prev_time = 0
+curr_time = 0
 try:
     while True:
         # 1. Picamera2에서 프레임 캡처
         frame = picam2.capture_array()
-        
+        # 2. FPS 계산
+        curr_time = time.time() # 현재 시간
+        fps = 1 / (curr_time - prev_time) # 1초 / 걸린 시간
+        prev_time = curr_time # 이전 시간 업데이트
+
         # 2. 색상 채널 교정: BGR -> RGB (OpenCV는 BGR, MediaPipe는 RGB 사용)
         rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         
@@ -121,7 +127,9 @@ try:
         if intake_counter >= SUCCESS_REQUIRED_FRAMES:
             cv2.putText(display_frame, "INTAKE COMPLETE!", (50, 100), 
                         cv2.FONT_HERSHEY_SIMPLEX, 1.2, (255, 255, 0), 3)
-        
+
+        cv2.putText(display_frame, f"FPS: {int(fps)}", (w - 120, 30), 
+                cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
         cv2.putText(display_frame, f"Dist: {current_dist:.4f}", (10, 30), 
                     cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 2)
         cv2.putText(display_frame, f"Count: {intake_counter}/{SUCCESS_REQUIRED_FRAMES}", (10, 60), 
