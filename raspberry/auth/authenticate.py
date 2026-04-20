@@ -1,9 +1,9 @@
 import json
 import os
 
-from raspberry.config.settings import DB_DIR
-from raspberry.face_recognition.embedding import get_embedding
-from raspberry.face_recognition.similarity import cosine_similarity
+from config.settings import DB_DIR
+from face_recognition.embedding import get_embedding
+from face_recognition.similarity import cosine_similarity
 
 DB_PATH = os.path.join(DB_DIR, "user_db.json")
 
