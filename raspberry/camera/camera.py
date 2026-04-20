@@ -3,7 +3,7 @@ import time
 import cv2
 from picamera2 import Picamera2
 
-from raspberry.config.settings import CAMERA_HEIGHT, CAMERA_WARMUP_SECONDS, CAMERA_WIDTH
+from config.settings import CAMERA_HEIGHT, CAMERA_WARMUP_SECONDS, CAMERA_WIDTH
 
 picam2 = None
 

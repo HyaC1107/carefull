@@ -2,7 +2,7 @@ import json
 import os
 from datetime import datetime
 
-from raspberry.config.settings import DB_DIR
+from config.settings import DB_DIR
 
 SCHEDULE_PATH = os.path.join(DB_DIR, "schedule.json")
 last_triggered = {}

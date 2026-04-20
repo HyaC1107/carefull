@@ -1,5 +1,5 @@
 import cv2
-from raspberry.behavior.intake_detector import IntakeDetector
+from behavior.intake_detector import IntakeDetector
 
 def main():
     cap = cv2.VideoCapture(0) # 라파 카메라 모듈
