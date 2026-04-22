@@ -16,6 +16,7 @@ dependencies = [
     "python-dotenv",
     "RPi.GPIO",
     "RpiMotorLib",
+    "psutil",
 ]
 
 # picamera2, PyQt5는 apt로 설치 후 --system-site-packages로 접근
