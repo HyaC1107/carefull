@@ -16,6 +16,7 @@ from picamera2 import Picamera2
 # ── 경로 설정 ──────────────────────────────────────────────────────────────────
 _DIR      = os.path.dirname(os.path.abspath(__file__))
 MODEL_DIR = os.path.join(_DIR, "..", "models")
+RASP_DIR  = os.path.join(_DIR, "..", "..", "raspberry")
 
 # ── 모델 로드 (신규 fp32 + 기존 비교용) ───────────────────────────────────────
 def load_interpreter(model_filename):
@@ -78,7 +79,7 @@ def save_log(score_fp32, score_orig, success, attempts, face_size):
     print(f"[LOG] fp32={score_fp32:.4f}  orig={score_orig:.4f}  diff={log['diff']:+.4f}")
 
 # ── 사용자 임베딩 로드 ─────────────────────────────────────────────────────────
-user_path = os.path.join(_DIR, "..", "user_data", "user_002.json")
+user_path = os.path.join(RASP_DIR, "user_data", "user_002.json")
 with open(user_path, "r") as f:
     raw_emb = json.load(f)["embedding"]
 
