@@ -23,8 +23,9 @@ mp_draw_styles = mp.solutions.drawing_styles
 #   wget -q https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/latest/hand_landmarker.task
 #   wget -q https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/latest/face_landmarker.task
 # ----------------------
-HAND_MODEL_PATH = "hand_landmarker.task"
-FACE_MODEL_PATH = "face_landmarker.task"
+_DIR = os.path.dirname(os.path.abspath(__file__))
+HAND_MODEL_PATH = os.path.join(_DIR, "..", "models", "hand_landmarker.task")
+FACE_MODEL_PATH = os.path.join(_DIR, "..", "models", "face_landmarker.task")
 
 # 모델 파일 존재 여부 확인
 for path, name in [(HAND_MODEL_PATH, "Hand"), (FACE_MODEL_PATH, "Face")]:
@@ -79,7 +80,9 @@ def to_pixel(landmark, w, h):
 # 카메라 설정 (기존 Picamera2 설정 유지)
 # ----------------------
 picam2 = Picamera2()
-picam2.configure(picam2.create_preview_configuration(main={"size": (640, 480)}))
+picam2.configure(picam2.create_preview_configuration(
+    main={"format": "BGR888", "size": (640, 480)}
+))
 picam2.start()
 
 # ----------------------

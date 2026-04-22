@@ -31,7 +31,9 @@ face_mesh = mp_face_mesh.FaceMesh(
 # 카메라 설정 (기존 Picamera2 설정 유지)
 # ----------------------
 picam2 = Picamera2()
-picam2.configure(picam2.create_preview_configuration(main={"size": (640, 480)}))
+picam2.configure(picam2.create_preview_configuration(
+    main={"format": "BGR888", "size": (640, 480)}
+))
 picam2.start()
 
 # 복약 판정용 변수

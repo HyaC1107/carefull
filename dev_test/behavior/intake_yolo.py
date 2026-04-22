@@ -28,7 +28,9 @@ CLASS_PILL = 2
 # 2. 카메라 설정 (기존 유지)
 # ----------------------
 picam2 = Picamera2()
-picam2.configure(picam2.create_preview_configuration(main={"size": (640, 480)}))
+picam2.configure(picam2.create_preview_configuration(
+    main={"format": "BGR888", "size": (640, 480)}
+))
 picam2.start()
 
 # ----------------------
