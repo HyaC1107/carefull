@@ -63,11 +63,15 @@ function MobileBottomNav({ activeMenu = 'dashboard' }) {
           break
 
         case 'patient':
-        case 'settings':
-          console.log(`${menuKey} 페이지는 나중에 연결 예정`)
+          navigate('/patient')
           setIsMoreOpen(false)
           break
-
+          
+        case 'settings':
+          navigate('/settings')
+          setIsMoreOpen(false)
+          break
+          
         default:
           break
       }

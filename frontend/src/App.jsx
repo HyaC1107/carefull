@@ -4,6 +4,8 @@ import DashboardPage from './pages/DashboardPage'
 import SchedulePage from './pages/SchedulePage'
 import StatsPage from './pages/StatsPage'
 import AlertsPage from './pages/AlertsPage'
+import PatientPage from './pages/PatientPage'
+import SettingsPage from './pages/SettingsPage'
 
 function App() {
   return (
@@ -25,6 +27,12 @@ function App() {
 
       {/* 알림 페이지 */}
       <Route path="/alerts" element={<AlertsPage />} />
+
+      {/* 환자정보 페이지 */}
+      <Route path="/patient" element={<PatientPage />} />
+
+      {/* 설정 페이지 */}
+      <Route path="/settings" element={<SettingsPage />} />
 
       {/* 없는 주소로 들어오면 로그인 페이지로 보냄 */}
       <Route path="*" element={<Navigate to="/login" replace />} />

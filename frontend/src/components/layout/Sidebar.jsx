@@ -5,14 +5,14 @@ import '../../styles/Sidebar.css'
 // 현재는 대시보드(/dashboard), 복약 일정(/schedule) 페이지 이동이 연결되어 있습니다.
 // 통계 / 알림 / 환자 정보 / 설정 페이지는 아직 준비 중이며,
 // 나중에 React Router 경로가 만들어지면 navigate()를 추가로 연결하면 됩니다.
-function Sidebar({ activeMenu = 'dashboard' }) {
+function Sidebar({ activeMenu = 'dashboard', alertCount = 0 }) {
   const navigate = useNavigate()
 
   const menuItems = [
     { key: 'dashboard', label: '대시보드' },
     { key: 'schedule', label: '복약 일정' },
     { key: 'stats', label: '통계' },
-    { key: 'alerts', label: '알림' },
+    { key: 'alerts', label: '알림', badgeCount: alertCount },
     { key: 'patient', label: '환자 정보' },
     { key: 'settings', label: '설정' },
   ]
@@ -31,7 +31,13 @@ function Sidebar({ activeMenu = 'dashboard' }) {
       case 'alerts':
         navigate('/alerts')
         break
-      default:
+      case 'patient':
+        navigate('/patient')
+        break
+      case 'settings':
+        navigate('/settings')
+        break 
+    default:
         console.log(`${menuKey} 페이지는 나중에 연결 예정`)
         break
     }
@@ -73,10 +79,15 @@ function Sidebar({ activeMenu = 'dashboard' }) {
               className={`sidebar__menu-button ${isActive ? 'sidebar__menu-button--active' : ''}`}
               onClick={() => handleMenuClick(item.key)}
             >
-              <span className="sidebar__menu-icon" aria-hidden="true">
-                {renderMenuIcon(item.key)}
+            <span className="sidebar__menu-icon" aria-hidden="true">
+              {renderMenuIcon(item.key)}
               </span>
-              <span>{item.label}</span>
+
+              <span className="sidebar__menu-text">{item.label}</span>
+
+              {item.badgeCount > 0 ? (
+                <span className="sidebar__menu-badge">{item.badgeCount}</span>
+              ) : null}
             </button>
           )
         })}

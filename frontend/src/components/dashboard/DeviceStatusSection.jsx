@@ -35,19 +35,26 @@ function DeviceStatusSection({ deviceStatus }) {
         {/* 약 잔량 카드 */}
         <div className="dashboard-device__status-card dashboard-device__status-card--blue">
           <div className="dashboard-device__status-icon" aria-hidden="true">
-            {/* 물방울 아이콘 */}
+            {/* 알약 아이콘 */}
             <svg
               viewBox="0 0 24 24"
-              width="38"
-              height="38"
-              fill="#2563eb"
+              width="42"
+              height="42"
+              fill="none"
+              stroke="#2563eb"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
             >
-              <path d="M12 2c-.7 1.2-5.5 7-5.5 11.1A5.5 5.5 0 0 0 12 18.6a5.5 5.5 0 0 0 5.5-5.5C17.5 9 12.7 3.2 12 2Z" />
+              <g transform="rotate(-45 12 12)">
+                <rect x="5" y="8.5" width="14" height="7" rx="3.5" />
+                <line x1="12" y1="8.5" x2="12" y2="15.5" />
+              </g>
             </svg>
           </div>
-          <p className="dashboard-device__label">약 잔량</p>
+          <p className="dashboard-device__label">남은 복용 횟수</p>
           <p className="dashboard-device__value dashboard-device__value--blue">
-            {deviceStatus.medicineLeftPercent}
+            {deviceStatus.remainingDoses}
           </p>
         </div>
       </div>
