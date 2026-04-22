@@ -17,7 +17,6 @@ const device_router = require('./routes/device');
 const face_data_router = require('./routes/face-data');
 const notification_router = require('./routes/notification');
 const activity_router = require('./routes/activity');
-const prescription_router = require('./routes/prescription');
 
 const { startMissedLogJob } = require('./jobs/missed-activity-job');
 
@@ -47,7 +46,6 @@ app.use('/api/device', device_router);
 app.use('/api/face-data', face_data_router);
 app.use('/api/notification', notification_router);
 app.use('/api/log', activity_router);
-app.use('/api/prescription', prescription_router);
 
 https.createServer(ssl_options, app).listen(port, () => {
     console.log(`Care-full server is running on port ${port}.`);
