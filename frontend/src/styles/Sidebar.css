@@ -6,6 +6,9 @@
   padding-bottom: 24px;
   display: flex;
   flex-direction: column;
+  position: sticky;
+  top: 0;
+  align-self: flex-start;
 }
 
 .sidebar__brand {
@@ -140,4 +143,26 @@
   .sidebar {
     display: none;
   }
+}
+
+/* 사이드바 메뉴 글자 */
+.sidebar__menu-text {
+  flex: 1;
+  text-align: left;
+}
+
+/* 알림 숫자 뱃지 */
+.sidebar__menu-badge {
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: #1d4ed8;
+  color: #ffffff;
+  font-size: 0.7rem;
+  font-weight: 800;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
 }

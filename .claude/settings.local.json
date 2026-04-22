@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(grep -oE '\\\\.[^.]+$')",
+      "Bash(xargs cat *)",
+      "Bash(iconv *)",
+      "Bash(python3 *)",
+      "Bash(python *)",
+      "Bash(mv test.jpg test2.jpg test3.jpg test4.jpg test5.jpg test_images/)",
+      "Bash(rm intake_detector.py intake_tasks.py intake_yolo.py face_test.py test_behavior.py)"
+    ]
+  }
+}

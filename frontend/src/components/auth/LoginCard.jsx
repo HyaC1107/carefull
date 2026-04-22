@@ -30,16 +30,19 @@ function LoginCard({ onKakaoLogin, onNaverLogin, onGoogleLogin }) {
         <SocialLoginButton
           provider="kakao"
           label="카카오 로그인"
+          className="login-card__button login-card__button--kakao"
           onClick={onKakaoLogin}
         />
         <SocialLoginButton
           provider="naver"
           label="네이버 로그인"
+          className="login-card__button login-card__button--naver"
           onClick={onNaverLogin}
         />
         <SocialLoginButton
           provider="google"
           label="구글 로그인"
+          className="login-card__button login-card__button--google"
           onClick={onGoogleLogin}
         />
       </div>

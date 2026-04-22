@@ -1,5 +1,5 @@
-from raspberry.config.settings import MODEL_PATH
-from raspberry.face_recognition.model_loader import FaceModel
+from config.settings import MODEL_PATH
+from face_recognition.model_loader import FaceModel
 
 model = FaceModel(MODEL_PATH)
 
