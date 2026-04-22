@@ -1,22 +1,23 @@
 """
 비교 테스트: MediaPipe Pose 단독
 판단 로직: 코(0) ↔ 왼손목(15) / 오른손목(16) 중 가까운 쪽 거리
+카메라: Raspberry Pi Camera Module 3 (Picamera2, BGR888)
 """
 import time
 
 import cv2
 import mediapipe as mp
 import numpy as np
+from picamera2 import Picamera2
 
 # ── 설정 ──────────────────────────────────────────────────────────────────────
-INTAKE_DISTANCE_THRESHOLD = 0.15   # Pose 좌표는 FaceMesh보다 넓게 잡힘
+INTAKE_DISTANCE_THRESHOLD = 0.15
 SUCCESS_REQUIRED_FRAMES   = 5
 PRINT_INTERVAL            = 30
 
-# ── Keypoint 인덱스 (MediaPipe Pose COCO 33점) ─────────────────────────────────
-NOSE     = 0
-L_WRIST  = 15
-R_WRIST  = 16
+NOSE    = 0
+L_WRIST = 15
+R_WRIST = 16
 
 # ── MediaPipe 초기화 ───────────────────────────────────────────────────────────
 mp_pose = mp.solutions.pose
@@ -29,10 +30,12 @@ pose = mp_pose.Pose(
     min_tracking_confidence=0.5,
 )
 
-# ── 웹캠 ──────────────────────────────────────────────────────────────────────
-cap = cv2.VideoCapture(0)
-if not cap.isOpened():
-    raise RuntimeError("웹캠을 열 수 없습니다.")
+# ── 카메라 초기화 ──────────────────────────────────────────────────────────────
+picam2 = Picamera2()
+picam2.configure(picam2.create_preview_configuration(
+    main={"format": "BGR888", "size": (640, 480)}
+))
+picam2.start()
 
 intake_counter = 0
 total_frames   = 0
@@ -44,17 +47,13 @@ print(f"  keypoints: nose={NOSE}, wrists={L_WRIST}/{R_WRIST}")
 print(f"  threshold={INTAKE_DISTANCE_THRESHOLD}  success_frames={SUCCESS_REQUIRED_FRAMES}")
 
 try:
-    while cap.isOpened():
-        ret, frame = cap.read()
-        if not ret:
-            break
-
-        total_frames += 1
+    while True:
+        frame = picam2.capture_array()          # BGR
         frame = cv2.flip(frame, 1)
+        total_frames += 1
         h, w  = frame.shape[:2]
         rgb   = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 
-        # ── 추론 ──────────────────────────────────────────────────────────────
         results = pose.process(rgb)
 
         is_near      = False
@@ -63,7 +62,6 @@ try:
         if results.pose_landmarks:
             lm = results.pose_landmarks.landmark
 
-            # Pose 전체 스켈레톤 시각화
             mp_draw.draw_landmarks(
                 frame, results.pose_landmarks, mp_pose.POSE_CONNECTIONS,
                 mp_draw.DrawingSpec(color=(0, 255, 0), thickness=2, circle_radius=3),
@@ -78,8 +76,8 @@ try:
             lw_pt   = (int(l_wrist.x * w), int(l_wrist.y * h))
             rw_pt   = (int(r_wrist.x * w), int(r_wrist.y * h))
 
-            cv2.circle(frame, nose_pt, 8, (255, 255,   0), -1)   # 노란색: 코
-            cv2.circle(frame, lw_pt,   8, (  0, 255, 255), -1)   # 하늘색: 손목
+            cv2.circle(frame, nose_pt, 8, (255, 255,   0), -1)
+            cv2.circle(frame, lw_pt,   8, (  0, 255, 255), -1)
             cv2.circle(frame, rw_pt,   8, (  0, 255, 255), -1)
 
             dist_l = np.hypot(l_wrist.x - nose.x, l_wrist.y - nose.y)
@@ -102,12 +100,10 @@ try:
         if is_near:
             near_frames += 1
 
-        # ── FPS ───────────────────────────────────────────────────────────────
         curr_time = time.time()
         fps       = 1.0 / max(curr_time - prev_time, 1e-9)
         prev_time = curr_time
 
-        # ── 오버레이 ──────────────────────────────────────────────────────────
         color = (0, 255, 0) if is_near else (0, 0, 255)
 
         if intake_counter >= SUCCESS_REQUIRED_FRAMES:
@@ -117,13 +113,12 @@ try:
         cv2.putText(frame, f"FPS: {fps:.1f}",
                     (w - 140, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
         cv2.putText(frame, f"Dist:  {current_dist:.4f}",
-                    (10, 30),  cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 2)
+                    (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 2)
         cv2.putText(frame, f"Count: {intake_counter}/{SUCCESS_REQUIRED_FRAMES}",
-                    (10, 60),  cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 2)
+                    (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 2)
 
         cv2.imshow("MP Pose | Intake Detection", frame)
 
-        # ── 터미널 출력 ───────────────────────────────────────────────────────
         if total_frames % PRINT_INTERVAL == 0:
             rate = near_frames / total_frames * 100
             print(f"[{total_frames:5d}f]  FPS={fps:5.1f}  감지율={rate:5.1f}%")
@@ -134,6 +129,6 @@ try:
 finally:
     rate = near_frames / max(total_frames, 1) * 100
     print(f"\n종료  |  총 {total_frames}프레임  |  복약 감지율: {rate:.1f}%")
-    cap.release()
+    picam2.stop()
     cv2.destroyAllWindows()
     pose.close()
