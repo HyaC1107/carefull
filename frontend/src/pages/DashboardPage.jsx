@@ -1,3 +1,4 @@
+
 import Sidebar from '../components/layout/Sidebar'
 import TopHeader from '../components/layout/TopHeader'
 import MobileBottomNav from '../components/layout/MobileBottomNav'
@@ -31,6 +32,7 @@ function DashboardPage() {
 
           {/* 실제 본문 콘텐츠 */}
           <main className="dashboard-content">
+            
             {/* 상단 요약 카드 4개 */}
             <section className="dashboard-summary-grid">
               {summaryCards.map((card) => (
