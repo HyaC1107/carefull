@@ -163,6 +163,28 @@ const find_duplicate_device_activity = async (client, payload) => {
     return rows[0] || null;
 };
 
+const touch_device_last_ping_by_patient_id = async (executor, patient_id) => {
+    await executor.query(
+        `
+            UPDATE devices
+            SET last_ping = CURRENT_TIMESTAMP
+            WHERE patient_id = $1
+        `,
+        [patient_id]
+    );
+};
+
+const touch_device_last_ping_by_device_uid = async (executor, device_uid) => {
+    await executor.query(
+        `
+            UPDATE devices
+            SET last_ping = CURRENT_TIMESTAMP
+            WHERE device_uid = $1
+        `,
+        [String(device_uid).trim()]
+    );
+};
+
 router.post('/', verifyToken, async (req, res) => {
     const mem_id = req.user.mem_id;
 
@@ -255,6 +277,8 @@ router.post('/', verifyToken, async (req, res) => {
             is_ai_check: is_ai_check ?? false,
             similarity_score: parsed_similarity_score
         });
+
+        await touch_device_last_ping_by_patient_id(client, patient_id);
 
         const activity = to_activity_response(inserted_activity);
 
@@ -459,6 +483,7 @@ router.post('/device-event', async (req, res) => {
         const duplicated_activity = await find_duplicate_device_activity(client, activity_payload);
 
         if (duplicated_activity) {
+            await touch_device_last_ping_by_device_uid(client, device_uid);
             return sendSuccess(res, 200, {
                 message: 'Duplicate device event ignored. Existing activity returned.',
                 activity: to_activity_response(duplicated_activity),
@@ -477,6 +502,7 @@ router.post('/device-event', async (req, res) => {
         transaction_started = true;
 
         const inserted_activity = await insert_activity(client, activity_payload);
+        await touch_device_last_ping_by_device_uid(client, device_uid);
 
         await client.query('COMMIT');
         transaction_started = false;

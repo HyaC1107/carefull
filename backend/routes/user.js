@@ -8,6 +8,7 @@ const { verifyToken } = require('../middleware/auth');
 
 const {
     JWT_SECRET,
+    FRONTEND_URL,
     KAKAO_CLIENT_ID,
     KAKAO_CLIENT_SECRET,
     KAKAO_REDIRECT_URI,
@@ -19,7 +20,63 @@ const {
     NAVER_REDIRECT_URI
 } = process.env;
 
-const handle_social_login = async (social_data, provider, res) => {
+const RESOLVED_FRONTEND_URL = FRONTEND_URL || 'http://192.168.219.225.nip.io:5173';
+
+const build_kakao_authorize_url = () => {
+    const params = new URLSearchParams({
+        client_id: KAKAO_CLIENT_ID,
+        redirect_uri: KAKAO_REDIRECT_URI,
+        response_type: 'code',
+        prompt: 'select_account'
+    });
+
+    return `https://kauth.kakao.com/oauth/authorize?${params.toString()}`;
+};
+
+const build_google_authorize_url = () => {
+    const params = new URLSearchParams({
+        client_id: GOOGLE_CLIENT_ID,
+        redirect_uri: GOOGLE_REDIRECT_URI,
+        response_type: 'code',
+        scope: 'email profile',
+        prompt: 'select_account'
+    });
+
+    return `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`;
+};
+
+const build_naver_authorize_url = () => {
+    const params = new URLSearchParams({
+        response_type: 'code',
+        client_id: NAVER_CLIENT_ID,
+        redirect_uri: NAVER_REDIRECT_URI,
+        state: `carefull_${Date.now()}`
+    });
+
+    return `https://nid.naver.com/oauth2.0/authorize?${params.toString()}`;
+};
+
+const build_frontend_callback_url = ({ provider, token, is_new_user, error }) => {
+    const callback_url = new URL(`/login/callback/${provider}`, RESOLVED_FRONTEND_URL);
+
+    callback_url.searchParams.set('provider', provider);
+
+    if (token) {
+        callback_url.searchParams.set('token', token);
+    }
+
+    if (typeof is_new_user === 'boolean') {
+        callback_url.searchParams.set('isNewUser', String(is_new_user));
+    }
+
+    if (error) {
+        callback_url.searchParams.set('error', error);
+    }
+
+    return callback_url.toString();
+};
+
+const handle_social_login = async (social_data, provider) => {
     try {
         const find_query = `
             SELECT mem_id, nick
@@ -61,7 +118,7 @@ const handle_social_login = async (social_data, provider, res) => {
             { expiresIn: '2h' }
         );
 
-        return res.status(200).json({
+        return {
             success: true,
             token: access_token,
             is_new_user,
@@ -71,15 +128,27 @@ const handle_social_login = async (social_data, provider, res) => {
                 nick,
                 provider
             }
-        });
+        };
     } catch (error) {
         console.error(`${provider} login error:`, error);
-        return res.status(500).json({
+        return {
             success: false,
             message: 'Server error while processing social login.'
-        });
+        };
     }
 };
+
+router.get('/kakao', (req, res) => {
+    return res.redirect(build_kakao_authorize_url());
+});
+
+router.get('/google', (req, res) => {
+    return res.redirect(build_google_authorize_url());
+});
+
+router.get('/naver', (req, res) => {
+    return res.redirect(build_naver_authorize_url());
+});
 
 router.get('/callback', async (req, res) => {
     try {
@@ -105,17 +174,30 @@ router.get('/callback', async (req, res) => {
             }
         });
 
-        return handle_social_login({
+        const login_result = await handle_social_login({
             id: user_response.data.id.toString(),
             nickname: user_response.data.properties.nickname,
             email: user_response.data.kakao_account.email || null,
             profile_img: user_response.data.properties.profile_image || null
-        }, 'kakao', res);
+        }, 'kakao');
+
+        if (!login_result.success || !login_result.token) {
+            return res.redirect(build_frontend_callback_url({
+                provider: 'kakao',
+                error: login_result.message || 'Kakao authentication failed.'
+            }));
+        }
+
+        return res.redirect(build_frontend_callback_url({
+            provider: 'kakao',
+            token: login_result.token,
+            is_new_user: login_result.is_new_user
+        }));
     } catch (error) {
-        return res.status(500).json({
-            success: false,
-            message: 'Kakao authentication failed.'
-        });
+        return res.redirect(build_frontend_callback_url({
+            provider: 'kakao',
+            error: 'Kakao authentication failed.'
+        }));
     }
 });
 
@@ -138,17 +220,30 @@ router.get('/google/callback', async (req, res) => {
             }
         );
 
-        return handle_social_login({
+        const login_result = await handle_social_login({
             id: user_response.data.sub,
             nickname: user_response.data.name,
             email: user_response.data.email,
             profile_img: user_response.data.picture || null
-        }, 'google', res);
+        }, 'google');
+
+        if (!login_result.success || !login_result.token) {
+            return res.redirect(build_frontend_callback_url({
+                provider: 'google',
+                error: login_result.message || 'Google authentication failed.'
+            }));
+        }
+
+        return res.redirect(build_frontend_callback_url({
+            provider: 'google',
+            token: login_result.token,
+            is_new_user: login_result.is_new_user
+        }));
     } catch (error) {
-        return res.status(500).json({
-            success: false,
-            message: 'Google authentication failed.'
-        });
+        return res.redirect(build_frontend_callback_url({
+            provider: 'google',
+            error: 'Google authentication failed.'
+        }));
     }
 });
 
@@ -172,17 +267,30 @@ router.get('/naver/callback', async (req, res) => {
 
         const { response } = user_response.data;
 
-        return handle_social_login({
+        const login_result = await handle_social_login({
             id: response.id,
             nickname: response.nickname,
             email: response.email,
             profile_img: response.profile_image || null
-        }, 'naver', res);
+        }, 'naver');
+
+        if (!login_result.success || !login_result.token) {
+            return res.redirect(build_frontend_callback_url({
+                provider: 'naver',
+                error: login_result.message || 'Naver authentication failed.'
+            }));
+        }
+
+        return res.redirect(build_frontend_callback_url({
+            provider: 'naver',
+            token: login_result.token,
+            is_new_user: login_result.is_new_user
+        }));
     } catch (error) {
-        return res.status(500).json({
-            success: false,
-            message: 'Naver authentication failed.'
-        });
+        return res.redirect(build_frontend_callback_url({
+            provider: 'naver',
+            error: 'Naver authentication failed.'
+        }));
     }
 });
 
@@ -197,17 +305,23 @@ router.post('/dev-login', async (req, res) => {
         });
     }
 
-    return handle_social_login({
+    const login_result = await handle_social_login({
         id: String(social_id),
         nickname: resolved_nick,
         email: email || '',
         profile_img: ''
-    }, provider, res);
+    }, provider);
+
+    if (!login_result.success) {
+        return res.status(500).json(login_result);
+    }
+
+    return res.status(200).json(login_result);
 });
 
 router.post('/register-patient', verifyToken, async (req, res) => {
     const mem_id = req.user.mem_id;
-    const { birthdate, gender, bloodtype, height, weight, serial_number } = req.body;
+    const { patient_name, birthdate, gender, bloodtype, height, weight, serial_number } = req.body;
     const client = await pool.connect();
 
     try {
@@ -217,6 +331,7 @@ router.post('/register-patient', verifyToken, async (req, res) => {
             `
                 INSERT INTO patients (
                     mem_id,
+                    patient_name,
                     birthdate,
                     gender,
                     bloodtype,
@@ -229,12 +344,12 @@ router.post('/register-patient', verifyToken, async (req, res) => {
                     guardian_phone
                 )
                 VALUES (
-                    $1, $2, $3, $4, $5, $6,
+                    $1, $2, $3, $4, $5, $6, $7,
                     '', '', 0, '', ''
                 )
                 RETURNING patient_id
             `,
-            [mem_id, birthdate, gender, bloodtype, height, weight]
+            [mem_id, patient_name, birthdate, gender, bloodtype, height, weight]
         );
         const patient_id = patient_result.rows[0].patient_id;
 
@@ -244,7 +359,8 @@ router.post('/register-patient', verifyToken, async (req, res) => {
                 SET
                     patient_id = $1,
                     device_status = 'REGISTERED',
-                    registered_at = CURRENT_TIMESTAMP
+                    registered_at = CURRENT_TIMESTAMP,
+                    last_ping = CURRENT_TIMESTAMP
                 WHERE device_uid = $2
                 RETURNING device_id
             `,

@@ -1,5 +1,6 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
 import LoginPage from './pages/LoginPage'
+import SocialCallbackPage from './pages/SocialCallbackPage'
 import DashboardPage from './pages/DashboardPage'
 import SchedulePage from './pages/SchedulePage'
 import StatsPage from './pages/StatsPage'
@@ -15,6 +16,7 @@ function App() {
 
       {/* 로그인 페이지 */}
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/login/callback/:provider" element={<SocialCallbackPage />} />
 
       {/* 대시보드 페이지 */}
       <Route path="/dashboard" element={<DashboardPage />} />
@@ -30,6 +32,7 @@ function App() {
 
       {/* 환자정보 페이지 */}
       <Route path="/patient" element={<PatientPage />} />
+      <Route path="/register-patient" element={<PatientPage />} />
 
       {/* 설정 페이지 */}
       <Route path="/settings" element={<SettingsPage />} />

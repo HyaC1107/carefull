@@ -8,6 +8,7 @@ const { sendSuccess, sendError } = require('../utils/response');
 
 const validate_patient_payload = (body) => {
     const required_fields = [
+        'patient_name',
         'birthdate',
         'gender',
         'phone',
@@ -26,6 +27,7 @@ const validate_patient_payload = (body) => {
 const to_patient_response = (row) => ({
     patient_id: row.patient_id,
     mem_id: row.mem_id,
+    patient_name: row.patient_name,
     birthdate: row.birthdate,
     gender: row.gender,
     phone: row.phone,
@@ -44,6 +46,7 @@ router.post('/register', verifyToken, async (req, res) => {
     const mem_id = req.user.mem_id;
 
     const {
+        patient_name,
         birthdate,
         gender,
         phone,
@@ -102,6 +105,7 @@ router.post('/register', verifyToken, async (req, res) => {
         const insert_query = `
             INSERT INTO patients (
                 mem_id,
+                patient_name,
                 birthdate,
                 gender,
                 phone,
@@ -114,11 +118,12 @@ router.post('/register', verifyToken, async (req, res) => {
                 guardian_phone
             )
             VALUES (
-                $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11
+                $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12
             )
             RETURNING
                 patient_id,
                 mem_id,
+                patient_name,
                 birthdate,
                 gender,
                 phone,
@@ -135,6 +140,7 @@ router.post('/register', verifyToken, async (req, res) => {
 
         const { rows } = await pool.query(insert_query, [
             mem_id,
+            patient_name,
             birthdate,
             gender,
             phone,
@@ -165,6 +171,7 @@ router.get('/me', verifyToken, async (req, res) => {
             SELECT
                 patient_id,
                 mem_id,
+                patient_name,
                 birthdate,
                 gender,
                 phone,
@@ -201,6 +208,7 @@ router.put('/me', verifyToken, async (req, res) => {
     const mem_id = req.user.mem_id;
 
     const {
+        patient_name,
         birthdate,
         gender,
         phone,
@@ -251,21 +259,23 @@ router.put('/me', verifyToken, async (req, res) => {
         const update_query = `
             UPDATE patients
             SET
-                birthdate = $1,
-                gender = $2,
-                phone = $3,
-                address = $4,
-                bloodtype = $5,
-                height = $6,
-                weight = $7,
-                fingerprint_id = $8,
-                guardian_name = $9,
-                guardian_phone = $10,
+                patient_name = $1,
+                birthdate = $2,
+                gender = $3,
+                phone = $4,
+                address = $5,
+                bloodtype = $6,
+                height = $7,
+                weight = $8,
+                fingerprint_id = $9,
+                guardian_name = $10,
+                guardian_phone = $11,
                 updated_at = CURRENT_TIMESTAMP
-            WHERE mem_id = $11
+            WHERE mem_id = $12
             RETURNING
                 patient_id,
                 mem_id,
+                patient_name,
                 birthdate,
                 gender,
                 phone,
@@ -281,6 +291,7 @@ router.put('/me', verifyToken, async (req, res) => {
         `;
 
         const { rows } = await pool.query(update_query, [
+            patient_name,
             birthdate,
             gender,
             phone,

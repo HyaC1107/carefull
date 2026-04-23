@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Sidebar from '../components/layout/Sidebar'
 import TopHeader from '../components/layout/TopHeader'
 import MobileBottomNav from '../components/layout/MobileBottomNav'
@@ -9,49 +9,107 @@ import PatientEmptyState from '../components/patient/PatientEmptyState'
 import DeviceRegisterModal from '../components/patient/DeviceRegisterModal'
 import PatientRegisterModal from '../components/patient/PatientRegisterModal'
 import {
-  deviceDetail,
-  deviceStatusList,
-  medications,
-  patientProfile,
-} from '../data/patientMock'
+  getStoredAuthPayload,
+  hasStoredToken,
+  requestJson,
+} from '../api'
 import '../styles/PatientPage.css'
 import '../styles/MobileBottomNav.css'
 
+const DEFAULT_DEVICE_DETAIL = {
+  modelName: 'Carefull Device',
+  serialNumber: '-',
+  installedAt: '-',
+  firmwareVersion: '-',
+}
+
 function PatientPage() {
-  // 지금은 mock 기준으로 "미등록 상태"부터 시작
   const [patientData, setPatientData] = useState(null)
   const [deviceData, setDeviceData] = useState(null)
-
+  const [medications, setMedications] = useState([])
+  const [pendingDevice, setPendingDevice] = useState(null)
   const [isDeviceModalOpen, setIsDeviceModalOpen] = useState(false)
   const [isPatientModalOpen, setIsPatientModalOpen] = useState(false)
 
+  useEffect(() => {
+    const fetchPatientPageData = async () => {
+      if (!hasStoredToken()) {
+        return
+      }
+
+      try {
+        const [patientResponse, deviceResponse, scheduleResponse, medicationResponse] =
+          await Promise.all([
+            requestJson('/api/patient/me', { auth: true }).catch(() => null),
+            requestJson('/api/device/me', { auth: true }).catch(() => null),
+            requestJson('/api/schedule', { auth: true }).catch(() => null),
+            requestJson('/api/medication').catch(() => null),
+          ])
+
+        const nickname = getStoredAuthPayload()?.nick || '등록 사용자'
+
+        setPatientData(mapPatientProfile(patientResponse?.patient, nickname))
+        setDeviceData(mapDeviceDetail(deviceResponse?.device))
+        setMedications(
+          mapPatientMedications(
+            scheduleResponse?.schedules,
+            medicationResponse?.data,
+          ),
+        )
+      } catch (error) {
+        console.error('patient page fetch error:', error)
+      }
+    }
+
+    fetchPatientPageData()
+  }, [])
+
   const hasPatient = Boolean(patientData)
-  const hasDevice = Boolean(deviceData)
+  const hasDevice = Boolean(deviceData || pendingDevice)
 
   const handleDeviceRegisterSuccess = (newDevice) => {
-    setDeviceData(newDevice)
+    setPendingDevice({
+      serialNumber: newDevice.serialNumber?.trim() || '',
+      deviceName: newDevice.deviceName?.trim() || '',
+    })
     setIsDeviceModalOpen(false)
   }
 
-  const handlePatientRegisterSuccess = (newPatient) => {
-    setPatientData({
-      ...patientProfile,
-      name: newPatient.name || patientProfile.name,
-      ageGenderBlood:
-        `${newPatient.birthDate ? newPatient.birthDate : '76세'} · ${newPatient.gender || '여성'} · ${newPatient.bloodType || '혈액형 A형'}`,
-      phone: newPatient.phone || patientProfile.phone,
-      address: newPatient.address || patientProfile.address,
-      guardianName: newPatient.guardianName
-        ? `${newPatient.guardianName} (보호자)`
-        : patientProfile.guardianName,
-      guardianPhone: newPatient.guardianPhone || patientProfile.guardianPhone,
-      physicalInfo:
-        `${newPatient.height ? `키 ${newPatient.height}cm` : '키 158cm'} · ${
-          newPatient.weight ? `체중 ${newPatient.weight}kg` : '체중 62kg'
-        }`,
-    })
+  const handlePatientRegisterSuccess = async (newPatient) => {
+    if (!pendingDevice?.serialNumber || !hasStoredToken()) {
+      return
+    }
 
-    setIsPatientModalOpen(false)
+    try {
+      await requestJson('/api/user/register-patient', {
+        method: 'POST',
+        auth: true,
+        body: {
+          patient_name: newPatient.name || '',
+          birthdate: newPatient.birthDate || '',
+          gender: newPatient.gender || '',
+          bloodtype: newPatient.bloodType || '',
+          height: toNumber(newPatient.height),
+          weight: toNumber(newPatient.weight),
+          serial_number: pendingDevice.serialNumber,
+        },
+      })
+
+      const [patientResponse, deviceResponse] = await Promise.all([
+        requestJson('/api/patient/me', { auth: true }),
+        requestJson('/api/device/me', { auth: true }).catch(() => null),
+      ])
+
+      const nickname = getStoredAuthPayload()?.nick || '등록 사용자'
+
+      setPatientData(mapPatientProfile(patientResponse?.patient, nickname))
+      setDeviceData(mapDeviceDetail(deviceResponse?.device))
+      setPendingDevice(null)
+      setIsPatientModalOpen(false)
+    } catch (error) {
+      console.error('patient register error:', error)
+      alert(error.message || '환자 등록에 실패했습니다.')
+    }
   }
 
   return (
@@ -81,12 +139,8 @@ function PatientPage() {
                 <PatientProfileCard profile={patientData} />
                 <MedicationListCard medications={medications} />
                 <DeviceInfoCard
-                  statusList={deviceStatusList}
-                  detail={{
-                    ...deviceDetail,
-                    serialNumber:
-                      deviceData?.serialNumber || deviceDetail.serialNumber,
-                  }}
+                  statusList={buildDeviceStatusList(deviceData)}
+                  detail={deviceData?.detail || DEFAULT_DEVICE_DETAIL}
                 />
               </>
             )}
@@ -111,6 +165,125 @@ function PatientPage() {
       ) : null}
     </div>
   )
+}
+
+function mapPatientProfile(patient, nickname) {
+  if (!patient) {
+    return null
+  }
+
+  return {
+    name: patient.patient_name || nickname || '등록 사용자',
+    ageGenderBlood: `${patient.birthdate || '-'} · ${patient.gender || '-'} · ${
+      patient.bloodtype || '-'
+    }`,
+    phone: patient.phone || '-',
+    address: patient.address || '-',
+    guardianName: patient.guardian_name || '-',
+    guardianPhone: patient.guardian_phone || '-',
+    registeredAt: formatDate(patient.created_at),
+    physicalInfo: `키 ${patient.height ?? '-'}cm · 체중 ${
+      patient.weight ?? '-'
+    }kg`,
+  }
+}
+
+function mapDeviceDetail(device) {
+  if (!device) {
+    return null
+  }
+
+  return {
+    detail: {
+      modelName: 'Carefull Device',
+      serialNumber: device.device_uid || '-',
+      installedAt: formatDate(device.registered_at),
+      firmwareVersion: '-',
+    },
+    isConnected: Boolean(device.is_connected),
+    status: device.device_status || '-',
+    lastPing: formatDate(device.last_ping),
+  }
+}
+
+function buildDeviceStatusList(deviceData) {
+  if (!deviceData) {
+    return [
+      { id: 'connection', label: '연결 상태', value: '미연결', type: 'success' },
+      { id: 'status', label: '디바이스 상태', value: '-', type: 'primary' },
+      { id: 'sync', label: '마지막 동기화', value: '-', type: 'info' },
+    ]
+  }
+
+  return [
+    {
+      id: 'connection',
+      label: '연결 상태',
+      value: deviceData.isConnected ? '연결됨' : '연결 안 됨',
+      type: 'success',
+    },
+    {
+      id: 'status',
+      label: '디바이스 상태',
+      value: deviceData.status,
+      type: 'primary',
+    },
+    {
+      id: 'sync',
+      label: '마지막 동기화',
+      value: deviceData.lastPing,
+      type: 'info',
+    },
+  ]
+}
+
+function mapPatientMedications(schedules = [], medications = []) {
+  const medicationMap = medications.reduce((acc, item) => {
+    acc[item.medi_id] = item.medi_name
+    return acc
+  }, {})
+
+  return schedules.map((schedule) => ({
+    id: schedule.sche_id,
+    name: medicationMap[schedule.medi_id] || `약물 ${schedule.medi_id}`,
+    ingredient: `약물 ID ${schedule.medi_id}`,
+    startedAt: formatDate(schedule.start_date),
+    dose: formatTime(schedule.time_to_take),
+    amount:
+      Number(schedule.dose_interval) > 1
+        ? `${schedule.dose_interval}일 간격`
+        : '매일 복용',
+    timing: schedule.end_date
+      ? `${formatDate(schedule.end_date)}까지`
+      : '종료일 없음',
+  }))
+}
+
+function formatDate(value) {
+  if (!value) {
+    return '-'
+  }
+
+  const date = new Date(value)
+
+  if (Number.isNaN(date.getTime())) {
+    return value
+  }
+
+  return date.toLocaleDateString('ko-KR')
+}
+
+function formatTime(value) {
+  if (!value) {
+    return '-'
+  }
+
+  return String(value).slice(0, 5)
+}
+
+function toNumber(value) {
+  const parsed = Number(value)
+  return Number.isFinite(parsed) ? parsed : 0
 }
 
 export default PatientPage

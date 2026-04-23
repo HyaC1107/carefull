@@ -18,6 +18,24 @@ const to_device_response = (row) => ({
     created_at: row.registered_at
 });
 
+const touch_device_last_ping_by_device_id = async (executor, device_id) => {
+    const query = `
+        UPDATE devices
+        SET last_ping = CURRENT_TIMESTAMP
+        WHERE device_id = $1
+        RETURNING
+            device_id,
+            device_uid,
+            patient_id,
+            device_status,
+            last_ping,
+            registered_at
+    `;
+
+    const { rows } = await executor.query(query, [device_id]);
+    return rows[0] || null;
+};
+
 router.post('/ping', async (req, res) => {
     const device_uid = req.body.device_uid ?? req.body.deviceUid;
 
@@ -95,9 +113,10 @@ router.post('/register', verifyToken, async (req, res) => {
         }
 
         if (device.patient_id === patient_id) {
+            const touched_device = await touch_device_last_ping_by_device_id(pool, device.device_id);
             return sendSuccess(res, 200, {
                 message: 'Device is already assigned to this patient.',
-                device: to_device_response(device)
+                device: to_device_response(touched_device || device)
             });
         }
 
@@ -126,7 +145,8 @@ router.post('/register', verifyToken, async (req, res) => {
             SET
                 patient_id = $1,
                 device_status = 'REGISTERED',
-                registered_at = CURRENT_TIMESTAMP
+                registered_at = CURRENT_TIMESTAMP,
+                last_ping = CURRENT_TIMESTAMP
             WHERE device_uid = $2
             RETURNING
                 device_id,

@@ -30,7 +30,8 @@ const get_dashboard_data_by_mem_id = async (mem_id) => {
         return null;
     }
 
-    const [summary, device, today_schedules, recent_notifications, recent_activities] = await Promise.all([
+    const [patient, summary, device, today_schedules, recent_notifications, recent_activities] = await Promise.all([
+        get_patient_header(patient_id),
         get_dashboard_summary(patient_id),
         get_device_status(patient_id),
         get_today_schedules(patient_id),
@@ -39,12 +40,34 @@ const get_dashboard_data_by_mem_id = async (mem_id) => {
     ]);
 
     return {
+        patient_name: patient?.patient_name || null,
+        patient: {
+            patient_name: patient?.patient_name || null,
+            birthdate: patient?.birthdate || null,
+            guardian_name: patient?.guardian_name || null
+        },
         summary,
         device,
         today_schedules,
         recent_notifications,
         recent_activities
     };
+};
+
+const get_patient_header = async (patient_id) => {
+    const query = `
+        SELECT
+            patient_name,
+            birthdate,
+            guardian_name
+        FROM patients
+        WHERE patient_id = $1
+        LIMIT 1
+    `;
+
+    const { rows } = await pool.query(query, [patient_id]);
+
+    return rows[0] || null;
 };
 
 const get_dashboard_summary = async (patient_id) => {

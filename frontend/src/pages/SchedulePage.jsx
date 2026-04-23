@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import ScheduleAddModal from '../components/schedule/ScheduleAddModal'
 import Sidebar from '../components/layout/Sidebar'
 import TopHeader from '../components/layout/TopHeader'
@@ -8,24 +8,72 @@ import MonthlyCalendar from '../components/schedule/MonthlyCalendar'
 import ScheduleSummaryCard from '../components/schedule/ScheduleSummaryCard'
 import ScheduleList from '../components/schedule/ScheduleList'
 import ScheduleInfoBanner from '../components/schedule/ScheduleInfoBanner'
-import {
-  initialScheduleMap,
-  initialScheduleState,
-  scheduleInfoBanner,
-} from '../data/scheduleMock'
+import { hasStoredToken, requestJson } from '../api'
 import '../styles/SchedulePage.css'
 import '../styles/MobileBottomNav.css'
 
+const SCHEDULE_INFO_BANNER = {
+  title: '일정 안내',
+  description: '백엔드에 저장된 복약 일정이 달력과 목록에 표시됩니다.',
+}
+
 function SchedulePage() {
-  const [calendarState, setCalendarState] = useState(initialScheduleState)
-  const [scheduleMap, setScheduleMap] = useState(initialScheduleMap)
+  const [calendarState, setCalendarState] = useState(createInitialCalendarState)
+  const [schedules, setSchedules] = useState([])
+  const [medicationMap, setMedicationMap] = useState({})
+  const [completedOverrides, setCompletedOverrides] = useState({})
+  const [backendCompletedKeys, setBackendCompletedKeys] = useState(new Set())
   const [isAddModalOpen, setIsAddModalOpen] = useState(false)
 
   const { year, month, selectedDate } = calendarState
 
-  const selectedSchedules = useMemo(() => {
-    return scheduleMap[selectedDate] || []
-  }, [scheduleMap, selectedDate])
+  useEffect(() => {
+    const fetchScheduleData = async () => {
+      if (!hasStoredToken()) {
+        return
+      }
+
+      try {
+        const [scheduleData, medicationData, activityData] = await Promise.all([
+          requestJson('/api/schedule', { auth: true }),
+          requestJson('/api/medication'),
+          requestJson('/api/log', { auth: true }),
+        ])
+
+        setSchedules(Array.isArray(scheduleData?.schedules) ? scheduleData.schedules : [])
+        setMedicationMap(buildMedicationMap(medicationData?.data))
+        setBackendCompletedKeys(buildCompletedKeySet(activityData?.activities))
+      } catch (error) {
+        console.error('schedule fetch error:', error)
+      }
+    }
+
+    fetchScheduleData()
+  }, [])
+
+  const completionKeySet = useMemo(() => {
+    const nextSet = new Set(backendCompletedKeys)
+
+    Object.entries(completedOverrides).forEach(([key, isCompleted]) => {
+      if (isCompleted) {
+        nextSet.add(key)
+      } else {
+        nextSet.delete(key)
+      }
+    })
+
+    return nextSet
+  }, [backendCompletedKeys, completedOverrides])
+
+  const scheduleMap = useMemo(
+    () => buildScheduleMap(schedules, medicationMap, completionKeySet, year, month),
+    [schedules, medicationMap, completionKeySet, year, month],
+  )
+
+  const selectedSchedules = useMemo(
+    () => scheduleMap[selectedDate] || [],
+    [scheduleMap, selectedDate],
+  )
 
   const completedCount = selectedSchedules.filter(
     (item) => item.status === 'done',
@@ -63,23 +111,56 @@ function SchedulePage() {
   }
 
   const handleToggleSchedule = (dateKey, itemId) => {
-    setScheduleMap((prev) => {
-      const currentItems = prev[dateKey] || []
+    setCompletedOverrides((prev) => ({
+      ...prev,
+      [itemId]: !isCompletedSchedule(itemId, completionKeySet),
+    }))
+  }
 
-      const updatedItems = currentItems.map((item) => {
-        if (item.id !== itemId) return item
+  const handleCreateSchedule = async (newSchedule) => {
+    if (!hasStoredToken()) {
+      return
+    }
 
-        return {
-          ...item,
-          status: item.status === 'done' ? 'pending' : 'done',
-        }
+    try {
+      const medicationData = await requestJson(
+        `/api/medication/search?keyword=${encodeURIComponent(newSchedule.medicationName)}`,
+      )
+      const matchedMedication = findMatchedMedication(
+        medicationData?.data,
+        newSchedule.medicationName,
+      )
+
+      if (!matchedMedication) {
+        alert('등록된 약 정보를 찾지 못했습니다.')
+        return
+      }
+
+      await requestJson('/api/schedule', {
+        method: 'POST',
+        auth: true,
+        body: {
+          medi_id: matchedMedication.medi_id,
+          time_to_take: ensureSeconds(newSchedule.time),
+          start_date: newSchedule.startDate || selectedDate,
+          end_date: newSchedule.endDate || null,
+          dose_interval: newSchedule.repeatType === 'weekly' ? 7 : null,
+          status: 'ACTIVE',
+        },
       })
 
-      return {
-        ...prev,
-        [dateKey]: updatedItems,
-      }
-    })
+      const refreshedSchedules = await requestJson('/api/schedule', { auth: true })
+      setSchedules(
+        Array.isArray(refreshedSchedules?.schedules)
+          ? refreshedSchedules.schedules
+          : [],
+      )
+      setIsAddModalOpen(false)
+      alert('복약 일정이 추가되었습니다.')
+    } catch (error) {
+      console.error('schedule create error:', error)
+      alert(error.message || '복약 일정 추가에 실패했습니다.')
+    }
   }
 
   return (
@@ -91,10 +172,8 @@ function SchedulePage() {
           <TopHeader />
 
           <main className="schedule-content">
-            {/* 페이지 상단 제목/설명/추가 버튼 */}
             <ScheduleHeader onOpenAddModal={() => setIsAddModalOpen(true)} />
 
-            {/* 핵심: 달력 카드 */}
             <MonthlyCalendar
               year={year}
               month={month}
@@ -105,7 +184,6 @@ function SchedulePage() {
               onNextMonth={() => handleChangeMonth(1)}
             />
 
-            {/* 선택 날짜 요약 */}
             <ScheduleSummaryCard
               selectedDateLabel={selectedDateLabel}
               totalCount={totalCount}
@@ -113,15 +191,13 @@ function SchedulePage() {
               progressPercent={progressPercent}
             />
 
-            {/* 일정 리스트 */}
             <ScheduleList
               schedules={selectedSchedules}
               selectedDate={selectedDate}
               onToggle={handleToggleSchedule}
             />
 
-            {/* 하단 안내 배너 */}
-            <ScheduleInfoBanner info={scheduleInfoBanner} />
+            <ScheduleInfoBanner info={SCHEDULE_INFO_BANNER} />
           </main>
         </div>
       </div>
@@ -132,14 +208,133 @@ function SchedulePage() {
         <ScheduleAddModal
           selectedDateLabel={selectedDateLabel}
           onClose={() => setIsAddModalOpen(false)}
-          onSubmit={(newSchedule) => {
-            console.log('새 복약 일정', newSchedule)
-            setIsAddModalOpen(false)
-            alert('복약 일정이 추가되었습니다.')
-          }}
+          onSubmit={handleCreateSchedule}
         />
       ) : null}
     </div>
+  )
+}
+
+function createInitialCalendarState() {
+  const today = new Date()
+
+  return {
+    year: today.getFullYear(),
+    month: today.getMonth() + 1,
+    selectedDate: formatDateKey(
+      today.getFullYear(),
+      today.getMonth() + 1,
+      today.getDate(),
+    ),
+  }
+}
+
+function buildMedicationMap(medications = []) {
+  return medications.reduce((acc, medication) => {
+    acc[medication.medi_id] = medication.medi_name
+    return acc
+  }, {})
+}
+
+function buildCompletedKeySet(activities = []) {
+  return new Set(
+    activities
+      .filter((activity) => String(activity.status).toUpperCase() === 'SUCCESS')
+      .map((activity) => {
+        const dateKey = toDateKey(activity.sche_time)
+        return dateKey ? `${activity.sche_id}-${dateKey}` : null
+      })
+      .filter(Boolean),
+  )
+}
+
+function buildScheduleMap(
+  schedules,
+  medicationMap,
+  completionKeySet,
+  year,
+  month,
+) {
+  const mappedSchedules = {}
+  const monthStart = new Date(year, month - 1, 1)
+  const monthEnd = new Date(year, month, 0)
+
+  schedules.forEach((schedule) => {
+    const scheduleStart = parseDate(schedule.start_date)
+    const scheduleEnd = parseDate(schedule.end_date || formatDateKey(year, month, monthEnd.getDate()))
+
+    if (!scheduleStart || !scheduleEnd) {
+      return
+    }
+
+    const visibleStart =
+      scheduleStart.getTime() > monthStart.getTime() ? scheduleStart : monthStart
+    const visibleEnd =
+      scheduleEnd.getTime() < monthEnd.getTime() ? scheduleEnd : monthEnd
+
+    if (visibleStart.getTime() > visibleEnd.getTime()) {
+      return
+    }
+
+    const intervalDays =
+      Number(schedule.dose_interval) > 0 ? Number(schedule.dose_interval) : 1
+
+    for (
+      let currentDate = new Date(visibleStart);
+      currentDate.getTime() <= visibleEnd.getTime();
+      currentDate.setDate(currentDate.getDate() + 1)
+    ) {
+      const diffDays = Math.floor(
+        (stripTime(currentDate).getTime() - stripTime(scheduleStart).getTime()) /
+          86400000,
+      )
+
+      if (diffDays < 0 || diffDays % intervalDays !== 0) {
+        continue
+      }
+
+      const dateKey = formatDateKey(
+        currentDate.getFullYear(),
+        currentDate.getMonth() + 1,
+        currentDate.getDate(),
+      )
+      const itemId = `${schedule.sche_id}-${dateKey}`
+
+      if (!mappedSchedules[dateKey]) {
+        mappedSchedules[dateKey] = []
+      }
+
+      mappedSchedules[dateKey].push({
+        id: itemId,
+        scheduleId: schedule.sche_id,
+        time: formatTime(schedule.time_to_take),
+        medicineName:
+          medicationMap[schedule.medi_id] || `약물 ${schedule.medi_id}`,
+        doseText:
+          intervalDays > 1 ? `${intervalDays}일 간격 복용` : '매일 복용',
+        status: isCompletedSchedule(itemId, completionKeySet) ? 'done' : 'pending',
+      })
+    }
+  })
+
+  Object.values(mappedSchedules).forEach((items) => {
+    items.sort((a, b) => a.time.localeCompare(b.time))
+  })
+
+  return mappedSchedules
+}
+
+function isCompletedSchedule(itemId, completionKeySet) {
+  return completionKeySet.has(itemId)
+}
+
+function findMatchedMedication(medications = [], medicationName = '') {
+  const trimmedName = medicationName.trim().toLowerCase()
+
+  return (
+    medications.find(
+      (item) => String(item.medi_name).trim().toLowerCase() === trimmedName,
+    ) || medications[0] || null
   )
 }
 
@@ -171,6 +366,49 @@ function findFirstScheduledDateInMonth(scheduleMap, year, month) {
     .sort()
 
   return matchedDates[0] || null
+}
+
+function parseDate(value) {
+  if (!value) {
+    return null
+  }
+
+  const date = new Date(value)
+  return Number.isNaN(date.getTime()) ? null : stripTime(date)
+}
+
+function stripTime(date) {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate())
+}
+
+function toDateKey(value) {
+  if (!value) {
+    return ''
+  }
+
+  const date = new Date(value)
+
+  if (Number.isNaN(date.getTime())) {
+    return ''
+  }
+
+  return formatDateKey(date.getFullYear(), date.getMonth() + 1, date.getDate())
+}
+
+function formatTime(value) {
+  if (!value) {
+    return '-'
+  }
+
+  return String(value).slice(0, 5)
+}
+
+function ensureSeconds(value) {
+  if (!value) {
+    return ''
+  }
+
+  return value.length === 5 ? `${value}:00` : value
 }
 
 export default SchedulePage
