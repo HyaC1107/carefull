@@ -8,6 +8,7 @@ const { verifyToken } = require('../middleware/auth');
 
 const {
     JWT_SECRET,
+    FRONTEND_URL,
     KAKAO_CLIENT_ID,
     KAKAO_CLIENT_SECRET,
     KAKAO_REDIRECT_URI,
@@ -19,77 +20,139 @@ const {
     NAVER_REDIRECT_URI
 } = process.env;
 
-/**
- * 소셜 로그인 공통 처리
- *
- * 왜 수정했는가:
- * - verifyToken에서 req.user.memberId를 기준으로 통일했기 때문에
- *   JWT 발급 시 payload 키도 memberId로 유지해야 전체 인증 흐름이 맞습니다.
- */
-const handleSocialLogin = async (socialData, provider, res) => {
+const RESOLVED_FRONTEND_URL = FRONTEND_URL || 'http://192.168.219.225.nip.io:5173';
+
+const build_kakao_authorize_url = () => {
+    const params = new URLSearchParams({
+        client_id: KAKAO_CLIENT_ID,
+        redirect_uri: KAKAO_REDIRECT_URI,
+        response_type: 'code',
+        prompt: 'select_account'
+    });
+
+    return `https://kauth.kakao.com/oauth/authorize?${params.toString()}`;
+};
+
+const build_google_authorize_url = () => {
+    const params = new URLSearchParams({
+        client_id: GOOGLE_CLIENT_ID,
+        redirect_uri: GOOGLE_REDIRECT_URI,
+        response_type: 'code',
+        scope: 'email profile',
+        prompt: 'select_account'
+    });
+
+    return `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`;
+};
+
+const build_naver_authorize_url = () => {
+    const params = new URLSearchParams({
+        response_type: 'code',
+        client_id: NAVER_CLIENT_ID,
+        redirect_uri: NAVER_REDIRECT_URI,
+        state: `carefull_${Date.now()}`
+    });
+
+    return `https://nid.naver.com/oauth2.0/authorize?${params.toString()}`;
+};
+
+const build_frontend_callback_url = ({ provider, token, is_new_user, error }) => {
+    const callback_url = new URL(`/login/callback/${provider}`, RESOLVED_FRONTEND_URL);
+
+    callback_url.searchParams.set('provider', provider);
+
+    if (token) {
+        callback_url.searchParams.set('token', token);
+    }
+
+    if (typeof is_new_user === 'boolean') {
+        callback_url.searchParams.set('is_new_user', String(is_new_user));
+    }
+
+    if (error) {
+        callback_url.searchParams.set('error', error);
+    }
+
+    return callback_url.toString();
+};
+
+const handle_social_login = async (social_data, provider) => {
     try {
-        const findQuery = `
-            SELECT member_id, nickname
+        const find_query = `
+            SELECT mem_id, nick
             FROM members
             WHERE social_id = $1 AND provider = $2
         `;
-        const result = await pool.query(findQuery, [socialData.id, provider]);
+        const result = await pool.query(find_query, [social_data.id, provider]);
 
-        let memberId;
-        let nickname;
-        let isNewUser = false;
+        let mem_id;
+        let nick;
+        let is_new_user = false;
 
         if (result.rows.length === 0) {
-            isNewUser = true;
+            is_new_user = true;
 
-            const insertQuery = `
-                INSERT INTO members (social_id, provider, email, nickname)
-                VALUES ($1, $2, $3, $4)
-                RETURNING member_id, nickname
+            const insert_query = `
+                INSERT INTO members (social_id, provider, email, nick, profile_img)
+                VALUES ($1, $2, $3, $4, $5)
+                RETURNING mem_id, nick
             `;
-            const newUser = await pool.query(insertQuery, [
-                socialData.id,
+            const new_user = await pool.query(insert_query, [
+                social_data.id,
                 provider,
-                socialData.email,
-                socialData.nickname
+                social_data.email || '',
+                social_data.nickname,
+                social_data.profile_img || ''
             ]);
 
-            memberId = newUser.rows[0].member_id;
-            nickname = newUser.rows[0].nickname;
+            mem_id = new_user.rows[0].mem_id;
+            nick = new_user.rows[0].nick;
         } else {
-            memberId = result.rows[0].member_id;
-            nickname = result.rows[0].nickname;
+            mem_id = result.rows[0].mem_id;
+            nick = result.rows[0].nick;
         }
 
-        const accessToken = jwt.sign(
-            { memberId, nickname },
+        const access_token = jwt.sign(
+            { mem_id, nick },
             JWT_SECRET,
             { expiresIn: '2h' }
         );
 
-        return res.status(200).json({
+        return {
             success: true,
-            token: accessToken,
-            isNewUser,
-            nextStep: isNewUser ? '/register-patient' : '/main',
-            userData: {
-                memberId,
-                nickname,
+            token: access_token,
+            is_new_user,
+            next_step: is_new_user ? '/register-patient' : '/main',
+            user_data: {
+                mem_id,
+                nick,
                 provider
             }
-        });
+        };
     } catch (error) {
-        console.error(`${provider} 로그인 처리 중 오류가 발생했습니다:`, error);
-        return res.status(500).json({
+        console.error(`${provider} login error:`, error);
+        return {
             success: false,
-            message: '소셜 로그인 처리 중 서버 오류가 발생했습니다.'
-        });
+            message: 'Server error while processing social login.'
+        };
     }
 };
 
+router.get('/kakao', (req, res) => {
+    return res.redirect(build_kakao_authorize_url());
+});
+
+router.get('/google', (req, res) => {
+    return res.redirect(build_google_authorize_url());
+});
+
+router.get('/naver', (req, res) => {
+    return res.redirect(build_naver_authorize_url());
+});
+
 router.get('/callback', async (req, res) => {
     try {
-        const tokenResponse = await axios.post(
+        const token_response = await axios.post(
             'https://kauth.kakao.com/oauth/token',
             new URLSearchParams({
                 grant_type: 'authorization_code',
@@ -105,28 +168,42 @@ router.get('/callback', async (req, res) => {
             }
         );
 
-        const userResponse = await axios.get('https://kapi.kakao.com/v2/user/me', {
+        const user_response = await axios.get('https://kapi.kakao.com/v2/user/me', {
             headers: {
-                Authorization: `Bearer ${tokenResponse.data.access_token}`
+                Authorization: `Bearer ${token_response.data.access_token}`
             }
         });
 
-        return handleSocialLogin({
-            id: userResponse.data.id.toString(),
-            nickname: userResponse.data.properties.nickname,
-            email: userResponse.data.kakao_account.email || null
-        }, 'kakao', res);
+        const login_result = await handle_social_login({
+            id: user_response.data.id.toString(),
+            nickname: user_response.data.properties.nickname,
+            email: user_response.data.kakao_account.email || null,
+            profile_img: user_response.data.properties.profile_image || null
+        }, 'kakao');
+
+        if (!login_result.success || !login_result.token) {
+            return res.redirect(build_frontend_callback_url({
+                provider: 'kakao',
+                error: login_result.message || 'Kakao authentication failed.'
+            }));
+        }
+
+        return res.redirect(build_frontend_callback_url({
+            provider: 'kakao',
+            token: login_result.token,
+            is_new_user: login_result.is_new_user
+        }));
     } catch (error) {
-        return res.status(500).json({
-            success: false,
-            message: '카카오 인증 처리 중 오류가 발생했습니다.'
-        });
+        return res.redirect(build_frontend_callback_url({
+            provider: 'kakao',
+            error: 'Kakao authentication failed.'
+        }));
     }
 });
 
 router.get('/google/callback', async (req, res) => {
     try {
-        const tokenResponse = await axios.post('https://oauth2.googleapis.com/token', {
+        const token_response = await axios.post('https://oauth2.googleapis.com/token', {
             code: req.query.code,
             client_id: GOOGLE_CLIENT_ID,
             client_secret: GOOGLE_CLIENT_SECRET,
@@ -134,31 +211,45 @@ router.get('/google/callback', async (req, res) => {
             grant_type: 'authorization_code'
         });
 
-        const userResponse = await axios.get(
+        const user_response = await axios.get(
             'https://www.googleapis.com/oauth2/v3/userinfo',
             {
                 headers: {
-                    Authorization: `Bearer ${tokenResponse.data.access_token}`
+                    Authorization: `Bearer ${token_response.data.access_token}`
                 }
             }
         );
 
-        return handleSocialLogin({
-            id: userResponse.data.sub,
-            nickname: userResponse.data.name,
-            email: userResponse.data.email
-        }, 'google', res);
+        const login_result = await handle_social_login({
+            id: user_response.data.sub,
+            nickname: user_response.data.name,
+            email: user_response.data.email,
+            profile_img: user_response.data.picture || null
+        }, 'google');
+
+        if (!login_result.success || !login_result.token) {
+            return res.redirect(build_frontend_callback_url({
+                provider: 'google',
+                error: login_result.message || 'Google authentication failed.'
+            }));
+        }
+
+        return res.redirect(build_frontend_callback_url({
+            provider: 'google',
+            token: login_result.token,
+            is_new_user: login_result.is_new_user
+        }));
     } catch (error) {
-        return res.status(500).json({
-            success: false,
-            message: '구글 인증 처리 중 오류가 발생했습니다.'
-        });
+        return res.redirect(build_frontend_callback_url({
+            provider: 'google',
+            error: 'Google authentication failed.'
+        }));
     }
 });
 
 router.get('/naver/callback', async (req, res) => {
     try {
-        const tokenResponse = await axios.get('https://nid.naver.com/oauth2.0/token', {
+        const token_response = await axios.get('https://nid.naver.com/oauth2.0/token', {
             params: {
                 grant_type: 'authorization_code',
                 client_id: NAVER_CLIENT_ID,
@@ -168,102 +259,128 @@ router.get('/naver/callback', async (req, res) => {
             }
         });
 
-        const userResponse = await axios.get('https://openapi.naver.com/v1/nid/me', {
+        const user_response = await axios.get('https://openapi.naver.com/v1/nid/me', {
             headers: {
-                Authorization: `Bearer ${tokenResponse.data.access_token}`
+                Authorization: `Bearer ${token_response.data.access_token}`
             }
         });
 
-        const { response } = userResponse.data;
+        const { response } = user_response.data;
 
-        return handleSocialLogin({
+        const login_result = await handle_social_login({
             id: response.id,
             nickname: response.nickname,
-            email: response.email
-        }, 'naver', res);
+            email: response.email,
+            profile_img: response.profile_image || null
+        }, 'naver');
+
+        if (!login_result.success || !login_result.token) {
+            return res.redirect(build_frontend_callback_url({
+                provider: 'naver',
+                error: login_result.message || 'Naver authentication failed.'
+            }));
+        }
+
+        return res.redirect(build_frontend_callback_url({
+            provider: 'naver',
+            token: login_result.token,
+            is_new_user: login_result.is_new_user
+        }));
     } catch (error) {
-        return res.status(500).json({
-            success: false,
-            message: '네이버 인증 처리 중 오류가 발생했습니다.'
-        });
+        return res.redirect(build_frontend_callback_url({
+            provider: 'naver',
+            error: 'Naver authentication failed.'
+        }));
     }
 });
 
-/**
- * 개발용 mock 소셜 로그인 API
- *
- * 왜 추가했는가:
- * - 실제 OAuth 인증 없이도 신규 회원가입 / 기존 회원 로그인 흐름을 테스트하기 위함입니다.
- * - members 테이블에서 social_id + provider 기준으로 기존 회원을 찾고,
- *   없으면 새로 생성한 뒤 실제 소셜 로그인과 같은 형식의 JWT를 발급합니다.
- */
 router.post('/dev-login', async (req, res) => {
-    const { social_id, provider, nickname, email } = req.body;
+    const { social_id, provider, nick, nickname, email } = req.body;
+    const resolved_nick = nick || nickname;
 
-    if (!social_id || !provider || !nickname) {
+    if (!social_id || !provider || !resolved_nick) {
         return res.status(400).json({
             success: false,
-            message: 'social_id, provider, nickname은 필수입니다.'
+            message: 'social_id, provider, and nick are required.'
         });
     }
 
-    return handleSocialLogin({
+    const login_result = await handle_social_login({
         id: String(social_id),
-        nickname,
-        email: email || null
-    }, provider, res);
+        nickname: resolved_nick,
+        email: email || '',
+        profile_img: ''
+    }, provider);
+
+    if (!login_result.success) {
+        return res.status(500).json(login_result);
+    }
+
+    return res.status(200).json(login_result);
 });
 
-/**
- * 기존 환자 등록 API
- *
- * 왜 수정했는가:
- * - verifyToken의 표준 사용자 식별자를 req.user.memberId로 고정했기 때문에
- *   이 라우트도 같은 키만 사용하도록 유지합니다.
- * - req.user.member_id 같은 다른 키는 현재 워크스페이스에서 확인되지 않았습니다.
- */
 router.post('/register-patient', verifyToken, async (req, res) => {
-    const memberId = req.user.memberId;
-    const { name, birth_date, gender, blood_type, height, weight, serial_number } = req.body;
+    const mem_id = req.user.mem_id;
+    const { patient_name, birthdate, gender, bloodtype, height, weight, device_uid } = req.body;
     const client = await pool.connect();
 
     try {
         await client.query('BEGIN');
 
-        const userRes = await client.query(
+        const patient_result = await client.query(
             `
-                INSERT INTO users (member_id, name, birth_date, gender, blood_type, height, weight)
-                VALUES ($1, $2, $3, $4, $5, $6, $7)
-                RETURNING user_id
+                INSERT INTO patients (
+                    mem_id,
+                    patient_name,
+                    birthdate,
+                    gender,
+                    bloodtype,
+                    height,
+                    weight,
+                    phone,
+                    address,
+                    fingerprint_id,
+                    guardian_name,
+                    guardian_phone
+                )
+                VALUES (
+                    $1, $2, $3, $4, $5, $6, $7,
+                    '', '', 0, '', ''
+                )
+                RETURNING patient_id
             `,
-            [memberId, name, birth_date, gender, blood_type, height, weight]
+            [mem_id, patient_name, birthdate, gender, bloodtype, height, weight]
         );
-        const userId = userRes.rows[0].user_id;
+        const patient_id = patient_result.rows[0].patient_id;
 
-        const deviceRes = await client.query(
+        const device_result = await client.query(
             `
                 UPDATE devices
-                SET user_id = $1, status = 'REGISTERED', registered_at = CURRENT_TIMESTAMP
-                WHERE serial_number = $2
+                SET
+                    patient_id = $1,
+                    device_status = 'REGISTERED',
+                    registered_at = CURRENT_TIMESTAMP,
+                    last_ping = CURRENT_TIMESTAMP
+                WHERE device_uid = $2
                 RETURNING device_id
             `,
-            [userId, serial_number]
+            [patient_id, device_uid]
         );
 
-        if (deviceRes.rows.length === 0) {
-            throw new Error('등록되지 않은 기기 시리얼 번호입니다.');
+        if (device_result.rows.length === 0) {
+            throw new Error('Registered device not found.');
         }
 
         await client.query('COMMIT');
 
         return res.status(200).json({
             success: true,
-            message: '환자 및 기기 등록이 완료되었습니다.',
-            userId
+            message: 'Patient and device registration completed.',
+            patient_id
         });
     } catch (error) {
         await client.query('ROLLBACK');
-        console.error('환자 등록 중 오류가 발생했습니다:', error);
+        console.error('Patient registration error:', error);
 
         return res.status(400).json({
             success: false,

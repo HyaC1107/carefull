@@ -10,10 +10,10 @@ class StatusBadge(QWidget):
         lay.setSpacing(8)
 
         self._dot = QLabel("●")
-        self._dot.setFont(QFont("Sans Serif", 13))
+        self._dot.setFont(QFont("Sans Serif", 11))
 
         self._label = QLabel(text)
-        self._label.setFont(QFont("Sans Serif", 16))
+        self._label.setFont(QFont("Sans Serif", 14))
 
         lay.addWidget(self._dot)
         lay.addWidget(self._label)

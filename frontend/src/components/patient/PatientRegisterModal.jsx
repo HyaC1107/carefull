@@ -3,16 +3,16 @@ import { useState } from 'react'
 function PatientRegisterModal({ onClose, onSuccess }) {
   const [photoCaptured, setPhotoCaptured] = useState(false)
   const [form, setForm] = useState({
-    name: '',
-    birthDate: '',
+    patient_name: '',
+    birthdate: '',
     gender: '',
-    bloodType: '',
+    bloodtype: '',
     height: '',
     weight: '',
     phone: '',
     address: '',
-    guardianName: '',
-    guardianPhone: '',
+    guardian_name: '',
+    guardian_phone: '',
   })
 
   const handleChange = (field, value) => {
@@ -30,7 +30,7 @@ function PatientRegisterModal({ onClose, onSuccess }) {
       return
     }
 
-    if (!form.name.trim() || !form.phone.trim()) {
+    if (!form.patient_name.trim() || !form.phone.trim()) {
       alert('이름과 연락처는 필수입니다.')
       return
     }
@@ -104,8 +104,8 @@ function PatientRegisterModal({ onClose, onSuccess }) {
               <span className="patient-form-field__label">이름 *</span>
               <input
                 className="patient-form-field__input"
-                value={form.name}
-                onChange={(e) => handleChange('name', e.target.value)}
+                value={form.patient_name}
+                onChange={(e) => handleChange('patient_name', e.target.value)}
                 placeholder="환자 이름을 입력하세요"
               />
             </label>
@@ -116,8 +116,8 @@ function PatientRegisterModal({ onClose, onSuccess }) {
               <span className="patient-form-field__label">생년월일</span>
               <input
                 className="patient-form-field__input"
-                value={form.birthDate}
-                onChange={(e) => handleChange('birthDate', e.target.value)}
+                value={form.birthdate}
+                onChange={(e) => handleChange('birthdate', e.target.value)}
               />
             </label>
 
@@ -136,8 +136,8 @@ function PatientRegisterModal({ onClose, onSuccess }) {
               <span className="patient-form-field__label">혈액형</span>
               <input
                 className="patient-form-field__input"
-                value={form.bloodType}
-                onChange={(e) => handleChange('bloodType', e.target.value)}
+                value={form.bloodtype}
+                onChange={(e) => handleChange('bloodtype', e.target.value)}
               />
             </label>
 
@@ -193,8 +193,8 @@ function PatientRegisterModal({ onClose, onSuccess }) {
               <span className="patient-form-field__label">보호자 이름</span>
               <input
                 className="patient-form-field__input"
-                value={form.guardianName}
-                onChange={(e) => handleChange('guardianName', e.target.value)}
+                value={form.guardian_name}
+                onChange={(e) => handleChange('guardian_name', e.target.value)}
                 placeholder="보호자 이름을 입력하세요"
               />
             </label>
@@ -203,8 +203,8 @@ function PatientRegisterModal({ onClose, onSuccess }) {
               <span className="patient-form-field__label">보호자 연락처</span>
               <input
                 className="patient-form-field__input"
-                value={form.guardianPhone}
-                onChange={(e) => handleChange('guardianPhone', e.target.value)}
+                value={form.guardian_phone}
+                onChange={(e) => handleChange('guardian_phone', e.target.value)}
                 placeholder="010-1234-5678"
               />
             </label>
