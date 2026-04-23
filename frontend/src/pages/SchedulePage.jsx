@@ -148,24 +148,30 @@ function SchedulePage() {
     }
 
     try {
-      const medicationData = await requestJson(
-        `/api/medication/search?keyword=${encodeURIComponent(newSchedule.medi_name)}`,
-      )
-      const matchedMedication = findMatchedMedication(
-        medicationData?.data,
-        newSchedule.medi_name,
-      )
+      let resolvedMediId = Number(newSchedule.medi_id)
 
-      if (!matchedMedication) {
-        alert('등록된 약 정보를 찾지 못했습니다.')
-        return
+      if (!Number.isFinite(resolvedMediId) || resolvedMediId <= 0) {
+        const medicationData = await requestJson(
+          `/api/medication/search?keyword=${encodeURIComponent(newSchedule.medi_name)}`,
+        )
+        const matchedMedication = findMatchedMedication(
+          medicationData?.data,
+          newSchedule.medi_name,
+        )
+
+        if (!matchedMedication) {
+          alert('등록된 약 정보를 찾지 못했습니다.')
+          return
+        }
+
+        resolvedMediId = Number(matchedMedication.medi_id)
       }
 
       await requestJson('/api/schedule', {
         method: 'POST',
         auth: true,
         body: {
-          medi_id: matchedMedication.medi_id,
+          medi_id: resolvedMediId,
           time_to_take: ensureSeconds(newSchedule.time_to_take),
           start_date: newSchedule.start_date || selectedDate,
           end_date: newSchedule.end_date || null,

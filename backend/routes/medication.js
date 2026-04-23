@@ -21,11 +21,11 @@ router.get('/', async (req, res) => {
             data: rows
         });
     } catch (error) {
-        console.error('??紐⑸줉 議고쉶 以??ㅻ쪟媛 諛쒖깮?덉뒿?덈떎:', error);
+        console.error('Medication list fetch error:', error);
 
         return res.status(500).json({
             success: false,
-            message: '??紐⑸줉 議고쉶 以??쒕쾭 ?ㅻ쪟媛 諛쒖깮?덉뒿?덈떎.'
+            message: 'Server error while fetching medications.'
         });
     }
 });
@@ -36,7 +36,7 @@ router.get('/search', async (req, res) => {
     if (!keyword) {
         return res.status(400).json({
             success: false,
-            message: 'keyword 荑쇰━ ?뚮씪誘명꽣???꾩닔?낅땲??'
+            message: 'keyword query parameter is required.'
         });
     }
 
@@ -49,6 +49,7 @@ router.get('/search', async (req, res) => {
             FROM medications
             WHERE medi_name ILIKE $1
             ORDER BY medi_name, medi_id
+            LIMIT 10
         `;
 
         const { rows } = await pool.query(query, [`%${keyword}%`]);
@@ -58,11 +59,11 @@ router.get('/search', async (req, res) => {
             data: rows
         });
     } catch (error) {
-        console.error('??寃??以??ㅻ쪟媛 諛쒖깮?덉뒿?덈떎:', error);
+        console.error('Medication search error:', error);
 
         return res.status(500).json({
             success: false,
-            message: '??寃??以??쒕쾭 ?ㅻ쪟媛 諛쒖깮?덉뒿?덈떎.'
+            message: 'Server error while searching medications.'
         });
     }
 });

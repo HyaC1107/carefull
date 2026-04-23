@@ -1,20 +1,101 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { requestJson } from '../../api'
 
 function ScheduleAddModal({ selectedDateLabel, onClose, onSubmit }) {
   const [repeatType, setRepeatType] = useState('none')
   const [form, setForm] = useState({
+    medi_id: null,
     medi_name: '',
     dose: '1',
     time_to_take: '',
     start_date: '',
     end_date: '',
   })
+  const [medicationSuggestions, setMedicationSuggestions] = useState([])
+  const [isSuggestionOpen, setIsSuggestionOpen] = useState(false)
+  const [isSearchingMedication, setIsSearchingMedication] = useState(false)
+  const blurTimeoutRef = useRef(null)
+
+  useEffect(() => {
+    const keyword = form.medi_name.trim()
+
+    if (!keyword) {
+      setMedicationSuggestions([])
+      setIsSuggestionOpen(false)
+      setIsSearchingMedication(false)
+      return undefined
+    }
+
+    if (form.medi_id) {
+      setMedicationSuggestions([])
+      setIsSearchingMedication(false)
+      return undefined
+    }
+
+    const timeoutId = setTimeout(async () => {
+      try {
+        setIsSearchingMedication(true)
+
+        const medicationData = await requestJson(
+          `/api/medication/search?keyword=${encodeURIComponent(keyword)}`,
+        )
+        const suggestions = Array.isArray(medicationData?.data)
+          ? medicationData.data
+          : []
+
+        setMedicationSuggestions(suggestions)
+        setIsSuggestionOpen(true)
+      } catch (error) {
+        console.error('medication autocomplete error:', error)
+        setMedicationSuggestions([])
+      } finally {
+        setIsSearchingMedication(false)
+      }
+    }, 250)
+
+    return () => clearTimeout(timeoutId)
+  }, [form.medi_name, form.medi_id])
+
+  useEffect(() => {
+    return () => {
+      if (blurTimeoutRef.current) {
+        clearTimeout(blurTimeoutRef.current)
+      }
+    }
+  }, [])
 
   const handleChange = (field, value) => {
     setForm((prev) => ({
       ...prev,
       [field]: value,
+      ...(field === 'medi_name' ? { medi_id: null } : {}),
     }))
+  }
+
+  const handleMedicationFocus = () => {
+    if (form.medi_name.trim()) {
+      setIsSuggestionOpen(true)
+    }
+  }
+
+  const handleMedicationBlur = () => {
+    blurTimeoutRef.current = setTimeout(() => {
+      setIsSuggestionOpen(false)
+    }, 120)
+  }
+
+  const handleMedicationSelect = (medication) => {
+    if (blurTimeoutRef.current) {
+      clearTimeout(blurTimeoutRef.current)
+    }
+
+    setForm((prev) => ({
+      ...prev,
+      medi_id: medication.medi_id,
+      medi_name: medication.medi_name,
+    }))
+    setMedicationSuggestions([])
+    setIsSuggestionOpen(false)
   }
 
   const handleSubmit = (event) => {
@@ -30,6 +111,9 @@ function ScheduleAddModal({ selectedDateLabel, onClose, onSubmit }) {
       repeatType,
     })
   }
+
+  const shouldShowSuggestions =
+    isSuggestionOpen && Boolean(form.medi_name.trim())
 
   return (
     <div className="schedule-modal-overlay" onClick={onClose}>
@@ -101,12 +185,42 @@ function ScheduleAddModal({ selectedDateLabel, onClose, onSubmit }) {
 
             <label className="schedule-modal__field">
               <span className="schedule-modal__label">약 이름 *</span>
-              <input
-                className="schedule-modal__input"
-                value={form.medi_name}
-                onChange={(e) => handleChange('medi_name', e.target.value)}
-                placeholder="약 이름을 검색하세요..."
-              />
+              <div className="schedule-modal__autocomplete">
+                <input
+                  className="schedule-modal__input"
+                  value={form.medi_name}
+                  onChange={(e) => handleChange('medi_name', e.target.value)}
+                  onFocus={handleMedicationFocus}
+                  onBlur={handleMedicationBlur}
+                  placeholder="약 이름을 검색하세요..."
+                  autoComplete="off"
+                />
+
+                {shouldShowSuggestions ? (
+                  <div className="schedule-modal__suggestions">
+                    {isSearchingMedication ? (
+                      <div className="schedule-modal__suggestion-empty">
+                        검색 중입니다.
+                      </div>
+                    ) : medicationSuggestions.length > 0 ? (
+                      medicationSuggestions.map((medication) => (
+                        <button
+                          key={medication.medi_id}
+                          type="button"
+                          className="schedule-modal__suggestion-item"
+                          onMouseDown={() => handleMedicationSelect(medication)}
+                        >
+                          <span>{medication.medi_name}</span>
+                        </button>
+                      ))
+                    ) : (
+                      <div className="schedule-modal__suggestion-empty">
+                        검색 결과가 없습니다.
+                      </div>
+                    )}
+                  </div>
+                ) : null}
+              </div>
             </label>
 
             <label className="schedule-modal__field">
