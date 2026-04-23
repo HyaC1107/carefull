@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Sidebar from '../components/layout/Sidebar'
 import TopHeader from '../components/layout/TopHeader'
 import MobileBottomNav from '../components/layout/MobileBottomNav'
@@ -11,19 +11,72 @@ import SettingActionRow from '../components/settings/SettingActionRow'
 import SettingsInfoBanner from '../components/settings/SettingsInfoBanner'
 import SettingsFooterActions from '../components/settings/SettingsFooterActions'
 import GuardianEditModal from '../components/settings/GuardianEditModal'
-import {
-  accountActionItems,
-  initialGuardianInfo,
-  initialSettings,
-  settingsInfo,
-} from '../data/settingsMock'
+import { hasStoredToken, requestJson } from '../api'
 import '../styles/SettingsPage.css'
 import '../styles/MobileBottomNav.css'
 
+const INITIAL_SETTINGS = {
+  smsEnabled: false,
+  alertTime: '',
+  autoSyncEnabled: false,
+  volume: 0,
+  voiceGuideEnabled: false,
+}
+
+const INITIAL_GUARDIAN_INFO = {
+  name: '',
+  phone: '',
+  address: '',
+  relation: '',
+  email: '',
+}
+
+const ACCOUNT_ACTION_ITEMS = [
+  {
+    id: 'guardian',
+    title: '보호자 정보 수정',
+    description: '보호자 연락처와 정보를 관리합니다',
+    buttonLabel: '수정',
+  },
+  {
+    id: 'logout',
+    title: '로그아웃',
+    description: '현재 로그인된 계정에서 로그아웃합니다',
+    buttonLabel: '실행',
+  },
+]
+
+const SETTINGS_INFO = {
+  title: '설정 안내',
+  description: '설정 페이지는 mock 없이 빈 초기값으로 시작합니다.',
+}
+
 function SettingsPage() {
-  const [settings, setSettings] = useState(initialSettings)
-  const [guardianInfo, setGuardianInfo] = useState(initialGuardianInfo)
+  const [settings, setSettings] = useState(INITIAL_SETTINGS)
+  const [guardianInfo, setGuardianInfo] = useState(INITIAL_GUARDIAN_INFO)
   const [isGuardianModalOpen, setIsGuardianModalOpen] = useState(false)
+
+  useEffect(() => {
+    const fetchGuardianInfo = async () => {
+      if (!hasStoredToken()) {
+        return
+      }
+
+      try {
+        const patientResponse = await requestJson('/api/patient/me', { auth: true })
+        setGuardianInfo((prev) => ({
+          ...prev,
+          name: patientResponse?.patient?.guardian_name || '',
+          phone: patientResponse?.patient?.guardian_phone || '',
+          address: patientResponse?.patient?.address || '',
+        }))
+      } catch (error) {
+        console.error('settings patient fetch error:', error)
+      }
+    }
+
+    fetchGuardianInfo()
+  }, [])
 
   const handleToggle = (field) => {
     setSettings((prev) => ({
@@ -40,7 +93,7 @@ function SettingsPage() {
   }
 
   const handleCancel = () => {
-    setSettings(initialSettings)
+    setSettings(INITIAL_SETTINGS)
   }
 
   const handleSave = () => {
@@ -82,12 +135,12 @@ function SettingsPage() {
                 onChange={() => handleToggle('autoSyncEnabled')}
               />
 
-            <SettingsSliderRow
-            title="알림 소리 크기"
-            description="알림음의 볼륨을 조절합니다"
-            value={settings.volume}
-            onChange={(value) => handleChangeValue('volume', value)}
-            />
+              <SettingsSliderRow
+                title="알림 소리 크기"
+                description="알림음의 볼륨을 조절합니다"
+                value={settings.volume}
+                onChange={(value) => handleChangeValue('volume', value)}
+              />
 
               <SettingToggleRow
                 title="음성 안내 설정"
@@ -98,27 +151,27 @@ function SettingsPage() {
             </SettingsSectionCard>
 
             <SettingsSectionCard title="계정 설정">
-              {accountActionItems.map((item) => (
+              {ACCOUNT_ACTION_ITEMS.map((item) => (
                 <SettingActionRow
                   key={item.id}
                   title={item.title}
                   description={item.description}
                   buttonLabel={item.buttonLabel}
-                onClick={() => {
-                        if (item.title === '보호자 정보 수정') {
-                            setIsGuardianModalOpen(true)
-                            return
-                        }
+                  onClick={() => {
+                    if (item.id === 'guardian') {
+                      setIsGuardianModalOpen(true)
+                      return
+                    }
 
-                alert(`${item.title} 기능은 나중에 연결 예정`)
-            }}
+                    alert(`${item.title} 기능은 나중에 연결 예정`)
+                  }}
                 />
               ))}
             </SettingsSectionCard>
 
             <SettingsInfoBanner
-              title={settingsInfo.title}
-              description={settingsInfo.description}
+              title={SETTINGS_INFO.title}
+              description={SETTINGS_INFO.description}
             />
 
             <SettingsFooterActions
@@ -132,15 +185,15 @@ function SettingsPage() {
       <MobileBottomNav activeMenu="settings" />
       {isGuardianModalOpen ? (
         <GuardianEditModal
-            initialData={guardianInfo}
-            onClose={() => setIsGuardianModalOpen(false)}
-            onSave={(updatedGuardianInfo) => {
-                setGuardianInfo(updatedGuardianInfo)
-                setIsGuardianModalOpen(false)
-                alert('보호자 정보가 저장되었습니다.')
-            }}
+          initialData={guardianInfo}
+          onClose={() => setIsGuardianModalOpen(false)}
+          onSave={(updatedGuardianInfo) => {
+            setGuardianInfo(updatedGuardianInfo)
+            setIsGuardianModalOpen(false)
+            alert('보호자 정보가 저장되었습니다.')
+          }}
         />
-    ) : null}
+      ) : null}
     </div>
   )
 }

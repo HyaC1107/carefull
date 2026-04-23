@@ -3,11 +3,11 @@ import { useState } from 'react'
 function ScheduleAddModal({ selectedDateLabel, onClose, onSubmit }) {
   const [repeatType, setRepeatType] = useState('none')
   const [form, setForm] = useState({
-    medicationName: '',
+    medi_name: '',
     dose: '1',
-    time: '',
-    startDate: '',
-    endDate: '',
+    time_to_take: '',
+    start_date: '',
+    end_date: '',
   })
 
   const handleChange = (field, value) => {
@@ -20,7 +20,7 @@ function ScheduleAddModal({ selectedDateLabel, onClose, onSubmit }) {
   const handleSubmit = (event) => {
     event.preventDefault()
 
-    if (!form.medicationName.trim() || !form.dose.trim() || !form.time.trim()) {
+    if (!form.medi_name.trim() || !form.dose.trim() || !form.time_to_take.trim()) {
       alert('약 이름, 수량, 복용 시간은 필수입니다.')
       return
     }
@@ -73,8 +73,8 @@ function ScheduleAddModal({ selectedDateLabel, onClose, onSubmit }) {
             <input
               type="time"
               className="schedule-modal__input"
-              value={form.time}
-              onChange={(e) => handleChange('time', e.target.value)}
+              value={form.time_to_take}
+              onChange={(e) => handleChange('time_to_take', e.target.value)}
             />
           </section>
 
@@ -103,8 +103,8 @@ function ScheduleAddModal({ selectedDateLabel, onClose, onSubmit }) {
               <span className="schedule-modal__label">약 이름 *</span>
               <input
                 className="schedule-modal__input"
-                value={form.medicationName}
-                onChange={(e) => handleChange('medicationName', e.target.value)}
+                value={form.medi_name}
+                onChange={(e) => handleChange('medi_name', e.target.value)}
                 placeholder="약 이름을 검색하세요..."
               />
             </label>
@@ -137,8 +137,8 @@ function ScheduleAddModal({ selectedDateLabel, onClose, onSubmit }) {
                 <input
                   type="date"
                   className="schedule-modal__input"
-                  value={form.startDate}
-                  onChange={(e) => handleChange('startDate', e.target.value)}
+                  value={form.start_date}
+                  onChange={(e) => handleChange('start_date', e.target.value)}
                 />
               </label>
 
@@ -147,8 +147,8 @@ function ScheduleAddModal({ selectedDateLabel, onClose, onSubmit }) {
                 <input
                   type="date"
                   className="schedule-modal__input"
-                  value={form.endDate}
-                  onChange={(e) => handleChange('endDate', e.target.value)}
+                  value={form.end_date}
+                  onChange={(e) => handleChange('end_date', e.target.value)}
                 />
               </label>
             </div>

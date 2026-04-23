@@ -4,6 +4,9 @@ from PyQt5.QtWidgets import QApplication, QMainWindow, QStackedWidget
 from ui.screens.home import HomeScreen
 from ui.screens.register import RegisterScreen
 from ui.screens.camera_view import CameraViewScreen
+from ui.screens.fingerprint_register import FingerprintRegisterScreen
+from ui.screens.register_complete import RegisterCompleteScreen
+from ui.screens.medication_start import MedicationStartScreen
 from ui.screens.auth_result import AuthResultScreen
 from ui.screens.dispensing import DispensingScreen
 from ui.screens.medication import MedicationScreen
@@ -15,20 +18,23 @@ class App(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Carefull")
-        self.setFixedSize(1024, 600)
+        self.setFixedSize(800, 480)
 
         self.stack = QStackedWidget()
         self.setCentralWidget(self.stack)
 
         self.screens = {
-            "home": HomeScreen(self),
-            "register": RegisterScreen(self),
-            "camera_view": CameraViewScreen(self),
-            "auth_result": AuthResultScreen(self),
-            "dispensing": DispensingScreen(self),
-            "medication": MedicationScreen(self),
-            "complete": CompleteScreen(self),
-            "settings": SettingsScreen(self),
+            "home":                HomeScreen(self),
+            "register":            RegisterScreen(self),
+            "camera_view":         CameraViewScreen(self),
+            "fingerprint_register": FingerprintRegisterScreen(self),
+            "register_complete":   RegisterCompleteScreen(self),
+            "medication_start":    MedicationStartScreen(self),
+            "auth_result":         AuthResultScreen(self),
+            "dispensing":          DispensingScreen(self),
+            "medication":          MedicationScreen(self),
+            "complete":            CompleteScreen(self),
+            "settings":            SettingsScreen(self),
         }
 
         for screen in self.screens.values():

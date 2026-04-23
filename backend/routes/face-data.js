@@ -1,143 +1,123 @@
-// routes/face-data.js
 const express = require('express');
 const router = express.Router();
 
 const pool = require('../db');
 const { verifyToken } = require('../middleware/auth');
-const { findUserIdByMemberId } = require('../utils/auth-user');
+const { find_patient_id_by_mem_id } = require('../utils/auth-user');
 const { sendSuccess, sendError } = require('../utils/response');
 const { validateRequiredFields } = require('../utils/validators');
 
-/**
- * 얼굴 임베딩 저장 요청 body를 검증합니다.
- */
-const validateFaceDataPayload = (body) => {
-    const requiredFields = ['embedding'];
-    return validateRequiredFields(body, requiredFields);
+const validate_face_data_payload = (body) => {
+    const required_fields = ['face_vector'];
+    return validateRequiredFields(body, required_fields);
 };
 
-/**
- * embedding 배열을 DB 저장용 값으로 정리합니다.
- *
- * 현재 전제:
- * - PostgreSQL face_data.embedding 컬럼은 VECTOR(128)
- * - pgvector 사용 시 '[0.1, 0.2, ...]' 형태 문자열로 전달 가능
- *
- * 참고:
- * - 드라이버/pgvector 설정에 따라 배열 자체 전달이 가능할 수도 있으나,
- *   현재 프로젝트에서는 우선 안전하게 문자열로 변환하는 뼈대 코드로 둡니다.
- */
-const normalizeEmbeddingValue = (embedding) => {
-    if (!Array.isArray(embedding)) {
+const normalize_embedding_value = (embedding) => {
+    if (!Array.isArray(embedding) || embedding.length === 0) {
         return null;
     }
 
-    if (embedding.length === 0) {
-        return null;
-    }
-
-    const parsedEmbedding = [];
+    const parsed_embedding = [];
 
     for (const value of embedding) {
-        const parsedValue = Number(value);
+        const parsed_value = Number(value);
 
-        if (Number.isNaN(parsedValue)) {
+        if (Number.isNaN(parsed_value)) {
             return null;
         }
 
-        parsedEmbedding.push(parsedValue);
+        parsed_embedding.push(parsed_value);
     }
 
-    return `[${parsedEmbedding.join(',')}]`;
+    return `[${parsed_embedding.join(',')}]`;
 };
 
-/**
- * POST /api/face-data
- * 로그인한 사용자 기준 user_id를 찾아 얼굴 임베딩을 저장합니다.
- */
-router.post('/', verifyToken, async (req, res) => {
-    const memberId = req.user.memberId;
+const to_face_embedding_response = (row) => ({
+    face_id: row.face_id,
+    patient_id: row.patient_id,
+    face_vector: row.face_vector,
+    created_at: row.created_at
+});
 
-    const validationError = validateFaceDataPayload(req.body);
-    if (validationError) {
-        return sendError(res, 400, validationError);
+router.post('/', verifyToken, async (req, res) => {
+    const mem_id = req.user.mem_id;
+
+    const validation_error = validate_face_data_payload(req.body);
+    if (validation_error) {
+        return sendError(res, 400, validation_error);
     }
 
-    const { embedding } = req.body;
-    const normalizedEmbedding = normalizeEmbeddingValue(embedding);
+    const { face_vector } = req.body;
+    const normalized_embedding = normalize_embedding_value(face_vector);
 
-    if (!normalizedEmbedding) {
-        return sendError(res, 400, 'embedding은 숫자 배열이어야 합니다.');
+    if (!normalized_embedding) {
+        return sendError(res, 400, 'face_vector must be a numeric array.');
     }
 
     try {
-        const userId = await findUserIdByMemberId(memberId);
+        const patient_id = await find_patient_id_by_mem_id(mem_id);
 
-        if (!userId) {
-            return sendError(res, 404, '등록된 사용자 정보가 없습니다.');
+        if (!patient_id) {
+            return sendError(res, 404, 'Patient not found.');
         }
 
-        const insertQuery = `
-            INSERT INTO face_data (
-                user_id,
-                embedding
+        const insert_query = `
+            INSERT INTO face_embeddings (
+                patient_id,
+                face_vector
             )
             VALUES ($1, $2)
             RETURNING
                 face_id,
-                user_id,
-                embedding,
+                patient_id,
+                face_vector,
                 created_at
         `;
 
-        const { rows } = await pool.query(insertQuery, [
-            userId,
-            normalizedEmbedding
+        const { rows } = await pool.query(insert_query, [
+            patient_id,
+            normalized_embedding
         ]);
 
         return sendSuccess(res, 201, {
-            message: '얼굴 데이터가 저장되었습니다.',
-            face_data: rows[0]
+            message: 'Face embedding created successfully.',
+            face_embedding: to_face_embedding_response(rows[0])
         });
     } catch (error) {
-        console.error('얼굴 데이터 저장 중 오류가 발생했습니다:', error);
-        return sendError(res, 500, '얼굴 데이터 저장 중 서버 오류가 발생했습니다.');
+        console.error('Face embedding create error:', error);
+        return sendError(res, 500, 'Server error while creating face embedding.');
     }
 });
 
-/**
- * GET /api/face-data
- * 로그인한 사용자 기준 얼굴 데이터 목록을 최신순으로 조회합니다.
- */
 router.get('/', verifyToken, async (req, res) => {
-    const memberId = req.user.memberId;
+    const mem_id = req.user.mem_id;
 
     try {
-        const userId = await findUserIdByMemberId(memberId);
+        const patient_id = await find_patient_id_by_mem_id(mem_id);
 
-        if (!userId) {
-            return sendError(res, 404, '등록된 사용자 정보가 없습니다.');
+        if (!patient_id) {
+            return sendError(res, 404, 'Patient not found.');
         }
 
         const query = `
             SELECT
                 face_id,
-                user_id,
-                embedding,
+                patient_id,
+                face_vector,
                 created_at
-            FROM face_data
-            WHERE user_id = $1
+            FROM face_embeddings
+            WHERE patient_id = $1
             ORDER BY created_at DESC, face_id DESC
         `;
 
-        const { rows } = await pool.query(query, [userId]);
+        const { rows } = await pool.query(query, [patient_id]);
 
         return sendSuccess(res, 200, {
-            face_data: rows
+            face_embeddings: rows.map(to_face_embedding_response)
         });
     } catch (error) {
-        console.error('얼굴 데이터 조회 중 오류가 발생했습니다:', error);
-        return sendError(res, 500, '얼굴 데이터 조회 중 서버 오류가 발생했습니다.');
+        console.error('Face embedding fetch error:', error);
+        return sendError(res, 500, 'Server error while fetching face embeddings.');
     }
 });
 
