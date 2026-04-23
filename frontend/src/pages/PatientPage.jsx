@@ -28,12 +28,17 @@ function PatientPage() {
   const [deviceData, setDeviceData] = useState(null)
   const [medications, setMedications] = useState([])
   const [pendingDevice, setPendingDevice] = useState(null)
+  const [isPatientRegistered, setIsPatientRegistered] = useState(false)
+  const [isDeviceRegistered, setIsDeviceRegistered] = useState(false)
+  const [isRegistrationCheckLoading, setIsRegistrationCheckLoading] =
+    useState(true)
   const [isDeviceModalOpen, setIsDeviceModalOpen] = useState(false)
   const [isPatientModalOpen, setIsPatientModalOpen] = useState(false)
 
   useEffect(() => {
     const fetchPatientPageData = async () => {
       if (!hasStoredToken()) {
+        setIsRegistrationCheckLoading(false)
         return
       }
 
@@ -48,8 +53,13 @@ function PatientPage() {
 
         const nickname = getStoredAuthPayload()?.nick || '등록 사용자'
 
-        setPatientData(mapPatientProfile(patientResponse?.patient, nickname))
-        setDeviceData(mapDeviceDetail(deviceResponse?.device))
+        const patient = patientResponse?.patient ?? null
+        const device = deviceResponse?.device ?? null
+
+        setIsPatientRegistered(hasRegisteredPatient(patient))
+        setIsDeviceRegistered(hasRegisteredDevice(device))
+        setPatientData(mapPatientProfile(patient, nickname))
+        setDeviceData(mapDeviceDetail(device))
         setMedications(
           mapPatientMedications(
             scheduleResponse?.schedules,
@@ -58,14 +68,20 @@ function PatientPage() {
         )
       } catch (error) {
         console.error('patient page fetch error:', error)
+      } finally {
+        setIsRegistrationCheckLoading(false)
       }
     }
 
     fetchPatientPageData()
   }, [])
 
-  const hasPatient = Boolean(patientData)
-  const hasDevice = Boolean(deviceData || pendingDevice)
+  const hasDevice = isDeviceRegistered || Boolean(pendingDevice)
+  const shouldShowPatientDetail =
+    !isRegistrationCheckLoading && isPatientRegistered && isDeviceRegistered
+  const shouldShowRegistrationGate =
+    !isRegistrationCheckLoading &&
+    (!isPatientRegistered || !isDeviceRegistered)
 
   const handleDeviceRegisterSuccess = (newDevice) => {
     setPendingDevice({
@@ -100,10 +116,33 @@ function PatientPage() {
         requestJson('/api/device/me', { auth: true }).catch(() => null),
       ])
 
+      const syncedPatientResponse =
+        shouldSyncPatientProfile(newPatient) && patientResponse?.patient
+          ? await requestJson('/api/patient/me', {
+              method: 'PUT',
+              auth: true,
+              body: buildPatientUpdatePayload(patientResponse.patient, newPatient),
+            }).catch((error) => {
+              console.error('patient profile sync error:', error)
+              return null
+            })
+          : null
+
       const nickname = getStoredAuthPayload()?.nick || '등록 사용자'
 
-      setPatientData(mapPatientProfile(patientResponse?.patient, nickname))
+      setPatientData(
+        mapPatientProfile(
+          syncedPatientResponse?.patient || patientResponse?.patient,
+          nickname,
+        ),
+      )
       setDeviceData(mapDeviceDetail(deviceResponse?.device))
+      setIsPatientRegistered(
+        hasRegisteredPatient(
+          syncedPatientResponse?.patient || patientResponse?.patient,
+        ),
+      )
+      setIsDeviceRegistered(hasRegisteredDevice(deviceResponse?.device))
       setPendingDevice(null)
       setIsPatientModalOpen(false)
     } catch (error) {
@@ -121,13 +160,24 @@ function PatientPage() {
           <TopHeader />
 
           <main className="patient-content">
-            {!hasPatient ? (
+            {isRegistrationCheckLoading ? (
+              <section className="patient-page-header">
+                <h2 className="patient-page-header__title">환자 정보</h2>
+                <p className="patient-page-header__subtitle">
+                  환자 등록 상태를 불러오고 있습니다.
+                </p>
+              </section>
+            ) : null}
+
+            {shouldShowRegistrationGate ? (
               <PatientEmptyState
                 hasDevice={hasDevice}
                 onOpenDeviceModal={() => setIsDeviceModalOpen(true)}
                 onOpenPatientModal={() => setIsPatientModalOpen(true)}
               />
-            ) : (
+            ) : null}
+
+            {shouldShowPatientDetail ? (
               <>
                 <section className="patient-page-header">
                   <h2 className="patient-page-header__title">환자 정보</h2>
@@ -143,7 +193,7 @@ function PatientPage() {
                   detail={deviceData?.detail || DEFAULT_DEVICE_DETAIL}
                 />
               </>
-            )}
+            ) : null}
           </main>
         </div>
       </div>
@@ -204,6 +254,14 @@ function mapDeviceDetail(device) {
     device_status: device.device_status || '-',
     last_ping: formatDate(device.last_ping),
   }
+}
+
+function hasRegisteredPatient(patient) {
+  return Boolean(patient?.patient_id)
+}
+
+function hasRegisteredDevice(device) {
+  return Boolean(device?.device_id || device?.device_uid)
 }
 
 function buildDeviceStatusList(deviceData) {
@@ -284,6 +342,37 @@ function formatTime(value) {
 function toNumber(value) {
   const parsed = Number(value)
   return Number.isFinite(parsed) ? parsed : 0
+}
+
+function shouldSyncPatientProfile(patient) {
+  return [
+    patient?.patient_name,
+    patient?.birthdate,
+    patient?.gender,
+    patient?.bloodtype,
+    patient?.height,
+    patient?.weight,
+    patient?.phone,
+    patient?.address,
+    patient?.guardian_name,
+    patient?.guardian_phone,
+  ].every((value) => String(value ?? '').trim())
+}
+
+function buildPatientUpdatePayload(currentPatient, newPatient) {
+  return {
+    patient_name: newPatient.patient_name,
+    birthdate: newPatient.birthdate,
+    gender: newPatient.gender,
+    phone: newPatient.phone,
+    address: newPatient.address,
+    bloodtype: newPatient.bloodtype,
+    height: toNumber(newPatient.height),
+    weight: toNumber(newPatient.weight),
+    fingerprint_id: currentPatient?.fingerprint_id ?? 0,
+    guardian_name: newPatient.guardian_name,
+    guardian_phone: newPatient.guardian_phone,
+  }
 }
 
 export default PatientPage
