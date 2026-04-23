@@ -66,6 +66,7 @@ class MedicationScreen(QWidget):
     def _start_thread(self):
         self._stop_thread()
         self._thread = BehaviorThread(parent=self)
+        self._thread.frame_ready.connect(self._camera_card.update_frame)
         self._thread.progress_updated.connect(self._on_progress)
         self._thread.intake_detected.connect(self._on_intake)
         self._thread.start()

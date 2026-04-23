@@ -1,5 +1,6 @@
 import sys
 from PyQt5.QtWidgets import QApplication, QMainWindow, QStackedWidget
+from config.settings import SCREEN_WIDTH, SCREEN_HEIGHT
 
 from ui.screens.home import HomeScreen
 from ui.screens.register import RegisterScreen
@@ -18,7 +19,7 @@ class App(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Carefull")
-        self.setFixedSize(800, 480)
+        self.setFixedSize(SCREEN_WIDTH, SCREEN_HEIGHT)
 
         self.stack = QStackedWidget()
         self.setCentralWidget(self.stack)
