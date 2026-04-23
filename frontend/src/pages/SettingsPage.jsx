@@ -5,33 +5,58 @@ import MobileBottomNav from '../components/layout/MobileBottomNav'
 import SettingsHeader from '../components/settings/SettingsHeader'
 import SettingsSectionCard from '../components/settings/SettingsSectionCard'
 import SettingToggleRow from '../components/settings/SettingToggleRow'
-import SettingTimeRow from '../components/settings/SettingTimeRow'
-import SettingsSliderRow from '../components/settings/SettingsSliderRow'
 import SettingActionRow from '../components/settings/SettingActionRow'
-import SettingsInfoBanner from '../components/settings/SettingsInfoBanner'
-import SettingsFooterActions from '../components/settings/SettingsFooterActions'
 import GuardianEditModal from '../components/settings/GuardianEditModal'
-import { hasStoredToken, requestJson } from '../api'
+import PatientEditModal from '../components/settings/PatientEditModal'
+import { hasStoredToken, requestJson, TOKEN_STORAGE_KEY } from '../api'
 import '../styles/SettingsPage.css'
 import '../styles/MobileBottomNav.css'
 
-const INITIAL_SETTINGS = {
-  smsEnabled: false,
-  alertTime: '',
-  autoSyncEnabled: false,
-  volume: 0,
-  voiceGuideEnabled: false,
+const NOTIF_PREFS_KEY = 'carefull_notif_prefs'
+
+const DEFAULT_NOTIF_PREFS = {
+  MISSED: true,
+  LOW_STOCK: true,
+  ERROR: true,
+  FAILED: true,
+  SUCCESS: false,
 }
 
-const INITIAL_GUARDIAN_INFO = {
-  name: '',
-  phone: '',
-  address: '',
-  relation: '',
-  email: '',
-}
+const NOTIF_TOGGLE_ITEMS = [
+  {
+    key: 'MISSED',
+    title: '미복약 알림',
+    description: '복약 예정 시간이 지나도 복약 기록이 없을 때 알림을 표시합니다',
+  },
+  {
+    key: 'LOW_STOCK',
+    title: '약 부족 알림',
+    description: '남은 약이 부족할 때 알림을 표시합니다',
+  },
+  {
+    key: 'ERROR',
+    title: '기기 오류 알림',
+    description: '디스펜서 기기에 오류가 발생했을 때 알림을 표시합니다',
+  },
+  {
+    key: 'FAILED',
+    title: '복약 실패 알림',
+    description: '복약 시도가 정상 완료되지 않았을 때 알림을 표시합니다',
+  },
+  {
+    key: 'SUCCESS',
+    title: '복약 완료 알림',
+    description: '복약이 정상 완료될 때마다 알림을 표시합니다',
+  },
+]
 
 const ACCOUNT_ACTION_ITEMS = [
+  {
+    id: 'patient',
+    title: '환자 정보 수정',
+    description: '환자의 기본 정보를 수정합니다',
+    buttonLabel: '수정',
+  },
   {
     id: 'guardian',
     title: '보호자 정보 수정',
@@ -46,58 +71,75 @@ const ACCOUNT_ACTION_ITEMS = [
   },
 ]
 
-const SETTINGS_INFO = {
-  title: '설정 안내',
-  description: '설정 페이지는 mock 없이 빈 초기값으로 시작합니다.',
+function loadNotifPrefs() {
+  try {
+    const stored = localStorage.getItem(NOTIF_PREFS_KEY)
+    if (stored) return { ...DEFAULT_NOTIF_PREFS, ...JSON.parse(stored) }
+  } catch {}
+  return { ...DEFAULT_NOTIF_PREFS }
 }
 
 function SettingsPage() {
-  const [settings, setSettings] = useState(INITIAL_SETTINGS)
-  const [guardianInfo, setGuardianInfo] = useState(INITIAL_GUARDIAN_INFO)
+  const [notifPrefs, setNotifPrefs] = useState(loadNotifPrefs)
+  const [patientData, setPatientData] = useState(null)
+  const [isPatientModalOpen, setIsPatientModalOpen] = useState(false)
   const [isGuardianModalOpen, setIsGuardianModalOpen] = useState(false)
 
   useEffect(() => {
-    const fetchGuardianInfo = async () => {
-      if (!hasStoredToken()) {
-        return
-      }
+    if (!hasStoredToken()) return
 
-      try {
-        const patientResponse = await requestJson('/api/patient/me', { auth: true })
-        setGuardianInfo((prev) => ({
-          ...prev,
-          name: patientResponse?.patient?.guardian_name || '',
-          phone: patientResponse?.patient?.guardian_phone || '',
-          address: patientResponse?.patient?.address || '',
-        }))
-      } catch (error) {
-        console.error('settings patient fetch error:', error)
-      }
-    }
-
-    fetchGuardianInfo()
+    requestJson('/api/patient/me', { auth: true })
+      .then((res) => setPatientData(res?.patient || null))
+      .catch((err) => console.error('settings patient fetch error:', err))
   }, [])
 
-  const handleToggle = (field) => {
-    setSettings((prev) => ({
-      ...prev,
-      [field]: !prev[field],
-    }))
+  const handleToggleNotif = (key) => {
+    setNotifPrefs((prev) => {
+      const next = { ...prev, [key]: !prev[key] }
+      localStorage.setItem(NOTIF_PREFS_KEY, JSON.stringify(next))
+      return next
+    })
   }
 
-  const handleChangeValue = (field, value) => {
-    setSettings((prev) => ({
-      ...prev,
-      [field]: value,
-    }))
+  const handleSavePatient = async (updatedFields) => {
+    const payload = { ...patientData, ...updatedFields }
+    const res = await requestJson('/api/patient/me', {
+      method: 'PUT',
+      auth: true,
+      body: payload,
+    })
+    setPatientData(res?.patient || patientData)
+    setIsPatientModalOpen(false)
   }
 
-  const handleCancel = () => {
-    setSettings(INITIAL_SETTINGS)
+  const handleSaveGuardian = async (updatedFields) => {
+    const payload = { ...patientData, ...updatedFields }
+    const res = await requestJson('/api/patient/me', {
+      method: 'PUT',
+      auth: true,
+      body: payload,
+    })
+    setPatientData(res?.patient || patientData)
+    setIsGuardianModalOpen(false)
   }
 
-  const handleSave = () => {
-    alert('설정이 저장되었습니다.')
+  const handleAccountAction = (id) => {
+    if (id === 'patient') {
+      if (!patientData) {
+        alert('환자 정보를 불러오는 중입니다. 잠시 후 다시 시도해주세요.')
+        return
+      }
+      setIsPatientModalOpen(true)
+    } else if (id === 'guardian') {
+      if (!patientData) {
+        alert('환자 정보를 불러오는 중입니다. 잠시 후 다시 시도해주세요.')
+        return
+      }
+      setIsGuardianModalOpen(true)
+    } else if (id === 'logout') {
+      localStorage.removeItem(TOKEN_STORAGE_KEY)
+      window.location.href = '/'
+    }
   }
 
   return (
@@ -111,43 +153,16 @@ function SettingsPage() {
           <main className="settings-content">
             <SettingsHeader />
 
-            <SettingsSectionCard title="알림 설정">
-              <SettingToggleRow
-                title="SMS 알림"
-                description="복약 시간에 SMS로 알림을 전송합니다"
-                checked={settings.smsEnabled}
-                onChange={() => handleToggle('smsEnabled')}
-              />
-
-              <SettingTimeRow
-                title="알림 시간 설정"
-                description="복약 알림 받을 시간을 설정합니다"
-                value={settings.alertTime}
-                onChange={(value) => handleChangeValue('alertTime', value)}
-              />
-            </SettingsSectionCard>
-
-            <SettingsSectionCard title="디바이스 설정">
-              <SettingToggleRow
-                title="자동 동기화"
-                description="디바이스와 자동으로 데이터를 동기화합니다"
-                checked={settings.autoSyncEnabled}
-                onChange={() => handleToggle('autoSyncEnabled')}
-              />
-
-              <SettingsSliderRow
-                title="알림 소리 크기"
-                description="알림음의 볼륨을 조절합니다"
-                value={settings.volume}
-                onChange={(value) => handleChangeValue('volume', value)}
-              />
-
-              <SettingToggleRow
-                title="음성 안내 설정"
-                description="복약 알림 음성을 설정합니다"
-                checked={settings.voiceGuideEnabled}
-                onChange={() => handleToggle('voiceGuideEnabled')}
-              />
+            <SettingsSectionCard title="알림 수신 설정">
+              {NOTIF_TOGGLE_ITEMS.map((item) => (
+                <SettingToggleRow
+                  key={item.key}
+                  title={item.title}
+                  description={item.description}
+                  checked={notifPrefs[item.key]}
+                  onChange={() => handleToggleNotif(item.key)}
+                />
+              ))}
             </SettingsSectionCard>
 
             <SettingsSectionCard title="계정 설정">
@@ -157,41 +172,32 @@ function SettingsPage() {
                   title={item.title}
                   description={item.description}
                   buttonLabel={item.buttonLabel}
-                  onClick={() => {
-                    if (item.id === 'guardian') {
-                      setIsGuardianModalOpen(true)
-                      return
-                    }
-
-                    alert(`${item.title} 기능은 나중에 연결 예정`)
-                  }}
+                  onClick={() => handleAccountAction(item.id)}
                 />
               ))}
             </SettingsSectionCard>
-
-            <SettingsInfoBanner
-              title={SETTINGS_INFO.title}
-              description={SETTINGS_INFO.description}
-            />
-
-            <SettingsFooterActions
-              onCancel={handleCancel}
-              onSave={handleSave}
-            />
           </main>
         </div>
       </div>
 
       <MobileBottomNav activeMenu="settings" />
-      {isGuardianModalOpen ? (
+
+      {isPatientModalOpen && patientData ? (
+        <PatientEditModal
+          initialData={patientData}
+          onClose={() => setIsPatientModalOpen(false)}
+          onSave={handleSavePatient}
+        />
+      ) : null}
+
+      {isGuardianModalOpen && patientData ? (
         <GuardianEditModal
-          initialData={guardianInfo}
-          onClose={() => setIsGuardianModalOpen(false)}
-          onSave={(updatedGuardianInfo) => {
-            setGuardianInfo(updatedGuardianInfo)
-            setIsGuardianModalOpen(false)
-            alert('보호자 정보가 저장되었습니다.')
+          initialData={{
+            guardian_name: patientData.guardian_name || '',
+            guardian_phone: patientData.guardian_phone || '',
           }}
+          onClose={() => setIsGuardianModalOpen(false)}
+          onSave={handleSaveGuardian}
         />
       ) : null}
     </div>

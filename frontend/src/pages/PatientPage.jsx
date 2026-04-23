@@ -43,12 +43,11 @@ function PatientPage() {
       }
 
       try {
-        const [patientResponse, deviceResponse, scheduleResponse, medicationResponse] =
+        const [patientResponse, deviceResponse, scheduleResponse] =
           await Promise.all([
             requestJson('/api/patient/me', { auth: true }).catch(() => null),
             requestJson('/api/device/me', { auth: true }).catch(() => null),
             requestJson('/api/schedule', { auth: true }).catch(() => null),
-            requestJson('/api/medication').catch(() => null),
           ])
 
         const nickname = getStoredAuthPayload()?.nick || '등록 사용자'
@@ -60,12 +59,7 @@ function PatientPage() {
         setIsDeviceRegistered(hasRegisteredDevice(device))
         setPatientData(mapPatientProfile(patient, nickname))
         setDeviceData(mapDeviceDetail(device))
-        setMedications(
-          mapPatientMedications(
-            scheduleResponse?.schedules,
-            medicationResponse?.data,
-          ),
-        )
+        setMedications(mapPatientMedications(scheduleResponse?.schedules))
       } catch (error) {
         console.error('patient page fetch error:', error)
       } finally {
@@ -295,15 +289,10 @@ function buildDeviceStatusList(deviceData) {
   ]
 }
 
-function mapPatientMedications(schedules = [], medications = []) {
-  const medicationMap = medications.reduce((acc, item) => {
-    acc[item.medi_id] = item.medi_name
-    return acc
-  }, {})
-
+function mapPatientMedications(schedules = []) {
   return schedules.map((schedule) => ({
     id: schedule.sche_id,
-    medi_name: medicationMap[schedule.medi_id] || `약물 ${schedule.medi_id}`,
+    medi_name: schedule.medi_name || `약물 ${schedule.medi_id}`,
     ingredient: `약물 ID ${schedule.medi_id}`,
     start_date: formatDate(schedule.start_date),
     time_to_take: formatTime(schedule.time_to_take),
