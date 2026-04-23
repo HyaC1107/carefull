@@ -124,7 +124,6 @@ function PatientPage() {
       ])
 
       const nickname = getStoredAuthPayload()?.nick || '등록 사용자'
-
       const patient = patientResponse?.patient ?? null
       const device = deviceResponse?.device ?? null
 

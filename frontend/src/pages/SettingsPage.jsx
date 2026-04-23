@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Sidebar from '../components/layout/Sidebar'
 import TopHeader from '../components/layout/TopHeader'
 import MobileBottomNav from '../components/layout/MobileBottomNav'
@@ -11,6 +11,7 @@ import SettingActionRow from '../components/settings/SettingActionRow'
 import SettingsInfoBanner from '../components/settings/SettingsInfoBanner'
 import SettingsFooterActions from '../components/settings/SettingsFooterActions'
 import GuardianEditModal from '../components/settings/GuardianEditModal'
+import { hasStoredToken, requestJson } from '../api'
 import '../styles/SettingsPage.css'
 import '../styles/MobileBottomNav.css'
 
@@ -54,6 +55,28 @@ function SettingsPage() {
   const [settings, setSettings] = useState(INITIAL_SETTINGS)
   const [guardianInfo, setGuardianInfo] = useState(INITIAL_GUARDIAN_INFO)
   const [isGuardianModalOpen, setIsGuardianModalOpen] = useState(false)
+
+  useEffect(() => {
+    const fetchGuardianInfo = async () => {
+      if (!hasStoredToken()) {
+        return
+      }
+
+      try {
+        const patientResponse = await requestJson('/api/patient/me', { auth: true })
+        setGuardianInfo((prev) => ({
+          ...prev,
+          name: patientResponse?.patient?.guardian_name || '',
+          phone: patientResponse?.patient?.guardian_phone || '',
+          address: patientResponse?.patient?.address || '',
+        }))
+      } catch (error) {
+        console.error('settings patient fetch error:', error)
+      }
+    }
+
+    fetchGuardianInfo()
+  }, [])
 
   const handleToggle = (field) => {
     setSettings((prev) => ({
