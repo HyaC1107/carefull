@@ -15,9 +15,28 @@ const ALERTS_INFO = {
   description: '백엔드에서 전달된 복약 알림만 표시됩니다.',
 }
 
+const NOTIF_PREFS_KEY = 'carefull_notif_prefs'
+
+const DEFAULT_NOTIF_PREFS = {
+  MISSED: true,
+  LOW_STOCK: true,
+  ERROR: true,
+  FAILED: true,
+  SUCCESS: false,
+}
+
+function loadNotifPrefs() {
+  try {
+    const stored = localStorage.getItem(NOTIF_PREFS_KEY)
+    if (stored) return { ...DEFAULT_NOTIF_PREFS, ...JSON.parse(stored) }
+  } catch {}
+  return { ...DEFAULT_NOTIF_PREFS }
+}
+
 function AlertsPage() {
   const [activeFilter, setActiveFilter] = useState('all')
   const [alerts, setAlerts] = useState([])
+  const [notifPrefs] = useState(loadNotifPrefs)
 
   useEffect(() => {
     const fetchNotifications = async () => {
@@ -27,7 +46,11 @@ function AlertsPage() {
 
       try {
         const data = await requestJson('/api/notification', { auth: true })
-        setAlerts(mapNotifications(data?.notifications))
+        const filtered = (data?.notifications || []).filter((n) => {
+          const type = String(n.noti_type || '').toUpperCase()
+          return notifPrefs[type] !== false
+        })
+        setAlerts(mapNotifications(filtered))
       } catch (error) {
         console.error('notification fetch error:', error)
       }

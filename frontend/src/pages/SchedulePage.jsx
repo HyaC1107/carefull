@@ -20,7 +20,6 @@ const SCHEDULE_INFO_BANNER = {
 function SchedulePage() {
   const [calendarState, setCalendarState] = useState(createInitialCalendarState)
   const [schedules, setSchedules] = useState([])
-  const [medicationMap, setMedicationMap] = useState({})
   const [backendCompletedKeys, setBackendCompletedKeys] = useState(new Set())
   const [savingScheduleIds, setSavingScheduleIds] = useState(new Set())
   const [isAddModalOpen, setIsAddModalOpen] = useState(false)
@@ -34,14 +33,12 @@ function SchedulePage() {
       }
 
       try {
-        const [scheduleData, medicationData, activityData] = await Promise.all([
+        const [scheduleData, activityData] = await Promise.all([
           requestJson('/api/schedule', { auth: true }),
-          requestJson('/api/medication'),
           requestJson('/api/log', { auth: true }),
         ])
 
         setSchedules(Array.isArray(scheduleData?.schedules) ? scheduleData.schedules : [])
-        setMedicationMap(buildMedicationMap(medicationData?.data))
         setBackendCompletedKeys(buildCompletedKeySet(activityData?.activities))
       } catch (error) {
         console.error('schedule fetch error:', error)
@@ -52,8 +49,8 @@ function SchedulePage() {
   }, [])
 
   const scheduleMap = useMemo(
-    () => buildScheduleMap(schedules, medicationMap, backendCompletedKeys, year, month),
-    [schedules, medicationMap, backendCompletedKeys, year, month],
+    () => buildScheduleMap(schedules, backendCompletedKeys, year, month),
+    [schedules, backendCompletedKeys, year, month],
   )
 
   const selectedSchedules = useMemo(
@@ -148,24 +145,11 @@ function SchedulePage() {
     }
 
     try {
-      const medicationData = await requestJson(
-        `/api/medication/search?keyword=${encodeURIComponent(newSchedule.medi_name)}`,
-      )
-      const matchedMedication = findMatchedMedication(
-        medicationData?.data,
-        newSchedule.medi_name,
-      )
-
-      if (!matchedMedication) {
-        alert('등록된 약 정보를 찾지 못했습니다.')
-        return
-      }
-
       await requestJson('/api/schedule', {
         method: 'POST',
         auth: true,
         body: {
-          medi_id: matchedMedication.medi_id,
+          medi_id: newSchedule.medi_id,
           time_to_take: ensureSeconds(newSchedule.time_to_take),
           start_date: newSchedule.start_date || selectedDate,
           end_date: newSchedule.end_date || null,
@@ -254,13 +238,6 @@ function createInitialCalendarState() {
   }
 }
 
-function buildMedicationMap(medications = []) {
-  return medications.reduce((acc, medication) => {
-    acc[medication.medi_id] = medication.medi_name
-    return acc
-  }, {})
-}
-
 function buildCompletedKeySet(activities = []) {
   return new Set(
     activities
@@ -273,13 +250,7 @@ function buildCompletedKeySet(activities = []) {
   )
 }
 
-function buildScheduleMap(
-  schedules,
-  medicationMap,
-  completionKeySet,
-  year,
-  month,
-) {
+function buildScheduleMap(schedules, completionKeySet, year, month) {
   const mappedSchedules = {}
   const monthStart = new Date(year, month - 1, 1)
   const monthEnd = new Date(year, month, 0)
@@ -333,8 +304,7 @@ function buildScheduleMap(
         id: itemId,
         sche_id: schedule.sche_id,
         time_to_take: formatTime(schedule.time_to_take),
-        medi_name:
-          medicationMap[schedule.medi_id] || `약물 ${schedule.medi_id}`,
+        medi_name: schedule.medi_name || `약물 ${schedule.medi_id}`,
         doseText:
           intervalDays > 1 ? `${intervalDays}일 간격 복용` : '매일 복용',
         status: isCompletedSchedule(itemId, completionKeySet) ? 'done' : 'pending',
@@ -351,16 +321,6 @@ function buildScheduleMap(
 
 function isCompletedSchedule(itemId, completionKeySet) {
   return completionKeySet.has(itemId)
-}
-
-function findMatchedMedication(medications = [], medi_name = '') {
-  const trimmedName = medi_name.trim().toLowerCase()
-
-  return (
-    medications.find(
-      (item) => String(item.medi_name).trim().toLowerCase() === trimmedName,
-    ) || medications[0] || null
-  )
 }
 
 function formatSelectedDateLabel(dateKey) {

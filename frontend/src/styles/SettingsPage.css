@@ -324,6 +324,19 @@
   }
 }
 
+/* 2열 폼 그리드 */
+.settings-form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+@media (max-width: 480px) {
+  .settings-form-row {
+    grid-template-columns: 1fr;
+  }
+}
+
 /* =========================
    설정 모달
 ========================= */
@@ -347,8 +360,17 @@
   overflow: hidden;
 }
 
-.settings-modal--guardian {
+.settings-modal--guardian,
+.settings-modal--patient {
   max-width: 520px;
+}
+
+.settings-form-field__input[type="date"],
+.settings-form-field__input[type="number"],
+.settings-form-field__select,
+select.settings-form-field__input {
+  appearance: none;
+  -webkit-appearance: none;
 }
 
 .settings-modal__header {

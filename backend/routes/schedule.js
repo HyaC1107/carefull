@@ -22,6 +22,7 @@ const to_schedule_response = (row) => ({
     sche_id: row.sche_id,
     patient_id: row.patient_id,
     medi_id: row.medi_id,
+    medi_name: row.medi_name ?? null,
     time_to_take: row.time_to_take,
     start_date: row.start_date,
     end_date: row.end_date,
@@ -114,17 +115,19 @@ router.get('/', verifyToken, async (req, res) => {
 
         const query = `
             SELECT
-                sche_id,
-                patient_id,
-                medi_id,
-                time_to_take,
-                start_date,
-                end_date,
-                dose_interval,
-                status
-            FROM schedules
-            WHERE patient_id = $1
-            ORDER BY start_date, time_to_take, sche_id
+                s.sche_id,
+                s.patient_id,
+                s.medi_id,
+                m.medi_name,
+                s.time_to_take,
+                s.start_date,
+                s.end_date,
+                s.dose_interval,
+                s.status
+            FROM schedules s
+            LEFT JOIN medications m ON m.medi_id = s.medi_id
+            WHERE s.patient_id = $1
+            ORDER BY s.start_date, s.time_to_take, s.sche_id
         `;
 
         const { rows } = await pool.query(query, [patient_id]);

@@ -1,32 +1,95 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { requestJson } from '../../api'
 
 function ScheduleAddModal({ selectedDateLabel, onClose, onSubmit }) {
   const [repeatType, setRepeatType] = useState('none')
   const [form, setForm] = useState({
-    medi_name: '',
     dose: '1',
     time_to_take: '',
     start_date: '',
     end_date: '',
   })
 
+  const [searchQuery, setSearchQuery] = useState('')
+  const [searchResults, setSearchResults] = useState([])
+  const [isSearching, setIsSearching] = useState(false)
+  const [showDropdown, setShowDropdown] = useState(false)
+  const [selectedMed, setSelectedMed] = useState(null)
+
+  const debounceRef = useRef(null)
+
+  useEffect(() => {
+    const query = searchQuery.trim()
+
+    if (!query) {
+      setSearchResults([])
+      setShowDropdown(false)
+      return
+    }
+
+    if (selectedMed && searchQuery === selectedMed.medi_name) {
+      return
+    }
+
+    clearTimeout(debounceRef.current)
+    debounceRef.current = setTimeout(async () => {
+      setIsSearching(true)
+      try {
+        const data = await requestJson(
+          `/api/medication/search?keyword=${encodeURIComponent(query)}`,
+        )
+        setSearchResults(data?.data || [])
+        setShowDropdown(true)
+      } catch {
+        setSearchResults([])
+      } finally {
+        setIsSearching(false)
+      }
+    }, 300)
+
+    return () => clearTimeout(debounceRef.current)
+  }, [searchQuery])
+
+  const handleSearchChange = (e) => {
+    const value = e.target.value
+    setSearchQuery(value)
+    if (selectedMed && value !== selectedMed.medi_name) {
+      setSelectedMed(null)
+    }
+  }
+
+  const handleSelectMed = (med) => {
+    setSelectedMed(med)
+    setSearchQuery(med.medi_name)
+    setShowDropdown(false)
+    setSearchResults([])
+  }
+
+  const handleSearchBlur = () => {
+    setTimeout(() => setShowDropdown(false), 150)
+  }
+
   const handleChange = (field, value) => {
-    setForm((prev) => ({
-      ...prev,
-      [field]: value,
-    }))
+    setForm((prev) => ({ ...prev, [field]: value }))
   }
 
   const handleSubmit = (event) => {
     event.preventDefault()
 
-    if (!form.medi_name.trim() || !form.dose.trim() || !form.time_to_take.trim()) {
-      alert('약 이름, 수량, 복용 시간은 필수입니다.')
+    if (!selectedMed) {
+      alert('약을 목록에서 선택해주세요.')
+      return
+    }
+
+    if (!form.dose.trim() || !form.time_to_take.trim()) {
+      alert('수량과 복용 시간은 필수입니다.')
       return
     }
 
     onSubmit({
       ...form,
+      medi_id: selectedMed.medi_id,
+      medi_name: selectedMed.medi_name,
       repeatType,
     })
   }
@@ -79,34 +142,62 @@ function ScheduleAddModal({ selectedDateLabel, onClose, onSubmit }) {
           </section>
 
           <section className="schedule-modal__section schedule-modal__section--highlight">
-            <div className="schedule-modal__section-header">
-              <div className="schedule-modal__section-title-row">
-                <span
-                  className="schedule-modal__section-icon schedule-modal__section-icon--pill"
-                  aria-hidden="true"
-                >
-                  💊
-                </span>
-                <h4 className="schedule-modal__section-title">약 정보</h4>
-              </div>
-
-              <button
-                type="button"
-                className="schedule-modal__mini-button"
-                onClick={() => alert('약 추가 기능은 나중에 연결 예정')}
+            <div className="schedule-modal__section-title-row">
+              <span
+                className="schedule-modal__section-icon schedule-modal__section-icon--pill"
+                aria-hidden="true"
               >
-                + 약 추가
-              </button>
+                💊
+              </span>
+              <h4 className="schedule-modal__section-title">약 정보</h4>
             </div>
 
             <label className="schedule-modal__field">
               <span className="schedule-modal__label">약 이름 *</span>
-              <input
-                className="schedule-modal__input"
-                value={form.medi_name}
-                onChange={(e) => handleChange('medi_name', e.target.value)}
-                placeholder="약 이름을 검색하세요..."
-              />
+              <div className="schedule-modal__search-wrapper">
+                <input
+                  className="schedule-modal__input"
+                  value={searchQuery}
+                  onChange={handleSearchChange}
+                  onBlur={handleSearchBlur}
+                  onFocus={() => {
+                    if (searchResults.length > 0) setShowDropdown(true)
+                  }}
+                  placeholder="약 이름을 입력하세요 (예: 졸피뎀)"
+                  autoComplete="off"
+                />
+
+                {showDropdown && (
+                  <div className="schedule-modal__search-dropdown">
+                    {isSearching ? (
+                      <p className="schedule-modal__search-empty">검색 중...</p>
+                    ) : searchResults.length > 0 ? (
+                      searchResults.map((med) => (
+                        <div
+                          key={med.medi_id}
+                          className="schedule-modal__search-item"
+                          onMouseDown={() => handleSelectMed(med)}
+                        >
+                          {med.medi_name}
+                        </div>
+                      ))
+                    ) : (
+                      <p className="schedule-modal__search-empty">
+                        검색 결과가 없습니다
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+              {selectedMed ? (
+                <span className="schedule-modal__search-hint">
+                  ✓ {selectedMed.medi_name} 선택됨
+                </span>
+              ) : searchQuery.trim() && !isSearching ? (
+                <span className="schedule-modal__search-hint">
+                  목록에서 약을 선택해주세요
+                </span>
+              ) : null}
             </label>
 
             <label className="schedule-modal__field">
@@ -117,10 +208,6 @@ function ScheduleAddModal({ selectedDateLabel, onClose, onSubmit }) {
                 onChange={(e) => handleChange('dose', e.target.value)}
               />
             </label>
-
-            <div className="schedule-modal__hint-box">
-              💡 약 이름을 입력하면 자동으로 목록에 표시됩니다
-            </div>
           </section>
 
           <section className="schedule-modal__section">

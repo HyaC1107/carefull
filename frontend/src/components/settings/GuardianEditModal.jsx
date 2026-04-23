@@ -1,34 +1,39 @@
 import { useEffect, useState } from 'react'
 
 function GuardianEditModal({ initialData, onClose, onSave }) {
-  const [form, setForm] = useState(initialData)
+  const [form, setForm] = useState({
+    guardian_name: initialData.guardian_name || '',
+    guardian_phone: initialData.guardian_phone || '',
+  })
+  const [saving, setSaving] = useState(false)
 
   useEffect(() => {
-    setForm(initialData)
+    setForm({
+      guardian_name: initialData.guardian_name || '',
+      guardian_phone: initialData.guardian_phone || '',
+    })
   }, [initialData])
 
   const handleChange = (field, value) => {
-    setForm((prev) => ({
-      ...prev,
-      [field]: value,
-    }))
+    setForm((prev) => ({ ...prev, [field]: value }))
   }
 
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault()
 
-    if (
-      !form.name.trim() ||
-      !form.phone.trim() ||
-      !form.address.trim() ||
-      !form.relation.trim() ||
-      !form.email.trim()
-    ) {
+    if (!form.guardian_name.trim() || !form.guardian_phone.trim()) {
       alert('필수 항목을 모두 입력해주세요.')
       return
     }
 
-    onSave(form)
+    setSaving(true)
+    try {
+      await onSave(form)
+    } catch (err) {
+      alert(err.message || '저장에 실패했습니다.')
+    } finally {
+      setSaving(false)
+    }
   }
 
   return (
@@ -40,11 +45,8 @@ function GuardianEditModal({ initialData, onClose, onSave }) {
         <div className="settings-modal__header">
           <div>
             <h3 className="settings-modal__title">보호자 정보 수정</h3>
-            <p className="settings-modal__subtitle">
-              보호자의 정보를 수정해주세요
-            </p>
+            <p className="settings-modal__subtitle">보호자의 정보를 수정해주세요</p>
           </div>
-
           <button
             type="button"
             className="settings-modal__close-button"
@@ -59,8 +61,8 @@ function GuardianEditModal({ initialData, onClose, onSave }) {
             <span className="settings-form-field__label">보호자 이름 *</span>
             <input
               className="settings-form-field__input"
-              value={form.name}
-              onChange={(e) => handleChange('name', e.target.value)}
+              value={form.guardian_name}
+              onChange={(e) => handleChange('guardian_name', e.target.value)}
               placeholder="보호자 이름을 입력하세요"
             />
           </label>
@@ -69,38 +71,9 @@ function GuardianEditModal({ initialData, onClose, onSave }) {
             <span className="settings-form-field__label">연락처 *</span>
             <input
               className="settings-form-field__input"
-              value={form.phone}
-              onChange={(e) => handleChange('phone', e.target.value)}
+              value={form.guardian_phone}
+              onChange={(e) => handleChange('guardian_phone', e.target.value)}
               placeholder="010-1234-5678"
-            />
-          </label>
-
-          <label className="settings-form-field">
-            <span className="settings-form-field__label">주소 *</span>
-            <input
-              className="settings-form-field__input"
-              value={form.address}
-              onChange={(e) => handleChange('address', e.target.value)}
-              placeholder="주소를 입력하세요"
-            />
-          </label>
-
-          <label className="settings-form-field">
-            <span className="settings-form-field__label">관계 *</span>
-            <input
-              className="settings-form-field__input"
-              value={form.relation}
-              onChange={(e) => handleChange('relation', e.target.value)}
-            />
-          </label>
-
-          <label className="settings-form-field">
-            <span className="settings-form-field__label">이메일 *</span>
-            <input
-              className="settings-form-field__input"
-              value={form.email}
-              onChange={(e) => handleChange('email', e.target.value)}
-              placeholder="example@email.com"
             />
           </label>
 
@@ -109,15 +82,16 @@ function GuardianEditModal({ initialData, onClose, onSave }) {
               type="button"
               className="settings-modal__button settings-modal__button--secondary"
               onClick={onClose}
+              disabled={saving}
             >
               취소
             </button>
-
             <button
               type="submit"
               className="settings-modal__button settings-modal__button--primary"
+              disabled={saving}
             >
-              저장하기
+              {saving ? '저장 중...' : '저장하기'}
             </button>
           </div>
         </form>
