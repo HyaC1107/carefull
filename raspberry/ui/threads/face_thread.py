@@ -14,7 +14,7 @@ _FACE_MARGIN = 0.2
 
 class FaceThread(QThread):
     frame_ready = pyqtSignal(object)       # BGR ndarray
-    auth_success = pyqtSignal(str)         # matched user name
+    auth_success = pyqtSignal(str, float)  # matched user name, similarity score
     auth_failed = pyqtSignal()
     capture_progress = pyqtSignal(int)     # captured count (register mode)
     capture_done = pyqtSignal(list)        # list of face BGR images (register mode)
@@ -60,10 +60,10 @@ class FaceThread(QThread):
                 retries += 1
                 continue
 
-            user, _score = authenticate(face_img)
+            user, score = authenticate(face_img)
             if user:
                 if self._running:
-                    self.auth_success.emit(user)
+                    self.auth_success.emit(user, float(score))
                 return
 
             retries += 1

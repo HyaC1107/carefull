@@ -1,12 +1,12 @@
+import copy
 import json
 import os
 from datetime import datetime
 
-from PyQt5.QtCore import QPointF, QRectF, Qt, QTimer
+from PyQt5.QtCore import QPointF, QRectF, Qt, QThread, QTimer
 from PyQt5.QtGui import QColor, QFont, QPainter, QPen
 from PyQt5.QtWidgets import (
-    QFrame, QHBoxLayout, QLabel, QPushButton, QSizePolicy,
-    QVBoxLayout, QWidget,
+    QFrame, QLabel, QVBoxLayout, QWidget,
 )
 
 _SCHEDULE_PATH = os.path.normpath(
@@ -19,20 +19,48 @@ _DARK = "#14532d"
 _AUTO_HOME_MS = 5000
 
 
+class _EventSendWorker(QThread):
+    def __init__(self, session: dict, parent=None):
+        super().__init__(parent)
+        self._session = session
+
+    def run(self):
+        sche_id = self._session.get("sche_id")
+        if sche_id is None:
+            return
+        from api.client import send_device_event
+        send_device_event(
+            sche_id=sche_id,
+            face_verified=self._session.get("face_verified", False),
+            dispensed=self._session.get("dispensed", False),
+            action_verified=self._session.get("action_verified", False),
+            raw_confidence=self._session.get("similarity_score", 0.0),
+        )
+
+
 def _next_medication_time() -> str:
     try:
         with open(_SCHEDULE_PATH, "r", encoding="utf-8") as f:
             schedules = json.load(f)
     except Exception:
         return "--:--"
+
     now = datetime.now()
     now_min = now.hour * 60 + now.minute
-    times = sorted(
-        int(e["time"].split(":")[0]) * 60 + int(e["time"].split(":")[1])
-        for e in schedules if "time" in e
-    )
+    times = []
+    for e in schedules:
+        # API 포맷(time_to_take) 및 레거시 포맷(time) 모두 지원
+        t = e.get("time_to_take") or e.get("time", "")
+        t = str(t)[:5]  # "HH:MM:SS" → "HH:MM"
+        try:
+            h, m = map(int, t.split(":"))
+            times.append(h * 60 + m)
+        except Exception:
+            continue
+
     if not times:
         return "--:--"
+    times.sort()
     for t in times:
         if t > now_min:
             h, m = divmod(t, 60)
@@ -70,6 +98,7 @@ class CompleteScreen(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self._app = parent
+        self._event_worker = None
         self._build_ui()
 
     def _build_ui(self):
@@ -100,14 +129,8 @@ class CompleteScreen(QWidget):
 
         root.addSpacing(20)
 
-        # 다음 복약 카드
         card = QFrame()
-        card.setStyleSheet("""
-            QFrame {
-                background-color: white;
-                border-radius: 16px;
-            }
-        """)
+        card.setStyleSheet("QFrame { background-color: white; border-radius: 16px; }")
         card_lay = QVBoxLayout(card)
         card_lay.setContentsMargins(24, 14, 24, 14)
         card_lay.setSpacing(4)
@@ -139,6 +162,13 @@ class CompleteScreen(QWidget):
     def showEvent(self, event):
         super().showEvent(event)
         self._next_time_lbl.setText(_next_medication_time())
+
+        # 복약 결과를 백그라운드에서 백엔드로 전송
+        if self._app:
+            session = copy.copy(self._app.current_session)
+            self._event_worker = _EventSendWorker(session, parent=self)
+            self._event_worker.start()
+
         self._remaining = _AUTO_HOME_MS // 1000
         self._update_countdown()
         self._tick_timer = QTimer(self)

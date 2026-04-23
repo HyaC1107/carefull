@@ -268,4 +268,55 @@ router.delete('/:id', verifyToken, async (req, res) => {
     }
 });
 
+// GET /api/schedule/device  — JWT 불필요, device_uid 로 인증
+router.get('/device', async (req, res) => {
+    const { device_uid } = req.query;
+
+    if (!device_uid || !String(device_uid).trim()) {
+        return sendError(res, 400, 'device_uid is required.');
+    }
+
+    try {
+        const query = `
+            SELECT
+                s.sche_id,
+                s.patient_id,
+                s.medi_id,
+                s.time_to_take,
+                s.start_date,
+                s.end_date,
+                s.dose_interval,
+                s.status,
+                m.medi_name
+            FROM schedules s
+            INNER JOIN devices d ON d.patient_id = s.patient_id
+            LEFT JOIN medications m ON m.medi_id = s.medi_id
+            WHERE d.device_uid = $1
+              AND s.status = 'ACTIVE'
+              AND s.start_date <= CURRENT_DATE
+              AND (s.end_date IS NULL OR s.end_date >= CURRENT_DATE)
+            ORDER BY s.time_to_take, s.sche_id
+        `;
+
+        const { rows } = await pool.query(query, [String(device_uid).trim()]);
+
+        return sendSuccess(res, 200, {
+            schedules: rows.map(row => ({
+                sche_id:       row.sche_id,
+                patient_id:    row.patient_id,
+                medi_id:       row.medi_id,
+                time_to_take:  row.time_to_take,
+                start_date:    row.start_date,
+                end_date:      row.end_date,
+                dose_interval: row.dose_interval,
+                status:        row.status,
+                medi_name:     row.medi_name,
+            }))
+        });
+    } catch (error) {
+        console.error('Device schedule fetch error:', error);
+        return sendError(res, 500, 'Server error while fetching device schedules.');
+    }
+});
+
 module.exports = router;
