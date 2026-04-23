@@ -1,8 +1,7 @@
 import { useEffect } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { TOKEN_STORAGE_KEY } from '../api'
 import '../styles/LoginPage.css'
-
-const TOKEN_STORAGE_KEY = 'carefull_test_token'
 
 function SocialCallbackPage() {
   const navigate = useNavigate()
