@@ -34,10 +34,17 @@ def _next_medication() -> str:
 
     now = datetime.now()
     now_min = now.hour * 60 + now.minute
-    times = sorted(
-        int(e["time"].split(":")[0]) * 60 + int(e["time"].split(":")[1])
-        for e in schedules if "time" in e
-    )
+    times = []
+    for e in schedules:
+        # API 포맷(time_to_take) 및 레거시 포맷(time) 모두 지원
+        t = e.get("time_to_take") or e.get("time", "")
+        t = str(t)[:5]  # "HH:MM:SS" → "HH:MM"
+        try:
+            h, m = map(int, t.split(":"))
+            times.append(h * 60 + m)
+        except Exception:
+            continue
+    times.sort()
     if not times:
         return "--:--"
     for t in times:

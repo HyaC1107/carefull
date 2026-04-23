@@ -86,4 +86,5 @@ class MedicationScreen(QWidget):
         if self._timeout_timer:
             self._timeout_timer.stop()
         if self._app:
+            self._app.current_session["action_verified"] = True
             self._app.show_screen("complete")

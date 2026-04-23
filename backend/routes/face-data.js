@@ -121,4 +121,87 @@ router.get('/', verifyToken, async (req, res) => {
     }
 });
 
+// GET /api/face-data/device  — JWT 불필요, device_uid 로 인증
+router.get('/device', async (req, res) => {
+    const { device_uid } = req.query;
+
+    if (!device_uid || !String(device_uid).trim()) {
+        return sendError(res, 400, 'device_uid is required.');
+    }
+
+    try {
+        const query = `
+            SELECT
+                fe.face_id,
+                fe.patient_id,
+                fe.face_vector,
+                fe.created_at
+            FROM face_embeddings fe
+            INNER JOIN devices d ON d.patient_id = fe.patient_id
+            WHERE d.device_uid = $1
+            ORDER BY fe.created_at DESC, fe.face_id DESC
+        `;
+
+        const { rows } = await pool.query(query, [String(device_uid).trim()]);
+
+        return sendSuccess(res, 200, {
+            face_embeddings: rows.map(to_face_embedding_response)
+        });
+    } catch (error) {
+        console.error('Device face embedding fetch error:', error);
+        return sendError(res, 500, 'Server error while fetching device face embeddings.');
+    }
+});
+
+// POST /api/face-data/device  — JWT 불필요, device_uid 로 인증
+router.post('/device', async (req, res) => {
+    const { device_uid, face_vector } = req.body;
+
+    if (!device_uid || !String(device_uid).trim()) {
+        return sendError(res, 400, 'device_uid is required.');
+    }
+
+    if (!face_vector) {
+        return sendError(res, 400, 'face_vector is required.');
+    }
+
+    const normalized_embedding = normalize_embedding_value(face_vector);
+    if (!normalized_embedding) {
+        return sendError(res, 400, 'face_vector must be a numeric array.');
+    }
+
+    try {
+        const device_query = `
+            SELECT patient_id
+            FROM devices
+            WHERE device_uid = $1
+              AND patient_id IS NOT NULL
+            LIMIT 1
+        `;
+        const device_result = await pool.query(device_query, [String(device_uid).trim()]);
+
+        if (device_result.rows.length === 0) {
+            return sendError(res, 404, 'Device not found or not assigned to a patient.');
+        }
+
+        const { patient_id } = device_result.rows[0];
+
+        const insert_query = `
+            INSERT INTO face_embeddings (patient_id, face_vector)
+            VALUES ($1, $2)
+            RETURNING face_id, patient_id, face_vector, created_at
+        `;
+
+        const { rows } = await pool.query(insert_query, [patient_id, normalized_embedding]);
+
+        return sendSuccess(res, 201, {
+            message: 'Face embedding created successfully.',
+            face_embedding: to_face_embedding_response(rows[0])
+        });
+    } catch (error) {
+        console.error('Device face embedding create error:', error);
+        return sendError(res, 500, 'Server error while creating device face embedding.');
+    }
+});
+
 module.exports = router;

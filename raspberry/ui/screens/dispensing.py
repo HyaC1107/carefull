@@ -130,10 +130,13 @@ class DispensingScreen(QWidget):
         if self._thread and self._thread.isRunning():
             return
         self._thread = _DispenseThread(parent=self)
-        self._thread.done.connect(
-            lambda: QTimer.singleShot(_TRANSITION_MS, self._go_medication)
-        )
+        self._thread.done.connect(self._on_dispense_done)
         self._thread.start()
+
+    def _on_dispense_done(self):
+        if self._app:
+            self._app.current_session["dispensed"] = True
+        QTimer.singleShot(_TRANSITION_MS, self._go_medication)
 
     def _go_medication(self):
         if self._app:

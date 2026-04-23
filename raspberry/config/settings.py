@@ -19,3 +19,8 @@ SCREEN_WIDTH = int(os.getenv("CAREFULL_SCREEN_WIDTH", "800"))
 SCREEN_HEIGHT = int(os.getenv("CAREFULL_SCREEN_HEIGHT", "480"))
 
 USE_WEBCAM = os.getenv("CAREFULL_USE_WEBCAM", "0") == "1"
+
+# API
+API_BASE_URL = os.getenv("CAREFULL_API_BASE_URL", "http://localhost:3000")
+DEVICE_UID   = os.getenv("CAREFULL_DEVICE_UID", "")
+API_TIMEOUT  = int(os.getenv("CAREFULL_API_TIMEOUT", "10"))

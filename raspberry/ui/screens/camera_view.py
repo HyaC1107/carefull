@@ -105,7 +105,7 @@ class CameraViewScreen(QWidget):
         self._thread.frame_ready.connect(self._camera_card.update_frame)
 
         if self._mode == MODE_AUTH:
-            self._thread.auth_success.connect(self._on_auth_success)
+            self._thread.auth_success.connect(self._on_auth_success)  # (str, float)
             self._thread.auth_failed.connect(self._on_auth_failed)
         else:
             self._thread.capture_progress.connect(self._on_progress)
@@ -121,8 +121,11 @@ class CameraViewScreen(QWidget):
 
     # ─────────────────────────────── 콜백: auth ───────────────────────────────
 
-    def _on_auth_success(self, user: str):
+    def _on_auth_success(self, user: str, score: float):
         self._stop_thread()
+        if self._app:
+            self._app.current_session["face_verified"] = True
+            self._app.current_session["similarity_score"] = score
         result = self._app.screens["auth_result"]
         result.set_result(success=True, user=user)
         self._app.show_screen("auth_result")
@@ -164,5 +167,11 @@ class CameraViewScreen(QWidget):
             db["_latest"] = mean_emb
             with open(_DB_PATH, "w", encoding="utf-8") as f:
                 json.dump(db, f, ensure_ascii=False, indent=2)
+
+            try:
+                from api.client import upload_face_embedding
+                upload_face_embedding(mean_emb)
+            except Exception:
+                pass
         except Exception as e:
             print(f"[REGISTER ERROR] {e}")
