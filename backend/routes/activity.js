@@ -69,16 +69,15 @@ const to_boolean_or_null = (value) => {
 };
 
 const resolve_device_event_payload = (body) => ({
-    // Keep both snake_case and camelCase temporarily for device integration.
-    device_uid: body.device_uid ?? body.deviceUid ?? null,
-    sche_id: body.sche_id ?? body.schedule_id ?? body.scheduleId ?? null,
-    event_time: body.event_time ?? body.eventTime ?? null,
+    device_uid: body.device_uid ?? null,
+    sche_id: body.sche_id ?? null,
+    event_time: body.event_time ?? null,
     status: body.status ?? null,
-    face_verified: body.face_verified ?? body.faceVerified ?? body.is_face_auth ?? null,
+    face_verified: body.face_verified ?? null,
     dispensed: body.dispensed ?? null,
-    action_verified: body.action_verified ?? body.actionVerified ?? body.is_ai_check ?? null,
-    error_code: body.error_code ?? body.errorCode ?? null,
-    raw_confidence: body.raw_confidence ?? body.rawConfidence ?? body.similarity_score ?? null
+    action_verified: body.action_verified ?? null,
+    error_code: body.error_code ?? null,
+    raw_confidence: body.raw_confidence ?? null
 });
 
 const build_schedule_timestamp = (time_to_take, base_date) => {

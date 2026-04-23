@@ -15,7 +15,7 @@ function SocialCallbackPage() {
       const token = searchParams.get('token')
       const providerFromQuery = searchParams.get('provider')
       const error = searchParams.get('error')
-      const isNewUser = searchParams.get('isNewUser')
+      const is_new_user = searchParams.get('is_new_user')
 
       if (!normalizedProvider || providerFromQuery !== normalizedProvider) {
         navigate('/login', { replace: true })
@@ -32,7 +32,7 @@ function SocialCallbackPage() {
 
       navigate(
         resolveNextPath({
-          isNewUser: isNewUser === 'true',
+          is_new_user: is_new_user === 'true',
         }),
         { replace: true },
       )
@@ -52,11 +52,11 @@ function normalizeProvider(provider) {
   return ''
 }
 function resolveNextPath(authResult) {
-  if (authResult.isNewUser || authResult.nextStep === '/register-patient') {
+  if (authResult.is_new_user || authResult.next_step === '/register-patient') {
     return '/register-patient'
   }
 
-  if (authResult.nextStep === '/main' || authResult.nextStep === '/dashboard') {
+  if (authResult.next_step === '/main' || authResult.next_step === '/dashboard') {
     return '/dashboard'
   }
 

@@ -18,8 +18,8 @@ import '../styles/MobileBottomNav.css'
 
 const DEFAULT_DEVICE_DETAIL = {
   modelName: 'Carefull Device',
-  serialNumber: '-',
-  installedAt: '-',
+  device_uid: '-',
+  registered_at: '-',
   firmwareVersion: '-',
 }
 
@@ -69,14 +69,14 @@ function PatientPage() {
 
   const handleDeviceRegisterSuccess = (newDevice) => {
     setPendingDevice({
-      serialNumber: newDevice.serialNumber?.trim() || '',
+      device_uid: newDevice.device_uid?.trim() || '',
       deviceName: newDevice.deviceName?.trim() || '',
     })
     setIsDeviceModalOpen(false)
   }
 
   const handlePatientRegisterSuccess = async (newPatient) => {
-    if (!pendingDevice?.serialNumber || !hasStoredToken()) {
+    if (!pendingDevice?.device_uid || !hasStoredToken()) {
       return
     }
 
@@ -85,13 +85,13 @@ function PatientPage() {
         method: 'POST',
         auth: true,
         body: {
-          patient_name: newPatient.name || '',
-          birthdate: newPatient.birthDate || '',
+          patient_name: newPatient.patient_name || '',
+          birthdate: newPatient.birthdate || '',
           gender: newPatient.gender || '',
-          bloodtype: newPatient.bloodType || '',
+          bloodtype: newPatient.bloodtype || '',
           height: toNumber(newPatient.height),
           weight: toNumber(newPatient.weight),
-          serial_number: pendingDevice.serialNumber,
+          device_uid: pendingDevice.device_uid,
         },
       })
 
@@ -173,15 +173,15 @@ function mapPatientProfile(patient, nickname) {
   }
 
   return {
-    name: patient.patient_name || nickname || '등록 사용자',
+    patient_name: patient.patient_name || nickname || '등록 사용자',
     ageGenderBlood: `${patient.birthdate || '-'} · ${patient.gender || '-'} · ${
       patient.bloodtype || '-'
     }`,
     phone: patient.phone || '-',
     address: patient.address || '-',
-    guardianName: patient.guardian_name || '-',
-    guardianPhone: patient.guardian_phone || '-',
-    registeredAt: formatDate(patient.created_at),
+    guardian_name: patient.guardian_name || '-',
+    guardian_phone: patient.guardian_phone || '-',
+    created_at: formatDate(patient.created_at),
     physicalInfo: `키 ${patient.height ?? '-'}cm · 체중 ${
       patient.weight ?? '-'
     }kg`,
@@ -196,13 +196,13 @@ function mapDeviceDetail(device) {
   return {
     detail: {
       modelName: 'Carefull Device',
-      serialNumber: device.device_uid || '-',
-      installedAt: formatDate(device.registered_at),
+      device_uid: device.device_uid || '-',
+      registered_at: formatDate(device.registered_at),
       firmwareVersion: '-',
     },
-    isConnected: Boolean(device.is_connected),
-    status: device.device_status || '-',
-    lastPing: formatDate(device.last_ping),
+    is_connected: Boolean(device.is_connected),
+    device_status: device.device_status || '-',
+    last_ping: formatDate(device.last_ping),
   }
 }
 
@@ -219,19 +219,19 @@ function buildDeviceStatusList(deviceData) {
     {
       id: 'connection',
       label: '연결 상태',
-      value: deviceData.isConnected ? '연결됨' : '연결 안 됨',
+      value: deviceData.is_connected ? '연결됨' : '연결 안 됨',
       type: 'success',
     },
     {
       id: 'status',
       label: '디바이스 상태',
-      value: deviceData.status,
+      value: deviceData.device_status,
       type: 'primary',
     },
     {
       id: 'sync',
       label: '마지막 동기화',
-      value: deviceData.lastPing,
+      value: deviceData.last_ping,
       type: 'info',
     },
   ]
@@ -245,10 +245,10 @@ function mapPatientMedications(schedules = [], medications = []) {
 
   return schedules.map((schedule) => ({
     id: schedule.sche_id,
-    name: medicationMap[schedule.medi_id] || `약물 ${schedule.medi_id}`,
+    medi_name: medicationMap[schedule.medi_id] || `약물 ${schedule.medi_id}`,
     ingredient: `약물 ID ${schedule.medi_id}`,
-    startedAt: formatDate(schedule.start_date),
-    dose: formatTime(schedule.time_to_take),
+    start_date: formatDate(schedule.start_date),
+    time_to_take: formatTime(schedule.time_to_take),
     amount:
       Number(schedule.dose_interval) > 1
         ? `${schedule.dose_interval}일 간격`

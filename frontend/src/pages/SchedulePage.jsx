@@ -21,8 +21,8 @@ function SchedulePage() {
   const [calendarState, setCalendarState] = useState(createInitialCalendarState)
   const [schedules, setSchedules] = useState([])
   const [medicationMap, setMedicationMap] = useState({})
-  const [completedOverrides, setCompletedOverrides] = useState({})
   const [backendCompletedKeys, setBackendCompletedKeys] = useState(new Set())
+  const [savingScheduleIds, setSavingScheduleIds] = useState(new Set())
   const [isAddModalOpen, setIsAddModalOpen] = useState(false)
 
   const { year, month, selectedDate } = calendarState
@@ -51,23 +51,9 @@ function SchedulePage() {
     fetchScheduleData()
   }, [])
 
-  const completionKeySet = useMemo(() => {
-    const nextSet = new Set(backendCompletedKeys)
-
-    Object.entries(completedOverrides).forEach(([key, isCompleted]) => {
-      if (isCompleted) {
-        nextSet.add(key)
-      } else {
-        nextSet.delete(key)
-      }
-    })
-
-    return nextSet
-  }, [backendCompletedKeys, completedOverrides])
-
   const scheduleMap = useMemo(
-    () => buildScheduleMap(schedules, medicationMap, completionKeySet, year, month),
-    [schedules, medicationMap, completionKeySet, year, month],
+    () => buildScheduleMap(schedules, medicationMap, backendCompletedKeys, year, month),
+    [schedules, medicationMap, backendCompletedKeys, year, month],
   )
 
   const selectedSchedules = useMemo(
@@ -110,11 +96,50 @@ function SchedulePage() {
     })
   }
 
-  const handleToggleSchedule = (dateKey, itemId) => {
-    setCompletedOverrides((prev) => ({
-      ...prev,
-      [itemId]: !isCompletedSchedule(itemId, completionKeySet),
-    }))
+  const handleToggleSchedule = async (dateKey, item) => {
+    if (!hasStoredToken()) {
+      return
+    }
+
+    if (
+      isCompletedSchedule(item.id, backendCompletedKeys) ||
+      savingScheduleIds.has(item.id)
+    ) {
+      return
+    }
+
+    setSavingScheduleIds((prev) => {
+      const next = new Set(prev)
+      next.add(item.id)
+      return next
+    })
+
+    try {
+      await requestJson('/api/log', {
+        method: 'POST',
+        auth: true,
+        body: {
+          sche_id: item.sche_id,
+          sche_time: buildScheduleDateTime(dateKey, item.time_to_take),
+          status: 'SUCCESS',
+        },
+      })
+
+      setBackendCompletedKeys((prev) => {
+        const next = new Set(prev)
+        next.add(item.id)
+        return next
+      })
+    } catch (error) {
+      console.error('schedule completion save error:', error)
+      alert(error.message || '복약 완료 저장에 실패했습니다.')
+    } finally {
+      setSavingScheduleIds((prev) => {
+        const next = new Set(prev)
+        next.delete(item.id)
+        return next
+      })
+    }
   }
 
   const handleCreateSchedule = async (newSchedule) => {
@@ -124,11 +149,11 @@ function SchedulePage() {
 
     try {
       const medicationData = await requestJson(
-        `/api/medication/search?keyword=${encodeURIComponent(newSchedule.medicationName)}`,
+        `/api/medication/search?keyword=${encodeURIComponent(newSchedule.medi_name)}`,
       )
       const matchedMedication = findMatchedMedication(
         medicationData?.data,
-        newSchedule.medicationName,
+        newSchedule.medi_name,
       )
 
       if (!matchedMedication) {
@@ -141,9 +166,9 @@ function SchedulePage() {
         auth: true,
         body: {
           medi_id: matchedMedication.medi_id,
-          time_to_take: ensureSeconds(newSchedule.time),
-          start_date: newSchedule.startDate || selectedDate,
-          end_date: newSchedule.endDate || null,
+          time_to_take: ensureSeconds(newSchedule.time_to_take),
+          start_date: newSchedule.start_date || selectedDate,
+          end_date: newSchedule.end_date || null,
           dose_interval: newSchedule.repeatType === 'weekly' ? 7 : null,
           status: 'ACTIVE',
         },
@@ -306,9 +331,9 @@ function buildScheduleMap(
 
       mappedSchedules[dateKey].push({
         id: itemId,
-        scheduleId: schedule.sche_id,
-        time: formatTime(schedule.time_to_take),
-        medicineName:
+        sche_id: schedule.sche_id,
+        time_to_take: formatTime(schedule.time_to_take),
+        medi_name:
           medicationMap[schedule.medi_id] || `약물 ${schedule.medi_id}`,
         doseText:
           intervalDays > 1 ? `${intervalDays}일 간격 복용` : '매일 복용',
@@ -318,7 +343,7 @@ function buildScheduleMap(
   })
 
   Object.values(mappedSchedules).forEach((items) => {
-    items.sort((a, b) => a.time.localeCompare(b.time))
+    items.sort((a, b) => a.time_to_take.localeCompare(b.time_to_take))
   })
 
   return mappedSchedules
@@ -328,8 +353,8 @@ function isCompletedSchedule(itemId, completionKeySet) {
   return completionKeySet.has(itemId)
 }
 
-function findMatchedMedication(medications = [], medicationName = '') {
-  const trimmedName = medicationName.trim().toLowerCase()
+function findMatchedMedication(medications = [], medi_name = '') {
+  const trimmedName = medi_name.trim().toLowerCase()
 
   return (
     medications.find(
@@ -356,6 +381,22 @@ function formatDateKey(year, month, day) {
   const monthText = String(month).padStart(2, '0')
   const dayText = String(day).padStart(2, '0')
   return `${year}-${monthText}-${dayText}`
+}
+
+function buildScheduleDateTime(dateKey, timeValue) {
+  const [yearText, monthText, dayText] = dateKey.split('-')
+  const [hours = '0', minutes = '0'] = String(timeValue || '').split(':')
+  const date = new Date(
+    Number(yearText),
+    Number(monthText) - 1,
+    Number(dayText),
+    Number(hours),
+    Number(minutes),
+    0,
+    0,
+  )
+
+  return date.toISOString()
 }
 
 function findFirstScheduledDateInMonth(scheduleMap, year, month) {

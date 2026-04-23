@@ -14,8 +14,7 @@ const to_device_response = (row) => ({
     device_status: row.device_status,
     last_ping: row.last_ping,
     is_connected: is_device_online(row.last_ping),
-    registered_at: row.registered_at,
-    created_at: row.registered_at
+    registered_at: row.registered_at
 });
 
 const touch_device_last_ping_by_device_id = async (executor, device_id) => {
@@ -37,7 +36,7 @@ const touch_device_last_ping_by_device_id = async (executor, device_id) => {
 };
 
 router.post('/ping', async (req, res) => {
-    const device_uid = req.body.device_uid ?? req.body.deviceUid;
+    const { device_uid } = req.body;
 
     if (!device_uid || !String(device_uid).trim()) {
         return sendError(res, 400, 'device_uid is required.');
@@ -75,10 +74,10 @@ router.post('/ping', async (req, res) => {
 
 router.post('/register', verifyToken, async (req, res) => {
     const mem_id = req.user.mem_id;
-    const { serial_number } = req.body;
+    const { device_uid } = req.body;
 
-    if (!serial_number) {
-        return sendError(res, 400, 'serial_number is required.');
+    if (!device_uid || !String(device_uid).trim()) {
+        return sendError(res, 400, 'device_uid is required.');
     }
 
     try {
@@ -100,7 +99,8 @@ router.post('/register', verifyToken, async (req, res) => {
             WHERE device_uid = $1
             LIMIT 1
         `;
-        const device_result = await pool.query(find_device_query, [serial_number]);
+        const normalized_device_uid = String(device_uid).trim();
+        const device_result = await pool.query(find_device_query, [normalized_device_uid]);
 
         if (device_result.rows.length === 0) {
             return sendError(res, 404, 'Device not found.');
@@ -157,7 +157,7 @@ router.post('/register', verifyToken, async (req, res) => {
                 registered_at
         `;
 
-        const { rows } = await pool.query(update_query, [patient_id, serial_number]);
+        const { rows } = await pool.query(update_query, [patient_id, normalized_device_uid]);
 
         return sendSuccess(res, 200, {
             message: 'Device registered successfully.',

@@ -166,7 +166,6 @@ const get_device_status = async (patient_id) => {
             device_status,
             last_ping,
             registered_at,
-            registered_at AS created_at,
             NULL::int AS medication_level
         FROM devices
         WHERE patient_id = $1
@@ -186,7 +185,7 @@ const get_device_status = async (patient_id) => {
     const connection_status = is_connected ? 'connected' : 'disconnected';
 
     const medication_level = device.medication_level;
-    const last_sync_time = device.last_ping || device.registered_at || device.created_at || null;
+    const last_sync_time = device.last_ping || device.registered_at || null;
 
     let status_color = 'green';
     let status_message = 'Normal';

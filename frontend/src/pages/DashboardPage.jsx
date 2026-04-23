@@ -19,10 +19,10 @@ const DEFAULT_SUMMARY = {
 }
 
 const DEFAULT_DEVICE_STATUS = {
-  connectionStatus: '-',
-  remainingDoses: '-',
-  lastSynced: '-',
-  nextDoseTime: '-',
+  connection_status: '-',
+  medication_level: '-',
+  last_sync_time: '-',
+  next_schedule_time: '-',
 }
 
 const DEFAULT_NEXT_MEDICATION = {
@@ -81,9 +81,10 @@ function DashboardPage() {
       ),
     [dashboardData],
   )
-  const patientName =
-    dashboardData?.patient?.patient_name || dashboardData?.patient_name || '-'
-  const patientLabel = `환자: ${patientName}`
+  const patientLabel = buildPatientLabel(
+    dashboardData?.patient,
+    dashboardData?.patient_name,
+  )
   const headerData = useMemo(
     () => mapTopHeaderData({ patient: dashboardData?.patient, device: dashboardData?.device }),
     [dashboardData],
@@ -172,13 +173,13 @@ function mapDeviceStatus(device) {
   }
 
   return {
-    connectionStatus: device.is_connected ? '연결됨' : '연결 안 됨',
-    remainingDoses:
+    connection_status: device.is_connected ? '연결됨' : '연결 안 됨',
+    medication_level:
       device.medication_level === null || device.medication_level === undefined
         ? '-'
         : `${device.medication_level}회`,
-    lastSynced: formatDateTime(device.last_sync_time),
-    nextDoseTime: formatDateTime(device.next_schedule_time, true),
+    last_sync_time: formatDateTime(device.last_sync_time),
+    next_schedule_time: formatDateTime(device.next_schedule_time, true),
   }
 }
 
@@ -221,6 +222,38 @@ function mapTopHeaderData({ patient, device }) {
     deviceStatusText: getTopHeaderDeviceStatus(device?.is_connected),
     lastSyncedText: formatRelativeTime(device?.last_sync_time),
   }
+}
+
+function buildPatientLabel(patient, fallbackName) {
+  const patientName = patient?.patient_name || fallbackName || '-'
+  const patientAge = calculateAgeFromBirthdate(patient?.birthdate)
+
+  return patientAge === null
+    ? `환자: ${patientName}`
+    : `환자: ${patientName} · 만 ${patientAge}세`
+}
+
+function calculateAgeFromBirthdate(value) {
+  if (!value) {
+    return null
+  }
+
+  const birthdate = new Date(value)
+
+  if (Number.isNaN(birthdate.getTime())) {
+    return null
+  }
+
+  const today = new Date()
+  let age = today.getFullYear() - birthdate.getFullYear()
+  const monthDiff = today.getMonth() - birthdate.getMonth()
+  const dayDiff = today.getDate() - birthdate.getDate()
+
+  if (monthDiff < 0 || (monthDiff === 0 && dayDiff < 0)) {
+    age -= 1
+  }
+
+  return age >= 0 ? age : null
 }
 
 function getTopHeaderDeviceStatus(isConnected) {

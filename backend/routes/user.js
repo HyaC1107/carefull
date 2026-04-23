@@ -66,7 +66,7 @@ const build_frontend_callback_url = ({ provider, token, is_new_user, error }) =>
     }
 
     if (typeof is_new_user === 'boolean') {
-        callback_url.searchParams.set('isNewUser', String(is_new_user));
+        callback_url.searchParams.set('is_new_user', String(is_new_user));
     }
 
     if (error) {
@@ -321,7 +321,7 @@ router.post('/dev-login', async (req, res) => {
 
 router.post('/register-patient', verifyToken, async (req, res) => {
     const mem_id = req.user.mem_id;
-    const { patient_name, birthdate, gender, bloodtype, height, weight, serial_number } = req.body;
+    const { patient_name, birthdate, gender, bloodtype, height, weight, device_uid } = req.body;
     const client = await pool.connect();
 
     try {
@@ -364,7 +364,7 @@ router.post('/register-patient', verifyToken, async (req, res) => {
                 WHERE device_uid = $2
                 RETURNING device_id
             `,
-            [patient_id, serial_number]
+            [patient_id, device_uid]
         );
 
         if (device_result.rows.length === 0) {

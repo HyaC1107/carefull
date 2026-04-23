@@ -225,7 +225,7 @@ Response
 Request
 ```json
 {
-  "serial_number": "CAREFULL-0003"
+  "device_uid": "CAREFULL-0003"
 }
 ```
 
@@ -236,7 +236,7 @@ Response
   "message": "기기 등록이 완료되었습니다.",
   "device": {
     "device_id": 1,
-    "serial_number": "CAREFULL-0003",
+    "device_uid": "CAREFULL-0003",
     "user_id": 3,
     "status": "REGISTERED"
   }
@@ -254,7 +254,7 @@ Response
   "success": true,
   "device": {
     "device_id": 1,
-    "serial_number": "CAREFULL-0003",
+    "device_uid": "CAREFULL-0003",
     "status": "REGISTERED",
     "last_ping": "2026-04-13T08:00:00.000Z"
   }
@@ -483,7 +483,7 @@ Response
     "device": {
       "isConnected": true,
       "deviceId": 1,
-      "serialNumber": "CAREFULL-0003",
+      "device_uid": "CAREFULL-0003",
       "deviceStatus": "REGISTERED",
       "fillLevel": null,
       "remainingCount": null,

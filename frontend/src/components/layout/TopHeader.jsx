@@ -148,13 +148,46 @@ async function loadSharedHeaderData() {
 
 function mapSharedHeaderData(dashboardData) {
   return {
-    patientLabel: `환자: ${
-      dashboardData?.patient?.patient_name || dashboardData?.patient_name || '-'
-    }`,
+    patientLabel: buildPatientLabel(
+      dashboardData?.patient,
+      dashboardData?.patient_name,
+    ),
     guardianName: dashboardData?.patient?.guardian_name || '-',
     deviceStatusText: getHeaderDeviceStatusText(dashboardData?.device?.is_connected),
     lastSyncedText: formatHeaderRelativeTime(dashboardData?.device?.last_sync_time),
   }
+}
+
+function buildPatientLabel(patient, fallbackName) {
+  const patientName = patient?.patient_name || fallbackName || '-'
+  const patientAge = calculateAgeFromBirthdate(patient?.birthdate)
+
+  return patientAge === null
+    ? `환자: ${patientName}`
+    : `환자: ${patientName} · 만 ${patientAge}세`
+}
+
+function calculateAgeFromBirthdate(value) {
+  if (!value) {
+    return null
+  }
+
+  const birthdate = new Date(value)
+
+  if (Number.isNaN(birthdate.getTime())) {
+    return null
+  }
+
+  const today = new Date()
+  let age = today.getFullYear() - birthdate.getFullYear()
+  const monthDiff = today.getMonth() - birthdate.getMonth()
+  const dayDiff = today.getDate() - birthdate.getDate()
+
+  if (monthDiff < 0 || (monthDiff === 0 && dayDiff < 0)) {
+    age -= 1
+  }
+
+  return age >= 0 ? age : null
 }
 
 function getHeaderDeviceStatusText(isConnected) {
