@@ -1,8 +1,6 @@
 import LoginCard from '../components/auth/LoginCard'
+import { API_BASE_URL } from '../api'
 import '../styles/LoginPage.css'
-
-const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL || 'https://192.168.219.225.nip.io'
 
 const SOCIAL_LOGIN_START_PATHS = {
   kakao: '/api/user/kakao',

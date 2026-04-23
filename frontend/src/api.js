@@ -1,7 +1,6 @@
-const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL || 'https://192.168.219.225.nip.io'
+export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || ''
 
-export const TOKEN_STORAGE_KEY = 'carefull_test_token'
+export const TOKEN_STORAGE_KEY = 'carefull_token'
 
 export function getStoredToken() {
   return localStorage.getItem(TOKEN_STORAGE_KEY) || ''
@@ -51,6 +50,10 @@ export async function requestJson(
   { method = 'GET', auth = false, body, headers = {} } = {},
 ) {
   const token = getStoredToken()
+
+  if (!API_BASE_URL) {
+    throw new Error('VITE_API_BASE_URL is not configured.')
+  }
 
   if (auth && !token) {
     throw new Error('Authentication token is missing.')
