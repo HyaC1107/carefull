@@ -20,7 +20,8 @@ const {
     NAVER_REDIRECT_URI
 } = process.env;
 
-const RESOLVED_FRONTEND_URL = FRONTEND_URL || 'http://192.168.219.225.nip.io:5173';
+if (!FRONTEND_URL) throw new Error('Missing env variable: FRONTEND_URL');
+const RESOLVED_FRONTEND_URL = FRONTEND_URL;
 
 const build_kakao_authorize_url = () => {
     const params = new URLSearchParams({
