@@ -3,6 +3,7 @@ const router = express.Router();
 
 const pool = require('../db');
 const { verifyToken } = require('../middleware/auth');
+const { find_latest_patient_by_mem_id } = require('../utils/auth-user');
 const { parseNumericFields, validateRequiredFields } = require('../utils/validators');
 const { sendSuccess, sendError } = require('../utils/response');
 
@@ -78,15 +79,9 @@ router.post('/register', verifyToken, async (req, res) => {
     } = numeric_fields;
 
     try {
-        const existing_patient_query = `
-            SELECT patient_id
-            FROM patients
-            WHERE mem_id = $1
-            LIMIT 1
-        `;
-        const existing_patient_result = await pool.query(existing_patient_query, [mem_id]);
+        const existing_patient = await find_latest_patient_by_mem_id(pool, mem_id);
 
-        if (existing_patient_result.rows.length > 0) {
+        if (existing_patient) {
             return sendError(res, 409, 'Patient already exists.');
         }
 
@@ -167,36 +162,14 @@ router.get('/me', verifyToken, async (req, res) => {
     const mem_id = req.user.mem_id;
 
     try {
-        const select_query = `
-            SELECT
-                patient_id,
-                mem_id,
-                patient_name,
-                birthdate,
-                gender,
-                phone,
-                address,
-                bloodtype,
-                height,
-                weight,
-                fingerprint_id,
-                guardian_name,
-                guardian_phone,
-                created_at,
-                updated_at
-            FROM patients
-            WHERE mem_id = $1
-            LIMIT 1
-        `;
+        const patient = await find_latest_patient_by_mem_id(pool, mem_id);
 
-        const { rows } = await pool.query(select_query, [mem_id]);
-
-        if (rows.length === 0) {
+        if (!patient) {
             return sendError(res, 404, 'Patient not found.');
         }
 
         return sendSuccess(res, 200, {
-            patient: to_patient_response(rows[0])
+            patient: to_patient_response(patient)
         });
     } catch (error) {
         console.error('Patient fetch error:', error);
@@ -240,6 +213,12 @@ router.put('/me', verifyToken, async (req, res) => {
     } = numeric_fields;
 
     try {
+        const target_patient = await find_latest_patient_by_mem_id(pool, mem_id);
+
+        if (!target_patient) {
+            return sendError(res, 404, 'Patient not found.');
+        }
+
         const fingerprint_check_query = `
             SELECT patient_id
             FROM patients
@@ -271,7 +250,7 @@ router.put('/me', verifyToken, async (req, res) => {
                 guardian_name = $10,
                 guardian_phone = $11,
                 updated_at = CURRENT_TIMESTAMP
-            WHERE mem_id = $12
+            WHERE patient_id = $12
             RETURNING
                 patient_id,
                 mem_id,
@@ -302,7 +281,7 @@ router.put('/me', verifyToken, async (req, res) => {
             parsed_fingerprint_id,
             guardian_name,
             guardian_phone,
-            mem_id
+            target_patient.patient_id
         ]);
 
         if (rows.length === 0) {

@@ -5,6 +5,7 @@ const jwt = require('jsonwebtoken');
 const router = express.Router();
 const pool = require('../db');
 const { verifyToken } = require('../middleware/auth');
+const { find_latest_patient_by_mem_id } = require('../utils/auth-user');
 
 const {
     JWT_SECRET,
@@ -321,15 +322,90 @@ router.post('/dev-login', async (req, res) => {
 
 router.post('/register-patient', verifyToken, async (req, res) => {
     const mem_id = req.user.mem_id;
-    const { patient_name, birthdate, gender, bloodtype, height, weight, device_uid } = req.body;
+    const {
+        patient_name,
+        birthdate,
+        gender,
+        phone,
+        address,
+        bloodtype,
+        height,
+        weight,
+        guardian_name,
+        guardian_phone,
+        device_uid
+    } = req.body;
     const client = await pool.connect();
 
     try {
         await client.query('BEGIN');
 
-        const patient_result = await client.query(
-            `
-                INSERT INTO patients (
+        const normalized_device_uid = String(device_uid || '').trim();
+        const normalized_phone = String(phone || '').trim();
+        const normalized_address = String(address || '').trim();
+        const normalized_guardian_name = String(guardian_name || '').trim();
+        const normalized_guardian_phone = String(guardian_phone || '').trim();
+
+        const existing_patient = await find_latest_patient_by_mem_id(client, mem_id);
+        let patient_result;
+
+        if (existing_patient) {
+            patient_result = await client.query(
+                `
+                    UPDATE patients
+                    SET
+                        patient_name = $1,
+                        birthdate = $2,
+                        gender = $3,
+                        phone = $4,
+                        address = $5,
+                        bloodtype = $6,
+                        height = $7,
+                        weight = $8,
+                        guardian_name = $9,
+                        guardian_phone = $10,
+                        updated_at = CURRENT_TIMESTAMP
+                    WHERE patient_id = $11
+                    RETURNING patient_id
+                `,
+                [
+                    patient_name,
+                    birthdate,
+                    gender,
+                    normalized_phone,
+                    normalized_address,
+                    bloodtype,
+                    height,
+                    weight,
+                    normalized_guardian_name,
+                    normalized_guardian_phone,
+                    existing_patient.patient_id
+                ]
+            );
+        } else {
+            patient_result = await client.query(
+                `
+                    INSERT INTO patients (
+                        mem_id,
+                        patient_name,
+                        birthdate,
+                        gender,
+                        bloodtype,
+                        height,
+                        weight,
+                        phone,
+                        address,
+                        fingerprint_id,
+                        guardian_name,
+                        guardian_phone
+                    )
+                    VALUES (
+                        $1, $2, $3, $4, $5, $6, $7,
+                        $8, $9, 0, $10, $11
+                    )
+                    RETURNING patient_id
+                `,
+                [
                     mem_id,
                     patient_name,
                     birthdate,
@@ -337,21 +413,38 @@ router.post('/register-patient', verifyToken, async (req, res) => {
                     bloodtype,
                     height,
                     weight,
-                    phone,
-                    address,
-                    fingerprint_id,
-                    guardian_name,
-                    guardian_phone
-                )
-                VALUES (
-                    $1, $2, $3, $4, $5, $6, $7,
-                    '', '', 0, '', ''
-                )
-                RETURNING patient_id
-            `,
-            [mem_id, patient_name, birthdate, gender, bloodtype, height, weight]
-        );
+                    normalized_phone,
+                    normalized_address,
+                    normalized_guardian_name,
+                    normalized_guardian_phone
+                ]
+            );
+        }
+
         const patient_id = patient_result.rows[0].patient_id;
+
+        if (existing_patient) {
+            const duplicate_patient_result = await client.query(
+                `
+                    SELECT patient_id
+                    FROM patients
+                    WHERE mem_id = $1
+                      AND patient_id <> $2
+                `,
+                [mem_id, patient_id]
+            );
+
+            if (duplicate_patient_result.rows.length > 0) {
+                await client.query(
+                    `
+                        UPDATE devices
+                        SET patient_id = $1
+                        WHERE patient_id = ANY($2::int[])
+                    `,
+                    [patient_id, duplicate_patient_result.rows.map((row) => row.patient_id)]
+                );
+            }
+        }
 
         const device_result = await client.query(
             `
@@ -364,7 +457,7 @@ router.post('/register-patient', verifyToken, async (req, res) => {
                 WHERE device_uid = $2
                 RETURNING device_id
             `,
-            [patient_id, device_uid]
+            [patient_id, normalized_device_uid]
         );
 
         if (device_result.rows.length === 0) {

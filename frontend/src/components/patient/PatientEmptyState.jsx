@@ -70,10 +70,9 @@ function PatientEmptyState({
 
           <div className="patient-register-card__content">
             <h3 className="patient-register-card__title">환자 등록</h3>
-            <p className="patient-register-card__subtitle">환자 정보 및 사진</p>
+            <p className="patient-register-card__subtitle">환자 기본 정보</p>
             <p className="patient-register-card__description">
-              환자의 기본 정보와 얼굴 사진을 등록하여 복약 모니터링을 시작하세요.
-              사진은 자동으로 촬영됩니다.
+              환자의 기본 정보를 등록하여 복약 모니터링을 시작하세요.
             </p>
 
             {!hasDevice ? (

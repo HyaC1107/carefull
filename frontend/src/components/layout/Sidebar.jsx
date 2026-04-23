@@ -93,13 +93,7 @@ function Sidebar({ activeMenu = 'dashboard', alertCount = 0 }) {
         })}
       </nav>
 
-      <div className="sidebar__help-card">
-        <p className="sidebar__help-title">도움이 필요하신가요?</p>
-        <p className="sidebar__help-text">고객센터로 문의하세요</p>
-        <button type="button" className="sidebar__help-button">
-          문의하기
-        </button>
-      </div>
+     
     </aside>
   )
 }
