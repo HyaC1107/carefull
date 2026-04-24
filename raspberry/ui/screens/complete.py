@@ -17,7 +17,7 @@ _SCHEDULE_PATH = os.path.normpath(
     os.path.join(os.path.dirname(__file__), "..", "..", "db", "schedule.json")
 )
 
-_BG = "#e8f8f0"
+_BG = "#c8f5e2"
 _GREEN = "#16a34a"
 _DARK = "#14532d"
 _AUTO_HOME_MS = 5000

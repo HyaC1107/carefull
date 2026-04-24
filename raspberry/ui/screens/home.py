@@ -220,7 +220,21 @@ class HomeScreen(QWidget):
 
         if UI_TEST_MODE:
             root.addSpacing(10)
-            btn_med_test = _MenuButton("medication.png", "복약", "복약 테스트", lambda: self._go("medication"))
+            test_row = QHBoxLayout()
+            test_row.setSpacing(14)
+
+            btn_face_test = _MenuButton("camera_auth.png", "얼굴", "얼굴 인증 테스트", lambda: self._go_auth_test())
+            btn_face_test.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+            btn_face_test.setMinimumHeight(96)
+            btn_face_test.setStyleSheet("""
+                QWidget {
+                    background-color: #eff6ff;
+                    border: 2px solid #93c5fd;
+                    border-radius: 14px;
+                }
+            """)
+
+            btn_med_test = _MenuButton("medication.png", "복약", "복약행위 테스트", lambda: self._go("medication"))
             btn_med_test.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
             btn_med_test.setMinimumHeight(96)
             btn_med_test.setStyleSheet("""
@@ -230,7 +244,10 @@ class HomeScreen(QWidget):
                     border-radius: 14px;
                 }
             """)
-            root.addWidget(btn_med_test)
+
+            test_row.addWidget(btn_face_test)
+            test_row.addWidget(btn_med_test)
+            root.addLayout(test_row)
 
     def _start_timers(self):
         self._update_clock()
@@ -254,3 +271,8 @@ class HomeScreen(QWidget):
     def _go(self, screen: str):
         if self._app:
             self._app.show_screen(screen)
+
+    def _go_auth_test(self):
+        if self._app:
+            self._app.screens["camera_view"].set_mode("auth")
+            self._app.show_screen("camera_view")
