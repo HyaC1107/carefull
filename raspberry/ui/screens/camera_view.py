@@ -18,20 +18,20 @@ _DB_PATH = os.path.normpath(
 # 모드별 테마
 _THEMES = {
     MODE_REGISTER: {
-        "bg":         "#ede8ff",
-        "dash":       "#7c3aed",
-        "title":      "얼굴을 맞춰주세요",
-        "sub":        "자동으로 촬영합니다",
-        "title_color": "#1e1b4b",
-        "sub_color":   "#7c3aed",
+        "bg":          "#1e2235",
+        "dash":        "#7c3aed",
+        "title":       "얼굴을 맞춰주세요",
+        "sub":         "자동으로 촬영합니다",
+        "title_color": "#ffffff",
+        "sub_color":   "#c4b5fd",
     },
     MODE_AUTH: {
-        "bg":         "#e4ecff",
-        "dash":       "#3b82f6",
-        "title":      "얼굴을 화면 중앙에 맞춰주세요",
-        "sub":        "카메라를 바라봐 주세요",
-        "title_color": "#1e3a8a",
-        "sub_color":   "#3b82f6",
+        "bg":          "#1e2235",
+        "dash":        "#3b82f6",
+        "title":       "얼굴을 화면 중앙에 맞춰주세요",
+        "sub":         "카메라를 바라봐 주세요",
+        "title_color": "#ffffff",
+        "sub_color":   "#93c5fd",
     },
 }
 
@@ -52,7 +52,7 @@ class CameraViewScreen(QWidget):
 
     def _build_ui(self):
         root = QVBoxLayout(self)
-        root.setContentsMargins(20, 20, 20, 24)
+        root.setContentsMargins(0, 0, 0, 24)
         root.setSpacing(0)
 
         self._camera_card = CameraCardWidget()

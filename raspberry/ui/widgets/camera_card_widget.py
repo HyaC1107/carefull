@@ -54,9 +54,3 @@ class CameraCardWidget(QWidget):
         r = min(self.width(), self.height()) * 0.36
         p.drawEllipse(QRectF(cx - r, cy - r, r * 2, r * 2))
 
-        # 카메라 아이콘 (우상단)
-        icon_color = QColor(self._dash_color)
-        icon_color.setAlpha(220)
-        p.setPen(icon_color)
-        p.setFont(QFont("Segoe UI Emoji", 14))
-        p.drawText(self.width() - 34, 26, "📷")
