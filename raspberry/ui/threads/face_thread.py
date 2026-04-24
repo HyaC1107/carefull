@@ -1,3 +1,5 @@
+import time
+
 from PyQt5.QtCore import QThread, pyqtSignal
 
 from config.settings import UI_TEST_MODE
@@ -6,7 +8,8 @@ MODE_AUTH = "auth"
 MODE_REGISTER = "register"
 
 _REGISTER_TARGET = 20
-_REGISTER_INTERVAL_MS = 500
+_REGISTER_COOLDOWN_SEC = 0.5   # 캡처 간격 (블로킹 sleep 대신 타임스탬프로 관리)
+_DETECT_EVERY_N = 3            # N프레임마다 1번 AI 검출 (~30fps 기준 10fps 검출)
 _FACE_MARGIN = 0.2
 
 
@@ -97,18 +100,29 @@ class FaceThread(QThread):
         from camera.camera import get_frame
         from face_detection.mediapipe_detector import detect_face
         face_imgs = []
+        frame_count = 0
+        last_capture_time = 0.0
 
         while self._running and len(face_imgs) < _REGISTER_TARGET:
             frame = get_frame()
             if frame is None:
-                self.msleep(100)
+                self.msleep(30)
                 continue
 
+            # 항상 프레임 송출 → 디스플레이 ~30fps 유지
             self.frame_ready.emit(frame.copy())
+            frame_count += 1
+            self.msleep(33)
+
+            # N프레임마다 + 캡처 쿨다운 지난 경우에만 AI 검출
+            now = time.time()
+            if frame_count % _DETECT_EVERY_N != 0:
+                continue
+            if now - last_capture_time < _REGISTER_COOLDOWN_SEC:
+                continue
 
             faces = detect_face(frame)
             if not faces:
-                self.msleep(100)
                 continue
 
             x, y, w, h = faces[0]
@@ -125,8 +139,8 @@ class FaceThread(QThread):
                 continue
 
             face_imgs.append(crop)
+            last_capture_time = now
             self.capture_progress.emit(len(face_imgs))
-            self.msleep(_REGISTER_INTERVAL_MS)
 
         if self._running:
             self.capture_done.emit(face_imgs)
