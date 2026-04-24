@@ -322,7 +322,18 @@ router.post('/dev-login', async (req, res) => {
 
 router.post('/register-patient', verifyToken, async (req, res) => {
     const mem_id = req.user.mem_id;
-    const { patient_name, birthdate, gender, bloodtype, height, weight, device_uid } = req.body;
+    const {
+        patient_name,
+        birthdate,
+        gender,
+        bloodtype,
+        height,
+        weight,
+        device_uid,
+        deviceName,
+        device_name
+    } = req.body;
+    const normalized_device_name = String(device_name || deviceName || '').trim();
     const client = await pool.connect();
 
     try {
@@ -361,11 +372,12 @@ router.post('/register-patient', verifyToken, async (req, res) => {
                     patient_id = $1,
                     device_status = 'REGISTERED',
                     registered_at = CURRENT_TIMESTAMP,
-                    last_ping = CURRENT_TIMESTAMP
+                    last_ping = CURRENT_TIMESTAMP,
+                    device_name = COALESCE(NULLIF($3, ''), device_name, 'UNKNOWN')
                 WHERE device_uid = $2
                 RETURNING device_id
             `,
-            [patient_id, device_uid]
+            [patient_id, device_uid, normalized_device_name]
         );
 
         if (device_result.rows.length === 0) {

@@ -74,7 +74,7 @@ router.post('/ping', async (req, res) => {
 
 router.post('/register', verifyToken, async (req, res) => {
     const mem_id = req.user.mem_id;
-    const { device_uid } = req.body;
+    const { device_uid, deviceName, device_name } = req.body;
 
     if (!device_uid || !String(device_uid).trim()) {
         return sendError(res, 400, 'device_uid is required.');
@@ -100,6 +100,7 @@ router.post('/register', verifyToken, async (req, res) => {
             LIMIT 1
         `;
         const normalized_device_uid = String(device_uid).trim();
+        const normalized_device_name = String(device_name || deviceName || '').trim();
         const device_result = await pool.query(find_device_query, [normalized_device_uid]);
 
         if (device_result.rows.length === 0) {
@@ -146,7 +147,8 @@ router.post('/register', verifyToken, async (req, res) => {
                 patient_id = $1,
                 device_status = 'REGISTERED',
                 registered_at = CURRENT_TIMESTAMP,
-                last_ping = CURRENT_TIMESTAMP
+                last_ping = CURRENT_TIMESTAMP,
+                device_name = COALESCE(NULLIF($3, ''), device_name, 'UNKNOWN')
             WHERE device_uid = $2
             RETURNING
                 device_id,
@@ -157,7 +159,11 @@ router.post('/register', verifyToken, async (req, res) => {
                 registered_at
         `;
 
-        const { rows } = await pool.query(update_query, [patient_id, normalized_device_uid]);
+        const { rows } = await pool.query(update_query, [
+            patient_id,
+            normalized_device_uid,
+            normalized_device_name
+        ]);
 
         return sendSuccess(res, 200, {
             message: 'Device registered successfully.',
