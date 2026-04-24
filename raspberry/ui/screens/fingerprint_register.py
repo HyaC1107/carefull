@@ -1,7 +1,13 @@
+import os
+
 from PyQt5.QtCore import Qt, QTimer, QRectF
-from PyQt5.QtGui import QColor, QFont, QPainter, QPen
+from PyQt5.QtGui import QColor, QFont, QPainter, QPen, QPixmap
 from PyQt5.QtWidgets import (
     QLabel, QProgressBar, QSizePolicy, QVBoxLayout, QWidget,
+)
+
+_ICONS_DIR = os.path.normpath(
+    os.path.join(os.path.dirname(__file__), "..", "..", "assets", "icons")
 )
 
 _BG = "#ede8ff"
@@ -79,7 +85,14 @@ class FingerprintRegisterScreen(QWidget):
 
         root.addStretch(2)
 
-        self._fp_widget = _FingerprintWidget()
+        _fp_path = os.path.join(_ICONS_DIR, "fingerprint.png")
+        if os.path.exists(_fp_path):
+            self._fp_widget = QLabel()
+            self._fp_widget.setAlignment(Qt.AlignCenter)
+            _pix = QPixmap(_fp_path).scaled(130, 130, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+            self._fp_widget.setPixmap(_pix)
+        else:
+            self._fp_widget = _FingerprintWidget()
         root.addWidget(self._fp_widget, alignment=Qt.AlignCenter)
         root.addSpacing(24)
 
@@ -130,7 +143,8 @@ class FingerprintRegisterScreen(QWidget):
         super().showEvent(event)
         self._progress = 0
         self._progress_bar.setValue(0)
-        self._fp_widget.set_progress(0)
+        if hasattr(self._fp_widget, "set_progress"):
+            self._fp_widget.set_progress(0)
         self._pct_lbl.setText("0%")
         self._title_lbl.setText("지문을 스캔하는 중...")
         self._start_mock()

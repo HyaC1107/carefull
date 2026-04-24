@@ -3,12 +3,16 @@ import os
 from datetime import datetime
 
 from PyQt5.QtCore import Qt, QTimer
-from PyQt5.QtGui import QColor, QFont, QPainter, QPen
+from PyQt5.QtGui import QColor, QFont, QPainter, QPen, QPixmap
 from PyQt5.QtWidgets import (
     QFrame, QHBoxLayout, QLabel, QSizePolicy, QVBoxLayout, QWidget,
 )
 
 from config.settings import UI_TEST_MODE
+
+_ICONS_DIR = os.path.normpath(
+    os.path.join(os.path.dirname(__file__), "..", "..", "assets", "icons")
+)
 
 _SCHEDULE_PATH = os.path.normpath(
     os.path.join(os.path.dirname(__file__), "..", "..", "db", "schedule.json")
@@ -58,9 +62,9 @@ def _next_medication() -> str:
 
 
 class _MenuButton(QWidget):
-    """아이콘 + 텍스트 세로 배치 아웃라인 버튼."""
+    """아이콘(PNG 또는 텍스트) + 텍스트 세로 배치 아웃라인 버튼."""
 
-    def __init__(self, icon: str, text: str, callback, parent=None):
+    def __init__(self, png_name: str, fallback: str, text: str, callback, parent=None):
         super().__init__(parent)
         self.setCursor(Qt.PointingHandCursor)
         self.setStyleSheet("""
@@ -70,16 +74,21 @@ class _MenuButton(QWidget):
                 border-radius: 14px;
             }
         """)
-        self._pressed = False
 
         lay = QVBoxLayout(self)
         lay.setContentsMargins(16, 18, 16, 18)
         lay.setSpacing(6)
 
-        icon_lbl = QLabel(icon)
-        icon_lbl.setFont(QFont("Segoe UI Emoji", 22))
+        icon_lbl = QLabel()
         icon_lbl.setAlignment(Qt.AlignCenter)
         icon_lbl.setStyleSheet("background: transparent; border: none;")
+        png_path = os.path.join(_ICONS_DIR, png_name)
+        if os.path.exists(png_path):
+            pix = QPixmap(png_path).scaled(36, 36, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+            icon_lbl.setPixmap(pix)
+        else:
+            icon_lbl.setText(fallback)
+            icon_lbl.setFont(QFont("Sans Serif", 22))
 
         text_lbl = QLabel(text)
         text_lbl.setFont(QFont("Sans Serif", 16))
@@ -127,11 +136,21 @@ class HomeScreen(QWidget):
 
         root.addStretch(2)
 
-        # "🕐 현재 시간" 레이블
-        time_label = QLabel("🕐  현재 시간")
+        time_row = QHBoxLayout()
+        time_row.setSpacing(6)
+        time_row.setAlignment(Qt.AlignCenter)
+        clock_icon = QLabel()
+        clock_icon.setStyleSheet("background: transparent; border: none;")
+        _clock_path = os.path.join(_ICONS_DIR, "clock.png")
+        if os.path.exists(_clock_path):
+            _pix = QPixmap(_clock_path).scaled(20, 20, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+            clock_icon.setPixmap(_pix)
+        time_label = QLabel("현재 시간")
         time_label.setFont(QFont("Sans Serif", 13))
-        time_label.setAlignment(Qt.AlignCenter)
-        time_label.setStyleSheet(f"color: {_GRAY};")
+        time_label.setStyleSheet(f"color: {_GRAY}; background: transparent; border: none;")
+        time_row.addWidget(clock_icon)
+        time_row.addWidget(time_label)
+        root.addLayout(time_row)
         root.addWidget(time_label)
 
         root.addSpacing(6)
@@ -183,11 +202,11 @@ class HomeScreen(QWidget):
         btn_row = QHBoxLayout()
         btn_row.setSpacing(14)
 
-        btn_register = _MenuButton("👤", "사용자 등록", lambda: self._go("register"))
+        btn_register = _MenuButton("register.png", "등록", "사용자 등록", lambda: self._go("register"))
         btn_register.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         btn_register.setMinimumHeight(96)
 
-        btn_settings = _MenuButton("⚙", "설정", lambda: self._go("settings"))
+        btn_settings = _MenuButton("settings.png", "설정", "설정", lambda: self._go("settings"))
         btn_settings.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         btn_settings.setMinimumHeight(96)
 
@@ -197,7 +216,7 @@ class HomeScreen(QWidget):
 
         if UI_TEST_MODE:
             root.addSpacing(10)
-            btn_med_test = _MenuButton("💊", "복약 테스트", lambda: self._go("medication"))
+            btn_med_test = _MenuButton("medication.png", "복약", "복약 테스트", lambda: self._go("medication"))
             btn_med_test.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
             btn_med_test.setMinimumHeight(96)
             btn_med_test.setStyleSheet("""

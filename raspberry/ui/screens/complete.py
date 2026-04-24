@@ -4,9 +4,13 @@ import os
 from datetime import datetime
 
 from PyQt5.QtCore import QPointF, QRectF, Qt, QThread, QTimer
-from PyQt5.QtGui import QColor, QFont, QPainter, QPen
+from PyQt5.QtGui import QColor, QFont, QPainter, QPen, QPixmap
 from PyQt5.QtWidgets import (
     QFrame, QLabel, QVBoxLayout, QWidget,
+)
+
+_ICONS_DIR = os.path.normpath(
+    os.path.join(os.path.dirname(__file__), "..", "..", "assets", "icons")
 )
 
 _SCHEDULE_PATH = os.path.normpath(
@@ -110,7 +114,15 @@ class CompleteScreen(QWidget):
 
         root.addStretch(2)
 
-        root.addWidget(_CheckCircleWidget(), alignment=Qt.AlignCenter)
+        _check_path = os.path.join(_ICONS_DIR, "check_circle.png")
+        if os.path.exists(_check_path):
+            check_lbl = QLabel()
+            check_lbl.setAlignment(Qt.AlignCenter)
+            _pix = QPixmap(_check_path).scaled(100, 100, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+            check_lbl.setPixmap(_pix)
+            root.addWidget(check_lbl, alignment=Qt.AlignCenter)
+        else:
+            root.addWidget(_CheckCircleWidget(), alignment=Qt.AlignCenter)
         root.addSpacing(16)
 
         title = QLabel("복약 완료")
@@ -135,7 +147,7 @@ class CompleteScreen(QWidget):
         card_lay.setContentsMargins(24, 14, 24, 14)
         card_lay.setSpacing(4)
 
-        card_header = QLabel("🕐  다음 복약 시간")
+        card_header = QLabel("다음 복약 시간")
         card_header.setFont(QFont("Sans Serif", 13))
         card_header.setAlignment(Qt.AlignCenter)
         card_header.setStyleSheet(f"color: {_GREEN};")
