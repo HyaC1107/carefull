@@ -106,7 +106,7 @@ class CompleteScreen(QWidget):
         self._build_ui()
 
     def _build_ui(self):
-        self.setStyleSheet(f"background-color: {_BG};")
+        self.setStyleSheet(f"CompleteScreen {{ background-color: {_BG}; }}")
         root = QVBoxLayout(self)
         root.setContentsMargins(36, 0, 36, 36)
         root.setSpacing(0)

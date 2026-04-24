@@ -50,7 +50,7 @@ class RegisterScreen(QWidget):
         self._build_ui()
 
     def _build_ui(self):
-        self.setStyleSheet(f"background-color: {_BG};")
+        self.setStyleSheet(f"RegisterScreen {{ background-color: {_BG}; }}")
         root = QVBoxLayout(self)
         root.setContentsMargins(24, 20, 24, 28)
         root.setSpacing(0)

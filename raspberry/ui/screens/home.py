@@ -129,7 +129,7 @@ class HomeScreen(QWidget):
         self._start_timers()
 
     def _build_ui(self):
-        self.setStyleSheet(f"background-color: {_BG};")
+        self.setStyleSheet(f"HomeScreen {{ background-color: {_BG}; }}")
         root = QVBoxLayout(self)
         root.setContentsMargins(28, 28, 28, 28)
         root.setSpacing(0)

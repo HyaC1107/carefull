@@ -79,7 +79,7 @@ class AuthResultScreen(QWidget):
 
     def set_result(self, success: bool, user: str = None):
         if success:
-            self.setStyleSheet("background-color: #dff4ef;")
+            self.setStyleSheet("AuthResultScreen { background-color: #dff4ef; }")
             _png = os.path.join(_ICONS_DIR, "check_small.png")
             if os.path.exists(_png):
                 _pix = QPixmap(_png).scaled(160, 160, Qt.KeepAspectRatio, Qt.SmoothTransformation)
@@ -96,7 +96,7 @@ class AuthResultScreen(QWidget):
             self._sub_lbl.setStyleSheet("color: #3b82f6;")
             QTimer.singleShot(_AUTO_SUCCESS_MS, lambda: self._go("dispensing"))
         else:
-            self.setStyleSheet("background-color: #ffeaea;")
+            self.setStyleSheet("AuthResultScreen { background-color: #ffeaea; }")
             self._card.set_state(_ResultCardWidget.FAIL)
             self._card.show()
             self._icon_lbl.hide()
@@ -107,7 +107,7 @@ class AuthResultScreen(QWidget):
             QTimer.singleShot(_AUTO_FAIL_MS, lambda: self._go("home"))
 
     def _build_ui(self):
-        self.setStyleSheet("background-color: #dff4ef;")
+        self.setStyleSheet("AuthResultScreen { background-color: #dff4ef; }")
         root = QVBoxLayout(self)
         root.setContentsMargins(20, 20, 20, 24)
         root.setSpacing(0)
