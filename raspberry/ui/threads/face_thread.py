@@ -3,6 +3,7 @@ from PyQt5.QtCore import QThread, pyqtSignal
 from camera.camera import get_frame
 from face_detection.mediapipe_detector import detect_face
 from auth.authenticate import authenticate
+from config.settings import UI_TEST_MODE
 
 MODE_AUTH = "auth"
 MODE_REGISTER = "register"
@@ -27,10 +28,28 @@ class FaceThread(QThread):
 
     def run(self):
         self._running = True
+        if UI_TEST_MODE:
+            self._run_test_mode()
+            return
         if self._mode == MODE_AUTH:
             self._run_auth()
         else:
             self._run_register()
+
+    def _run_test_mode(self):
+        """UI 테스트 모드: 카메라/AI 없이 2초 후 성공 시뮬레이션."""
+        if self._mode == MODE_AUTH:
+            self.msleep(2000)
+            if self._running:
+                self.auth_success.emit("테스트유저", 0.99)
+        else:
+            for i in range(1, _REGISTER_TARGET + 1):
+                if not self._running:
+                    return
+                self.capture_progress.emit(i)
+                self.msleep(100)
+            if self._running:
+                self.capture_done.emit([])
 
     def stop(self):
         self._running = False
