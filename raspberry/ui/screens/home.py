@@ -147,11 +147,10 @@ class HomeScreen(QWidget):
             clock_icon.setPixmap(_pix)
         time_label = QLabel("현재 시간")
         time_label.setFont(QFont("Sans Serif", 13))
-        time_label.setStyleSheet(f"color: {_GRAY}; background: transparent; border: none;")
+        time_label.setStyleSheet(f"color: {_GRAY}; background-color: {_BG}; border: none;")
         time_row.addWidget(clock_icon)
         time_row.addWidget(time_label)
         root.addLayout(time_row)
-        root.addWidget(time_label)
 
         root.addSpacing(6)
 
@@ -159,7 +158,12 @@ class HomeScreen(QWidget):
         self._clock_lbl = QLabel()
         self._clock_lbl.setAlignment(Qt.AlignCenter)
         self._clock_lbl.setFont(QFont("Sans Serif", 52, QFont.Bold))
-        self._clock_lbl.setStyleSheet(f"color: {_DARK};")
+        self._clock_lbl.setStyleSheet(f"""
+            color: {_DARK};
+            background-color: {_BG};
+            border-radius: 16px;
+            padding: 8px 16px;
+        """)
         root.addWidget(self._clock_lbl)
 
         root.addSpacing(14)

@@ -25,9 +25,10 @@ class CameraCardWidget(QWidget):
         p = QPainter(self)
         p.setRenderHint(QPainter.Antialiasing)
 
-        # 둥근 모서리 클립
+        # 전체화면 여부에 따라 모서리 radius 결정
+        radius = 0 if (self.width() >= 800 and self.height() >= 400) else 16
         clip = QPainterPath()
-        clip.addRoundedRect(QRectF(self.rect()), 16, 16)
+        clip.addRoundedRect(QRectF(self.rect()), radius, radius)
         p.setClipPath(clip)
         p.fillRect(self.rect(), QColor("#1e2235"))
 
