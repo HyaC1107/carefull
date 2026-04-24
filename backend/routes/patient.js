@@ -11,14 +11,7 @@ const validate_patient_payload = (body) => {
         'patient_name',
         'birthdate',
         'gender',
-        'phone',
-        'address',
         'bloodtype',
-        'height',
-        'weight',
-        'fingerprint_id',
-        'guardian_name',
-        'guardian_phone'
     ];
 
     return validateRequiredFields(body, required_fields);
