@@ -1,0 +1,493 @@
+.dashboard-page {
+  min-height: 100vh;
+  background: #f3f5f8;
+}
+
+.dashboard-layout {
+  display: flex;
+  min-height: 100vh;
+}
+
+.dashboard-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.dashboard-content {
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+/* 공통 섹션 카드 */
+.dashboard-section {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 16px;
+  padding: 20px;
+}
+
+.dashboard-section__title {
+  margin: 0 0 18px;
+  font-size: 1.18rem;
+  font-weight: 800;
+  color: #111827;
+}
+
+/* 상단 요약 카드 영역 */
+.dashboard-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.summary-card {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 16px;
+  padding: 18px 18px 16px;
+  min-height: 132px;
+}
+
+.summary-card__top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 22px;
+}
+
+.summary-card__icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.95rem;
+  font-weight: 800;
+}
+
+.summary-card__icon--success,
+.summary-card__icon--done {
+  background: #eaf9f0;
+  color: #18a44c;
+}
+
+.summary-card__icon--schedule {
+  background: #eef4ff;
+  color: #3b82f6;
+}
+
+.summary-card__icon--danger {
+  background: #fff0f3;
+  color: #ef4444;
+}
+
+.summary-card__trend {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #18a44c;
+}
+
+.summary-card__title {
+  margin: 0 0 10px;
+  font-size: 0.84rem;
+  color: #374151;
+}
+
+.summary-card__value {
+  margin: 0 0 6px;
+  font-size: 2.15rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.summary-card__value--success,
+.summary-card__value--done {
+  color: #18a44c;
+}
+
+.summary-card__value--schedule {
+  color: #2563eb;
+}
+
+.summary-card__value--danger {
+  color: #ef4444;
+}
+
+.summary-card__subtext {
+  margin: 0;
+  font-size: 0.78rem;
+  color: #4b5563;
+}
+
+/* 디바이스 섹션 */
+.dashboard-device__cards {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.dashboard-device__status-card {
+  min-height: 170px;
+  border-radius: 16px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.dashboard-device__status-card--green {
+  background: #eef8f1;
+}
+
+.dashboard-device__status-card--blue {
+  background: #eef4ff;
+}
+
+.dashboard-device__status-icon {
+  font-size: 2rem;
+  margin-bottom: 10px;
+}
+
+.dashboard-device__label {
+  margin: 0 0 6px;
+  font-size: 0.85rem;
+  color: #4b5563;
+}
+
+.dashboard-device__value {
+  margin: 0;
+  font-size: 2rem;
+  font-weight: 800;
+}
+
+.dashboard-device__value--green {
+  color: #18a44c;
+}
+
+.dashboard-device__value--blue {
+  color: #2563eb;
+}
+
+.dashboard-device__meta {
+  border-top: 1px solid #e5e7eb;
+  padding-top: 18px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.dashboard-device__meta-label {
+  margin: 0 0 6px;
+  font-size: 0.76rem;
+  color: #6b7280;
+}
+
+.dashboard-device__meta-value {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #111827;
+}
+
+/* 알림 섹션 */
+.alerts-section__list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.alert-item {
+  border-radius: 14px;
+  padding: 16px 18px;
+  border: 1px solid transparent;
+}
+
+.alert-item--missed {
+  background: #fff3f4;
+  border-color: #ffd6da;
+}
+
+.alert-item--completed {
+  background: #eefbf4;
+  border-color: #caefd7;
+}
+
+.alert-item--warning {
+  background: #fff7ec;
+  border-color: #ffe1b0;
+}
+
+.alert-item__top {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.alert-item__left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.alert-item__badge {
+  font-size: 0.72rem;
+  font-weight: 800;
+  border-radius: 999px;
+  padding: 4px 8px;
+}
+
+.alert-item__badge--missed {
+  background: #ffe3e7;
+  color: #ef4444;
+}
+
+.alert-item__badge--completed {
+  background: #dcfce7;
+  color: #16a34a;
+}
+
+.alert-item__badge--warning {
+  background: #ffedd5;
+  color: #f97316;
+}
+
+.alert-item__time {
+  font-size: 0.75rem;
+  color: #6b7280;
+}
+
+.alert-item__message {
+  margin: 0;
+  font-size: 0.86rem;
+  color: #374151;
+}
+
+/* 다음 복약 배너 */
+.next-medication-banner {
+  background: #edf4ff;
+  border: 1px solid #dbe8ff;
+  border-radius: 16px;
+  padding: 16px 18px;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.next-medication-banner__icon {
+  font-size: 1.2rem;
+  line-height: 1;
+}
+
+.next-medication-banner__title {
+  margin: 0 0 6px;
+  font-size: 0.92rem;
+  font-weight: 800;
+  color: #1d4ed8;
+}
+
+.next-medication-banner__description {
+  margin: 0;
+  font-size: 0.82rem;
+  color: #4b5563;
+}
+
+/* 반응형: 창이 좁아지면 카드 수를 줄임 */
+@media (max-width: 1100px) {
+  .dashboard-summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 900px) {
+  .dashboard-layout {
+    flex-direction: column;
+  }
+
+  .dashboard-device__cards,
+  .dashboard-device__meta {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .dashboard-summary-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard-content {
+    padding: 12px;
+  }
+}
+
+/* =========================
+   대시보드 본문 반응형 보완
+   ========================= */
+
+/* 중간 화면: 본문 여백과 카드 비율 조금 정리 */
+@media (max-width: 1200px) {
+  .dashboard-content {
+    padding: 16px;
+    gap: 16px;
+  }
+
+  .dashboard-section {
+    padding: 18px;
+  }
+
+  .summary-card {
+    min-height: 124px;
+  }
+}
+
+/* 태블릿 이하: 카드/섹션 높이를 조금 더 유연하게 */
+@media (max-width: 900px) {
+  .dashboard-content {
+    padding: 14px;
+    gap: 14px;
+  }
+
+  .dashboard-section {
+    padding: 16px;
+  }
+
+  .dashboard-section__title {
+    margin-bottom: 14px;
+    font-size: 1.06rem;
+  }
+
+  .summary-card {
+    min-height: 118px;
+    padding: 16px;
+  }
+
+  .summary-card__top {
+    margin-bottom: 18px;
+  }
+
+  .dashboard-device__status-card {
+    min-height: 150px;
+  }
+
+  .alert-item {
+    padding: 14px 16px;
+  }
+
+  .next-medication-banner {
+    padding: 14px 16px;
+  }
+}
+
+/* 모바일: 카드 1열 + 글자/여백 조금 축소 */
+@media (max-width: 640px) {
+  .dashboard-content {
+    padding: 12px;
+    gap: 12px;
+  }
+
+  .dashboard-section {
+    border-radius: 14px;
+    padding: 14px;
+  }
+
+  .dashboard-section__title {
+    font-size: 1rem;
+    margin-bottom: 12px;
+  }
+
+  .summary-card {
+    border-radius: 14px;
+    min-height: 112px;
+    padding: 14px;
+  }
+
+  .summary-card__icon {
+    width: 34px;
+    height: 34px;
+  }
+
+  .summary-card__title {
+    font-size: 0.8rem;
+  }
+
+  .summary-card__value {
+    font-size: 1.9rem;
+  }
+
+  .summary-card__subtext {
+    font-size: 0.74rem;
+  }
+
+  .dashboard-device__status-card {
+    min-height: 130px;
+    padding: 16px;
+  }
+
+  .dashboard-device__value {
+    font-size: 1.8rem;
+  }
+
+  .dashboard-device__meta {
+    gap: 12px;
+    padding-top: 14px;
+  }
+
+  .alert-item {
+    border-radius: 12px;
+    padding: 12px 14px;
+  }
+
+  .alert-item__badge {
+    font-size: 0.68rem;
+    padding: 3px 7px;
+  }
+
+  .alert-item__time {
+    font-size: 0.7rem;
+  }
+
+  .alert-item__message {
+    font-size: 0.8rem;
+    line-height: 1.35;
+  }
+
+  .next-medication-banner {
+    border-radius: 14px;
+    padding: 12px 14px;
+  }
+
+  .next-medication-banner__title {
+    font-size: 0.86rem;
+  }
+
+  .next-medication-banner__description {
+    font-size: 0.76rem;
+    line-height: 1.4;
+  }
+}
+
+/* 아주 작은 화면: 본문 여백 최소화 */
+@media (max-width: 480px) {
+  .dashboard-content {
+    padding: 10px;
+  }
+
+  .dashboard-section {
+    padding: 12px;
+  }
+
+  .summary-card {
+    padding: 12px;
+  }
+}
+
+/* 모바일/태블릿에서 하단 탭바 공간 확보 */
+@media (max-width: 900px) {
+  .dashboard-page {
+    padding-bottom: 74px;
+  }
+}

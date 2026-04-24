@@ -1,0 +1,177 @@
+-- public.medications definition
+
+-- Drop table
+
+-- DROP TABLE public.medications;
+
+CREATE TABLE public.medications (
+	medi_id serial4 NOT NULL,
+	item_seq varchar(50) NULL,
+	medi_name varchar(255) NOT NULL,
+	medi_class varchar(100) NULL,
+	CONSTRAINT medications_pkey PRIMARY KEY (medi_id),
+	CONSTRAINT uq_item_seq UNIQUE (item_seq)
+);
+CREATE INDEX idx_medi_name_trgm ON public.medications USING gin (medi_name gin_trgm_ops);
+
+
+-- public.members definition
+
+-- Drop table
+
+-- DROP TABLE public.members;
+
+CREATE TABLE public.members (
+	mem_id serial4 NOT NULL,
+	social_id varchar(100) NOT NULL,
+	provider varchar(20) NOT NULL,
+	email varchar(100) NOT NULL,
+	nick varchar(50) NOT NULL,
+	profile_img text NOT NULL,
+	joined_at timestamptz DEFAULT CURRENT_TIMESTAMP NOT NULL,
+	CONSTRAINT members_pkey PRIMARY KEY (mem_id)
+);
+CREATE INDEX ix_members_1 ON public.members USING btree (joined_at);
+CREATE UNIQUE INDEX uq_members_1 ON public.members USING btree (email, nick);
+
+
+-- public.patients definition
+
+-- Drop table
+
+-- DROP TABLE public.patients;
+
+CREATE TABLE public.patients (
+	patient_id serial4 NOT NULL,
+	mem_id int4 NOT NULL,
+	birthdate date NOT NULL,
+	gender bpchar(1) NOT NULL,
+	phone varchar(20) NOT NULL,
+	address varchar(255) NOT NULL,
+	bloodtype varchar(5) NOT NULL,
+	height numeric(5, 2) NOT NULL,
+	weight numeric(5, 2) NOT NULL,
+	fingerprint_id int4 NOT NULL,
+	guardian_name varchar(100) NOT NULL,
+	guardian_phone varchar(20) NOT NULL,
+	created_at timestamptz DEFAULT CURRENT_TIMESTAMP NOT NULL,
+	updated_at timestamptz NULL,
+	deleted_at timestamptz NULL,
+	patient_name varchar(100) NULL,
+	CONSTRAINT patients_pkey PRIMARY KEY (patient_id),
+	CONSTRAINT fk_patients_mem_id_members_mem_id FOREIGN KEY (mem_id) REFERENCES public.members(mem_id)
+);
+
+
+-- public.schedules definition
+
+-- Drop table
+
+-- DROP TABLE public.schedules;
+
+CREATE TABLE public.schedules (
+	sche_id serial4 NOT NULL,
+	patient_id int4 NOT NULL,
+	medi_id int4 NOT NULL,
+	start_date date NOT NULL,
+	end_date date NULL,
+	time_to_take time NOT NULL,
+	dose_interval int4 NULL,
+	status varchar(20) NOT NULL,
+	created_at timestamptz DEFAULT CURRENT_TIMESTAMP NOT NULL,
+	updated_at timestamptz NULL,
+	CONSTRAINT schedules_pkey PRIMARY KEY (sche_id),
+	CONSTRAINT fk_schedules_medi_id_medications_medi_id FOREIGN KEY (medi_id) REFERENCES public.medications(medi_id),
+	CONSTRAINT fk_schedules_patient_id_patients_patient_id FOREIGN KEY (patient_id) REFERENCES public.patients(patient_id)
+);
+CREATE INDEX ix_schedules_1 ON public.schedules USING btree (created_at);
+
+
+-- public.activities definition
+
+-- Drop table
+
+-- DROP TABLE public.activities;
+
+CREATE TABLE public.activities (
+	activity_id serial4 NOT NULL,
+	patient_id int4 NOT NULL,
+	sche_id int4 NOT NULL,
+	sche_time timestamptz NOT NULL,
+	actual_time timestamptz NULL,
+	status varchar(20) NOT NULL,
+	is_face_auth bool NOT NULL,
+	is_ai_check bool NOT NULL,
+	similarity_score numeric(5, 4) NOT NULL,
+	created_at timestamptz DEFAULT CURRENT_TIMESTAMP NOT NULL,
+	CONSTRAINT activities_pkey PRIMARY KEY (activity_id),
+	CONSTRAINT fk_activities_patient_id_patients_patient_id FOREIGN KEY (patient_id) REFERENCES public.patients(patient_id),
+	CONSTRAINT fk_activities_sche_id_schedules_sche_id FOREIGN KEY (sche_id) REFERENCES public.schedules(sche_id)
+);
+CREATE INDEX ix_activities_1 ON public.activities USING btree (created_at);
+CREATE INDEX ix_activities_2 ON public.activities USING btree (patient_id, sche_time);
+
+
+-- public.devices definition
+
+-- Drop table
+
+-- DROP TABLE public.devices;
+
+CREATE TABLE public.devices (
+	device_id serial4 NOT NULL,
+	device_uid varchar(100) NOT NULL,
+	patient_id int4 NULL,
+	device_status varchar(50) DEFAULT 'UNREGISTERED'::character varying NULL,
+	last_ping timestamptz NULL,
+	registered_at timestamptz DEFAULT CURRENT_TIMESTAMP NOT NULL,
+	device_name varchar(100) DEFAULT 'UNKNOWN'::character varying NOT NULL,
+	CONSTRAINT devices_pkey PRIMARY KEY (device_id),
+	CONSTRAINT fk_devices_patient_id_patients_patient_id FOREIGN KEY (patient_id) REFERENCES public.patients(patient_id)
+);
+CREATE INDEX ix_devices_1 ON public.devices USING btree (registered_at);
+
+
+-- public.face_embeddings definition
+
+-- Drop table
+
+-- DROP TABLE public.face_embeddings;
+
+CREATE TABLE public.face_embeddings (
+	face_id serial4 NOT NULL,
+	patient_id int4 NOT NULL,
+	face_vector public.vector NOT NULL,
+	created_at timestamptz DEFAULT CURRENT_TIMESTAMP NOT NULL,
+	CONSTRAINT face_embeddings_pkey PRIMARY KEY (face_id),
+	CONSTRAINT fk_face_embeddings_patient_id_patients_patient_id FOREIGN KEY (patient_id) REFERENCES public.patients(patient_id)
+);
+CREATE INDEX ix_face_embeddings_1 ON public.face_embeddings USING btree (created_at);
+CREATE INDEX ix_face_embeddings_2 ON public.face_embeddings USING btree (face_vector);
+CREATE INDEX ix_face_embeddings_3 ON public.face_embeddings USING btree (patient_id);
+
+
+-- public.notifications definition
+
+-- Drop table
+
+-- DROP TABLE public.notifications;
+
+CREATE TABLE public.notifications (
+	noti_id serial4 NOT NULL,
+	mem_id int4 NOT NULL,
+	patient_id int4 NOT NULL,
+	activity_id int4 NOT NULL,
+	noti_title varchar(255) NOT NULL,
+	noti_msg text NOT NULL,
+	created_at timestamptz DEFAULT CURRENT_TIMESTAMP NOT NULL,
+	is_received bool NOT NULL,
+	received_time timestamptz NULL,
+	noti_type varchar(50) NOT NULL,
+	CONSTRAINT notifications_pkey PRIMARY KEY (noti_id),
+	CONSTRAINT fk_notifications_activity_id_activities_activity_id FOREIGN KEY (activity_id) REFERENCES public.activities(activity_id),
+	CONSTRAINT fk_notifications_mem_id_members_mem_id FOREIGN KEY (mem_id) REFERENCES public.members(mem_id),
+	CONSTRAINT fk_notifications_patient_id_patients_patient_id FOREIGN KEY (patient_id) REFERENCES public.patients(patient_id)
+);
+CREATE INDEX ix_notifications_1 ON public.notifications USING btree (created_at);
+CREATE INDEX ix_notifications_2 ON public.notifications USING btree (mem_id, is_received);
