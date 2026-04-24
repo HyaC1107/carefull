@@ -65,39 +65,7 @@ function PatientRegisterModal({ onClose, onSuccess }) {
         </div>
 
         <form className="patient-modal__body" onSubmit={handleSubmit}>
-          <div className="patient-photo-box">
-            <p className="patient-form-field__label">환자 사진 등록 *</p>
-
-            <div className="patient-photo-box__area">
-              <div className="patient-photo-box__icon" aria-hidden="true">
-                <svg
-                  viewBox="0 0 24 24"
-                  width="28"
-                  height="28"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <path d="M4 7h3l2-2h6l2 2h3v11H4z" />
-                  <circle cx="12" cy="13" r="4" />
-                </svg>
-              </div>
-
-              <p className="patient-photo-box__description">
-                버튼을 누르면 자동으로 5장의 사진이 촬영됩니다
-              </p>
-
-              <button
-                type="button"
-                className="patient-photo-box__button"
-                onClick={() => setPhotoCaptured(true)}
-              >
-                사진 촬영 시작
-              </button>
-            </div>
-          </div>
+          
 
           <div className="patient-form-grid patient-form-grid--one">
             <label className="patient-form-field">

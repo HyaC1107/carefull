@@ -1,7 +1,9 @@
 require('dotenv').config();
 
 const express = require('express');
+const fs = require('fs');
 const http = require('http');
+const https = require('https');
 const cors = require('cors');
 const path = require('path');
 
@@ -69,10 +71,36 @@ app.use('/api/log',          activity_router);
 // ─────────────────────────── Server ──────────────────────────────────────────
 // SSL 종료는 nginx 또는 ALB 에서 처리 → Node.js 는 HTTP 로만 실행
 const PORT = process.env.PORT || 3000;
-const server = http.createServer(app);
+const HOST = process.env.HOST || '0.0.0.0';
+const { SSL_KEY_PATH, SSL_CERT_PATH } = process.env;
 
-server.listen(PORT, () => {
-    console.log(`✅ Care-full server running on port ${PORT}`);
+const resolve_ssl_path = (file_path) => (
+    path.isAbsolute(file_path) ? file_path : path.resolve(__dirname, file_path)
+);
+
+const ssl_key_path = SSL_KEY_PATH ? resolve_ssl_path(SSL_KEY_PATH) : '';
+const ssl_cert_path = SSL_CERT_PATH ? resolve_ssl_path(SSL_CERT_PATH) : '';
+const use_https = Boolean(
+    ssl_key_path
+    && ssl_cert_path
+    && fs.existsSync(ssl_key_path)
+    && fs.existsSync(ssl_cert_path)
+);
+
+const server = use_https
+    ? https.createServer({
+        key: fs.readFileSync(ssl_key_path),
+        cert: fs.readFileSync(ssl_cert_path),
+    }, app)
+    : http.createServer(app);
+
+server.listen(PORT, HOST, () => {
+    const protocol = use_https ? 'HTTPS' : 'HTTP';
+    console.log(`[${protocol} mode] Care-full server running on ${HOST}:${PORT}`);
+    if (use_https) {
+        console.log(`[HTTPS mode] SSL key: ${ssl_key_path}`);
+        console.log(`[HTTPS mode] SSL cert: ${ssl_cert_path}`);
+    }
     startMissedLogJob();
 });
 

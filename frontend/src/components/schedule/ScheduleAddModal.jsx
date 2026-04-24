@@ -200,14 +200,6 @@ function ScheduleAddModal({ selectedDateLabel, onClose, onSubmit }) {
               ) : null}
             </label>
 
-            <label className="schedule-modal__field">
-              <span className="schedule-modal__label">수량 (정/캡) *</span>
-              <input
-                className="schedule-modal__input"
-                value={form.dose}
-                onChange={(e) => handleChange('dose', e.target.value)}
-              />
-            </label>
           </section>
 
           <section className="schedule-modal__section">

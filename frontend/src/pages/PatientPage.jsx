@@ -102,6 +102,7 @@ function PatientPage() {
           height: toNumber(newPatient.height),
           weight: toNumber(newPatient.weight),
           device_uid: pendingDevice.device_uid,
+          device_name: pendingDevice.deviceName,
         },
       })
 
