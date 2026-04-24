@@ -1,5 +1,5 @@
 from PyQt5.QtCore import Qt, QThread, QTimer, pyqtSignal
-from PyQt5.QtGui import QColor, QFont, QPainter, QPen, QRectF
+from PyQt5.QtGui import QColor, QFont, QPainter, QPen
 from PyQt5.QtWidgets import QLabel, QProgressBar, QVBoxLayout, QWidget
 
 _BG = "#eaebff"

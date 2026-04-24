@@ -1,8 +1,5 @@
 from PyQt5.QtCore import QThread, pyqtSignal
 
-from camera.camera import get_frame
-from face_detection.mediapipe_detector import detect_face
-from auth.authenticate import authenticate
 from config.settings import UI_TEST_MODE
 
 MODE_AUTH = "auth"
@@ -57,6 +54,9 @@ class FaceThread(QThread):
     # ──────────────────────────────── auth ───────────────────────────────────
 
     def _run_auth(self):
+        from camera.camera import get_frame
+        from face_detection.mediapipe_detector import detect_face
+        from auth.authenticate import authenticate
         retries = 0
         while self._running and retries < self._max_retries:
             frame = get_frame()
@@ -94,6 +94,8 @@ class FaceThread(QThread):
     # ─────────────────────────────── register ────────────────────────────────
 
     def _run_register(self):
+        from camera.camera import get_frame
+        from face_detection.mediapipe_detector import detect_face
         face_imgs = []
 
         while self._running and len(face_imgs) < _REGISTER_TARGET:

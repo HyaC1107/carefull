@@ -1,10 +1,11 @@
 import os
 import socket
+import sys
 
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QFont
 from PyQt5.QtWidgets import (
-    QFrame, QHBoxLayout, QLabel, QPushButton, QScrollArea,
+    QApplication, QFrame, QHBoxLayout, QLabel, QPushButton, QScrollArea,
     QSizePolicy, QSlider, QVBoxLayout, QWidget,
 )
 
@@ -163,6 +164,21 @@ class _ControlCard(QFrame):
         """)
         restart_btn.clicked.connect(self._restart)
         lay.addWidget(restart_btn)
+
+        exit_btn = QPushButton("앱 종료")
+        exit_btn.setMinimumHeight(44)
+        exit_btn.setFont(QFont("Sans Serif", 16))
+        exit_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #fee2e2;
+                color: #dc2626;
+                border: 2px solid #fca5a5;
+                border-radius: 10px;
+            }
+            QPushButton:pressed { background-color: #fecaca; }
+        """)
+        exit_btn.clicked.connect(QApplication.quit)
+        lay.addWidget(exit_btn)
 
     @staticmethod
     def _restart():
