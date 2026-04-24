@@ -51,7 +51,7 @@ Authorization: Bearer {token}
 | Method | Endpoint | 인증 | 용도 |
 |--------|----------|------|------|
 | POST | `/api/user/dev-login` | X | 개발용 로그인 |
-| GET | `/api/user/callback` | X | 카카오 로그인 콜백 |
+| GET | `/api/user/kakao/callback` | X | 카카오 로그인 콜백 |
 | GET | `/api/user/google/callback` | X | 구글 로그인 콜백 |
 | GET | `/api/user/naver/callback` | X | 네이버 로그인 콜백 |
 | POST | `/api/patient/register` | O | 환자 정보 등록 |
@@ -114,7 +114,7 @@ Response
 
 ---
 
-### [GET] `/api/user/callback`
+### [GET] `/api/user/kakao/callback`
 카카오 로그인 콜백
 
 Query

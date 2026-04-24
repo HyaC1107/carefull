@@ -23,10 +23,26 @@ const {
 if (!FRONTEND_URL) throw new Error('Missing env variable: FRONTEND_URL');
 const RESOLVED_FRONTEND_URL = FRONTEND_URL;
 
-const build_kakao_authorize_url = () => {
+const redact_callback_query = (req) => {
+    const callback_url = new URL(`${req.protocol}://${req.get('host')}${req.originalUrl}`);
+
+    if (callback_url.searchParams.has('code')) {
+        callback_url.searchParams.set('code', '[redacted]');
+    }
+
+    return callback_url.toString();
+};
+
+const get_kakao_redirect_uri = (req) => {
+    const host = req.get('host');
+
+    return `https://${host}/api/user/kakao/callback`;
+};
+
+const build_kakao_authorize_url = (req) => {
     const params = new URLSearchParams({
         client_id: KAKAO_CLIENT_ID,
-        redirect_uri: KAKAO_REDIRECT_URI,
+        redirect_uri: get_kakao_redirect_uri(req),
         response_type: 'code',
         prompt: 'select_account'
     });
@@ -57,8 +73,31 @@ const build_naver_authorize_url = () => {
     return `https://nid.naver.com/oauth2.0/authorize?${params.toString()}`;
 };
 
-const build_frontend_callback_url = ({ provider, token, is_new_user, error }) => {
-    const callback_url = new URL(`/login/callback/${provider}`, RESOLVED_FRONTEND_URL);
+const build_frontend_callback_url = (req, { provider, token, is_new_user, error }) => {
+    const is_social_domain = (url) =>
+        url && (
+            url.includes('kakao.com') ||
+            url.includes('google.com') ||
+            url.includes('naver.com')
+        );
+    const origin = req.headers.origin;
+    const referer = req.headers.referer;
+
+    let base_url = null;
+
+    if (origin && !is_social_domain(origin)) {
+        base_url = new URL(origin).origin;
+    } else if (referer && !is_social_domain(referer)) {
+        try {
+            base_url = new URL(referer).origin;
+        } catch {}
+    }
+
+    if (!base_url) {
+        base_url = RESOLVED_FRONTEND_URL;
+    }
+
+    const callback_url = new URL(`/login/callback/${provider}`, base_url);
 
     callback_url.searchParams.set('provider', provider);
 
@@ -140,18 +179,26 @@ const handle_social_login = async (social_data, provider) => {
 };
 
 router.get('/kakao', (req, res) => {
-    return res.redirect(build_kakao_authorize_url());
+    const redirect_uri = get_kakao_redirect_uri(req);
+    const authorize_url = build_kakao_authorize_url(req);
+    console.log(`[social:kakao:start] redirect_uri=${redirect_uri} authorize_url=${authorize_url}`);
+    return res.redirect(authorize_url);
 });
 
 router.get('/google', (req, res) => {
-    return res.redirect(build_google_authorize_url());
+    const authorize_url = build_google_authorize_url();
+    console.log(`[social:google:start] redirect_uri=${GOOGLE_REDIRECT_URI} authorize_url=${authorize_url}`);
+    return res.redirect(authorize_url);
 });
 
 router.get('/naver', (req, res) => {
-    return res.redirect(build_naver_authorize_url());
+    const authorize_url = build_naver_authorize_url();
+    console.log(`[social:naver:start] redirect_uri=${NAVER_REDIRECT_URI} authorize_url=${authorize_url}`);
+    return res.redirect(authorize_url);
 });
 
-router.get('/callback', async (req, res) => {
+router.get('/kakao/callback', async (req, res) => {
+    console.log(`[social:kakao:callback] callback_url=${redact_callback_query(req)} state=${req.query.state || ''}`);
     try {
         const token_response = await axios.post(
             'https://kauth.kakao.com/oauth/token',
@@ -159,7 +206,7 @@ router.get('/callback', async (req, res) => {
                 grant_type: 'authorization_code',
                 client_id: KAKAO_CLIENT_ID,
                 client_secret: KAKAO_CLIENT_SECRET,
-                redirect_uri: KAKAO_REDIRECT_URI,
+                redirect_uri: get_kakao_redirect_uri(req),
                 code: req.query.code
             }),
             {
@@ -171,10 +218,12 @@ router.get('/callback', async (req, res) => {
 
         const user_response = await axios.get('https://kapi.kakao.com/v2/user/me', {
             headers: {
+
                 Authorization: `Bearer ${token_response.data.access_token}`
+
             }
         });
-
+        console.log('[KAKAO USER RESPONSE]', user_response.data);
         const login_result = await handle_social_login({
             id: user_response.data.id.toString(),
             nickname: user_response.data.properties.nickname,
@@ -183,19 +232,28 @@ router.get('/callback', async (req, res) => {
         }, 'kakao');
 
         if (!login_result.success || !login_result.token) {
-            return res.redirect(build_frontend_callback_url({
+            return res.redirect(build_frontend_callback_url(req, {
                 provider: 'kakao',
                 error: login_result.message || 'Kakao authentication failed.'
             }));
         }
 
-        return res.redirect(build_frontend_callback_url({
+        console.log('[LOGIN RESULT]', login_result);
+
+        const redirect_url = build_frontend_callback_url(req, {
             provider: 'kakao',
             token: login_result.token,
             is_new_user: login_result.is_new_user
-        }));
+        });
+
+        console.log('[FINAL REDIRECT URL]', redirect_url);
+
+        return res.redirect(redirect_url);
     } catch (error) {
-        return res.redirect(build_frontend_callback_url({
+        console.error('[KAKAO TOKEN ERROR]');
+        console.error(error.response?.data || error);
+        
+        return res.redirect(build_frontend_callback_url(req, {
             provider: 'kakao',
             error: 'Kakao authentication failed.'
         }));
@@ -203,6 +261,7 @@ router.get('/callback', async (req, res) => {
 });
 
 router.get('/google/callback', async (req, res) => {
+    console.log(`[social:google:callback] callback_url=${redact_callback_query(req)} state=${req.query.state || ''}`);
     try {
         const token_response = await axios.post('https://oauth2.googleapis.com/token', {
             code: req.query.code,
@@ -213,6 +272,7 @@ router.get('/google/callback', async (req, res) => {
         });
 
         const user_response = await axios.get(
+
             'https://www.googleapis.com/oauth2/v3/userinfo',
             {
                 headers: {
@@ -229,19 +289,19 @@ router.get('/google/callback', async (req, res) => {
         }, 'google');
 
         if (!login_result.success || !login_result.token) {
-            return res.redirect(build_frontend_callback_url({
+            return res.redirect(build_frontend_callback_url(req, {
                 provider: 'google',
                 error: login_result.message || 'Google authentication failed.'
             }));
         }
 
-        return res.redirect(build_frontend_callback_url({
+        return res.redirect(build_frontend_callback_url(req, {
             provider: 'google',
             token: login_result.token,
             is_new_user: login_result.is_new_user
         }));
     } catch (error) {
-        return res.redirect(build_frontend_callback_url({
+        return res.redirect(build_frontend_callback_url(req, {
             provider: 'google',
             error: 'Google authentication failed.'
         }));
@@ -249,6 +309,7 @@ router.get('/google/callback', async (req, res) => {
 });
 
 router.get('/naver/callback', async (req, res) => {
+    console.log(`[social:naver:callback] callback_url=${redact_callback_query(req)} state=${req.query.state || ''}`);
     try {
         const token_response = await axios.get('https://nid.naver.com/oauth2.0/token', {
             params: {
@@ -276,19 +337,19 @@ router.get('/naver/callback', async (req, res) => {
         }, 'naver');
 
         if (!login_result.success || !login_result.token) {
-            return res.redirect(build_frontend_callback_url({
+            return res.redirect(build_frontend_callback_url(req, {
                 provider: 'naver',
                 error: login_result.message || 'Naver authentication failed.'
             }));
         }
 
-        return res.redirect(build_frontend_callback_url({
+        return res.redirect(build_frontend_callback_url(req, {
             provider: 'naver',
             token: login_result.token,
             is_new_user: login_result.is_new_user
         }));
     } catch (error) {
-        return res.redirect(build_frontend_callback_url({
+        return res.redirect(build_frontend_callback_url(req, {
             provider: 'naver',
             error: 'Naver authentication failed.'
         }));
