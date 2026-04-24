@@ -1,4 +1,3 @@
-import cv2
 from PyQt5.QtCore import QRectF, Qt
 from PyQt5.QtGui import (
     QColor, QFont, QImage, QPainter, QPainterPath, QPen, QPixmap,
@@ -33,17 +32,16 @@ class CameraCardWidget(QWidget):
         p.fillRect(self.rect(), QColor("#1e2235"))
 
         if self._frame is not None:
-            rgb = cv2.cvtColor(self._frame, cv2.COLOR_BGR2RGB)
-            h, w, ch = rgb.shape
-            img = QImage(rgb.data, w, h, ch * w, QImage.Format_RGB888)
+            h, w, ch = self._frame.shape
+            img = QImage(self._frame.data, w, h, ch * w, QImage.Format_RGB888)
             pix = QPixmap.fromImage(img).scaled(
                 self.width(), self.height(),
-                Qt.KeepAspectRatioByExpanding,
+                Qt.KeepAspectRatio,
                 Qt.SmoothTransformation,
             )
-            ox = (pix.width() - self.width()) // 2
-            oy = (pix.height() - self.height()) // 2
-            p.drawPixmap(0, 0, pix, ox, oy, self.width(), self.height())
+            ox = (self.width() - pix.width()) // 2
+            oy = (self.height() - pix.height()) // 2
+            p.drawPixmap(ox, oy, pix)
 
         p.setClipping(False)
 
