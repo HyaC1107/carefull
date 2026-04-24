@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 
 function GuardianEditModal({ initialData, onClose, onSave }) {
   const [form, setForm] = useState({
@@ -6,13 +6,6 @@ function GuardianEditModal({ initialData, onClose, onSave }) {
     guardian_phone: initialData.guardian_phone || '',
   })
   const [saving, setSaving] = useState(false)
-
-  useEffect(() => {
-    setForm({
-      guardian_name: initialData.guardian_name || '',
-      guardian_phone: initialData.guardian_phone || '',
-    })
-  }, [initialData])
 
   const handleChange = (field, value) => {
     setForm((prev) => ({ ...prev, [field]: value }))
