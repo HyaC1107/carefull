@@ -97,6 +97,11 @@ const server = use_https
 server.listen(PORT, HOST, () => {
     const protocol = use_https ? 'HTTPS' : 'HTTP';
     console.log(`[${protocol} mode] Care-full server running on ${HOST}:${PORT}`);
+    console.log(`[env] NODE_ENV=${process.env.NODE_ENV || 'undefined'}`);
+    console.log(`[env] FRONTEND_URL=${process.env.FRONTEND_URL || 'undefined'}`);
+    console.log(`[env] KAKAO_REDIRECT_URI=${process.env.KAKAO_REDIRECT_URI || 'undefined'}`);
+    console.log(`[env] GOOGLE_REDIRECT_URI=${process.env.GOOGLE_REDIRECT_URI || 'undefined'}`);
+    console.log(`[env] NAVER_REDIRECT_URI=${process.env.NAVER_REDIRECT_URI || 'undefined'}`);
     if (use_https) {
         console.log(`[HTTPS mode] SSL key: ${ssl_key_path}`);
         console.log(`[HTTPS mode] SSL cert: ${ssl_cert_path}`);
