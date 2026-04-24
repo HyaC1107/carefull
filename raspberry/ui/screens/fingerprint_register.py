@@ -159,7 +159,8 @@ class FingerprintRegisterScreen(QWidget):
     def _tick(self):
         self._progress += 1
         self._progress_bar.setValue(self._progress)
-        self._fp_widget.set_progress(self._progress)
+        if hasattr(self._fp_widget, "set_progress"):
+            self._fp_widget.set_progress(self._progress)
         self._pct_lbl.setText(f"{self._progress}%")
         if self._progress >= 100:
             self._tick_timer.stop()
