@@ -3,7 +3,7 @@ import sys
 from PyQt5.QtCore import QThread, QTimer, pyqtSignal
 from PyQt5.QtWidgets import QApplication, QMainWindow, QStackedWidget
 
-from config.settings import SCHEDULE_POLL_SECONDS, SCREEN_HEIGHT, SCREEN_WIDTH
+from config.settings import FULLSCREEN, SCHEDULE_POLL_SECONDS, SCREEN_HEIGHT, SCREEN_WIDTH
 from ui.screens.auth_result import AuthResultScreen
 from ui.screens.camera_view import CameraViewScreen
 from ui.screens.complete import CompleteScreen
@@ -112,5 +112,8 @@ class App(QMainWindow):
 def run():
     app = QApplication(sys.argv)
     window = App()
-    window.show()
+    if FULLSCREEN:
+        window.showFullScreen()
+    else:
+        window.show()
     sys.exit(app.exec_())

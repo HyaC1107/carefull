@@ -3,10 +3,12 @@ import os
 from datetime import datetime
 
 from PyQt5.QtCore import Qt, QTimer
-from PyQt5.QtGui import QColor, QFont, QPainter, QPen, QRectF
+from PyQt5.QtGui import QColor, QFont, QPainter, QPen
 from PyQt5.QtWidgets import (
     QFrame, QHBoxLayout, QLabel, QSizePolicy, QVBoxLayout, QWidget,
 )
+
+from config.settings import UI_TEST_MODE
 
 _SCHEDULE_PATH = os.path.normpath(
     os.path.join(os.path.dirname(__file__), "..", "..", "db", "schedule.json")
@@ -192,6 +194,20 @@ class HomeScreen(QWidget):
         btn_row.addWidget(btn_register)
         btn_row.addWidget(btn_settings)
         root.addLayout(btn_row)
+
+        if UI_TEST_MODE:
+            root.addSpacing(10)
+            btn_med_test = _MenuButton("💊", "복약 테스트", lambda: self._go("medication"))
+            btn_med_test.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+            btn_med_test.setMinimumHeight(96)
+            btn_med_test.setStyleSheet("""
+                QWidget {
+                    background-color: #f0fdf4;
+                    border: 2px solid #86efac;
+                    border-radius: 14px;
+                }
+            """)
+            root.addWidget(btn_med_test)
 
     def _start_timers(self):
         self._update_clock()

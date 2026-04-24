@@ -20,6 +20,7 @@ SCREEN_HEIGHT = int(os.getenv("CAREFULL_SCREEN_HEIGHT", "480"))
 
 USE_WEBCAM    = os.getenv("CAREFULL_USE_WEBCAM",    "0") == "1"
 UI_TEST_MODE  = os.getenv("CAREFULL_UI_TEST_MODE", "0") == "1"
+FULLSCREEN    = os.getenv("CAREFULL_FULLSCREEN",   "1") == "1"
 
 # API
 API_BASE_URL = os.getenv("CAREFULL_API_BASE_URL", "http://localhost:3000")

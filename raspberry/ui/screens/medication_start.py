@@ -1,5 +1,5 @@
-from PyQt5.QtCore import Qt, QTimer
-from PyQt5.QtGui import QColor, QFont, QPainter, QPainterPath, QPen, QRectF
+from PyQt5.QtCore import Qt, QTimer, QRectF
+from PyQt5.QtGui import QColor, QFont, QPainter, QPainterPath, QPen
 from PyQt5.QtWidgets import (
     QPushButton, QSizePolicy, QVBoxLayout, QWidget, QLabel,
 )

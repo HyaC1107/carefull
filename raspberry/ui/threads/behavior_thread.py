@@ -1,9 +1,6 @@
-import cv2
-import mediapipe as mp
-import numpy as np
 from PyQt5.QtCore import QThread, pyqtSignal
 
-from camera.camera import get_frame
+from config.settings import UI_TEST_MODE
 
 _DIST_THRESHOLD = 0.10
 _SUCCESS_FRAMES = 5
@@ -20,6 +17,20 @@ class BehaviorThread(QThread):
 
     def run(self):
         self._running = True
+        if UI_TEST_MODE:
+            for i in range(1, _SUCCESS_FRAMES + 1):
+                if not self._running:
+                    return
+                self.progress_updated.emit(i, _SUCCESS_FRAMES)
+                self.msleep(400)
+            if self._running:
+                self.intake_detected.emit()
+            return
+
+        import cv2
+        import mediapipe as mp
+        import numpy as np
+        from camera.camera import get_frame
 
         mp_hands_mod = mp.solutions.hands
         mp_face_mesh_mod = mp.solutions.face_mesh
