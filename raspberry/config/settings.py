@@ -18,7 +18,8 @@ FACE_MATCH_THRESHOLD = float(os.getenv("CAREFULL_FACE_MATCH_THRESHOLD", "0.8"))
 SCREEN_WIDTH = int(os.getenv("CAREFULL_SCREEN_WIDTH", "800"))
 SCREEN_HEIGHT = int(os.getenv("CAREFULL_SCREEN_HEIGHT", "480"))
 
-USE_WEBCAM = os.getenv("CAREFULL_USE_WEBCAM", "0") == "1"
+USE_WEBCAM    = os.getenv("CAREFULL_USE_WEBCAM",    "0") == "1"
+UI_TEST_MODE  = os.getenv("CAREFULL_UI_TEST_MODE", "0") == "1"
 
 # API
 API_BASE_URL = os.getenv("CAREFULL_API_BASE_URL", "http://localhost:3000")
