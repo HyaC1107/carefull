@@ -1,0 +1,47 @@
+[
+  {
+    "user": "user1",
+    "status": "SUCCESS",
+    "time": "2026-04-02 11:02:57"
+  },
+  {
+    "user": "user1",
+    "status": "SUCCESS",
+    "time": "2026-04-02 11:07:26"
+  },
+  {
+    "user": "user1",
+    "status": "SUCCESS",
+    "time": "2026-04-02 12:05:05"
+  },
+  {
+    "user": "user1",
+    "status": "NO_FACE",
+    "time": "2026-04-02 19:32:22"
+  },
+  {
+    "user": "user1",
+    "status": "NO_FACE",
+    "time": "2026-04-02 19:32:23"
+  },
+  {
+    "user": "user1",
+    "status": "NO_FACE",
+    "time": "2026-04-02 19:32:24"
+  },
+  {
+    "user": "user1",
+    "status": "NO_FACE",
+    "time": "2026-04-02 19:32:26"
+  },
+  {
+    "user": "user1",
+    "status": "NO_FACE",
+    "time": "2026-04-02 19:32:27"
+  },
+  {
+    "user": "user1",
+    "status": "NO_FACE",
+    "time": "2026-04-02 19:34:29"
+  }
+]

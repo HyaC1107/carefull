@@ -1,0 +1,701 @@
+.patient-page {
+  min-height: 100vh;
+  background: #f3f5f8;
+}
+
+.patient-layout {
+  display: flex;
+  min-height: 100vh;
+}
+
+.patient-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.patient-content {
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.patient-page-header__title {
+  margin: 0 0 6px;
+  font-size: 1.45rem;
+  font-weight: 800;
+  color: #111827;
+}
+
+.patient-page-header__subtitle {
+  margin: 0;
+  font-size: 0.84rem;
+  color: #6b7280;
+}
+
+/* 공통 카드 */
+.patient-profile-card,
+.patient-medication-card,
+.patient-device-card {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 16px;
+  padding: 18px;
+}
+
+/* 카드 상단 제목 */
+.patient-card-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.patient-card-title-row__icon {
+  color: #0ea5e9;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.patient-card-title-row__title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 800;
+  color: #111827;
+}
+
+/* 프로필 카드 */
+.patient-profile-card__header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 18px;
+}
+
+.patient-profile-card__avatar {
+  width: 54px;
+  height: 54px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #0ea5e9, #3b82f6);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.patient-profile-card__name {
+  margin: 0 0 4px;
+  font-size: 1.4rem;
+  font-weight: 800;
+  color: #111827;
+}
+
+.patient-profile-card__summary {
+  margin: 0;
+  font-size: 0.84rem;
+  color: #4b5563;
+}
+
+.patient-profile-card__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px 24px;
+}
+
+.patient-profile-card__info-item {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.patient-profile-card__info-icon {
+  color: #0ea5e9;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 2px;
+  flex-shrink: 0;
+}
+
+.patient-profile-card__info-label {
+  margin: 0 0 4px;
+  font-size: 0.75rem;
+  color: #6b7280;
+}
+
+.patient-profile-card__info-value {
+  margin: 0;
+  font-size: 0.84rem;
+  color: #111827;
+  line-height: 1.4;
+}
+
+/* 약물 카드 */
+.patient-medication-card__list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.patient-medication-item {
+  border: 1px solid #e5e7eb;
+  border-radius: 14px;
+  background: #ffffff;
+  padding: 14px 16px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.patient-medication-item__left {
+  min-width: 0;
+}
+
+.patient-medication-item__name {
+  margin: 0 0 6px;
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: #111827;
+}
+
+.patient-medication-item__ingredient {
+  display: inline-block;
+  margin-bottom: 10px;
+  background: #ecfeff;
+  color: #0891b2;
+  font-size: 0.7rem;
+  font-weight: 700;
+  border-radius: 999px;
+  padding: 4px 8px;
+}
+
+.patient-medication-item__started-at {
+  margin: 0;
+  font-size: 0.76rem;
+  color: #6b7280;
+}
+
+.patient-medication-item__right {
+  text-align: right;
+  flex-shrink: 0;
+}
+
+.patient-medication-item__dose {
+  margin: 0 0 4px;
+  font-size: 0.92rem;
+  font-weight: 800;
+  color: #111827;
+}
+
+.patient-medication-item__amount {
+  margin: 0 0 10px;
+  font-size: 0.74rem;
+  color: #6b7280;
+}
+
+.patient-medication-item__timing {
+  margin: 0;
+  font-size: 0.76rem;
+  color: #6b7280;
+}
+
+/* 디바이스 카드 */
+.patient-device-card__status-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.patient-device-status-box {
+  border-radius: 12px;
+  padding: 14px;
+  border: 1px solid transparent;
+}
+
+.patient-device-status-box--success {
+  background: #eefbf4;
+  border-color: #cdeeda;
+}
+
+.patient-device-status-box--primary {
+  background: #eff6ff;
+  border-color: #bfdbfe;
+}
+
+.patient-device-status-box--info {
+  background: #eefcff;
+  border-color: #bae6fd;
+}
+
+.patient-device-status-box__label {
+  margin: 0 0 8px;
+  font-size: 0.76rem;
+  color: #6b7280;
+}
+
+.patient-device-status-box__value {
+  margin: 0;
+  font-size: 1.35rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.patient-device-status-box--success .patient-device-status-box__value {
+  color: #16a34a;
+}
+
+.patient-device-status-box--primary .patient-device-status-box__value {
+  color: #2563eb;
+}
+
+.patient-device-status-box--info .patient-device-status-box__value {
+  color: #0891b2;
+}
+
+.patient-device-card__detail-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.patient-device-card__detail-item {
+  min-width: 0;
+}
+
+.patient-device-card__detail-label {
+  margin: 0 0 6px;
+  font-size: 0.74rem;
+  color: #6b7280;
+}
+
+.patient-device-card__detail-value {
+  margin: 0;
+  font-size: 0.82rem;
+  color: #111827;
+  word-break: break-word;
+}
+
+/* 반응형 */
+@media (max-width: 1200px) {
+  .patient-content {
+    padding: 16px;
+    gap: 16px;
+  }
+
+  .patient-profile-card__grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .patient-device-card__detail-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 900px) {
+  .patient-page {
+    padding-bottom: 74px;
+  }
+
+  .patient-layout {
+    flex-direction: column;
+  }
+
+  .patient-content {
+    padding: 14px;
+    gap: 14px;
+  }
+
+  .patient-profile-card__grid,
+  .patient-device-card__status-grid,
+  .patient-device-card__detail-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .patient-content {
+    padding: 12px;
+    gap: 12px;
+  }
+
+  .patient-profile-card,
+  .patient-medication-card,
+  .patient-device-card {
+    border-radius: 14px;
+    padding: 14px;
+  }
+
+  .patient-page-header__title {
+    font-size: 1.25rem;
+  }
+
+  .patient-page-header__subtitle {
+    font-size: 0.78rem;
+  }
+
+  .patient-profile-card__header {
+    align-items: flex-start;
+  }
+
+  .patient-profile-card__name {
+    font-size: 1.2rem;
+  }
+
+  .patient-medication-item {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .patient-medication-item__right {
+    text-align: left;
+  }
+}
+
+/* =========================
+   환자 미등록 상태 화면
+========================= */
+.patient-empty-state {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.patient-empty-state__cards {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  max-width: 720px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.patient-register-card {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 16px;
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.patient-register-card--disabled {
+  opacity: 0.7;
+}
+
+.patient-register-card__icon {
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.patient-register-card__icon--device {
+  background: #eefbf4;
+  color: #16a34a;
+}
+
+.patient-register-card__icon--patient {
+  background: linear-gradient(135deg, #0ea5e9, #3b82f6);
+  color: #ffffff;
+}
+
+.patient-register-card__title {
+  margin: 0 0 4px;
+  font-size: 1.35rem;
+  font-weight: 800;
+  color: #111827;
+}
+
+.patient-register-card__subtitle {
+  margin: 0 0 10px;
+  font-size: 0.84rem;
+  color: #6b7280;
+}
+
+.patient-register-card__description {
+  margin: 0;
+  font-size: 0.84rem;
+  line-height: 1.5;
+  color: #374151;
+}
+
+.patient-register-card__notice {
+  margin: 10px 0 0;
+  font-size: 0.78rem;
+  color: #f97316;
+  font-weight: 700;
+}
+
+.patient-register-card__button {
+  border: none;
+  border-radius: 10px;
+  padding: 13px 16px;
+  background: linear-gradient(90deg, #06b6d4, #2563eb);
+  color: #ffffff;
+  font-size: 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.patient-register-card__button:disabled {
+  background: #d1d5db;
+  color: #ffffff;
+  cursor: not-allowed;
+}
+
+/* =========================
+   모달 공통
+========================= */
+.patient-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.35);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 40px 16px;
+  z-index: 1200;
+  overflow-y: auto;
+}
+
+.patient-modal {
+  width: 100%;
+  background: #ffffff;
+  border-radius: 16px;
+  box-shadow: 0 20px 50px rgba(15, 23, 42, 0.25);
+  overflow: hidden;
+}
+
+.patient-modal--device {
+  max-width: 420px;
+}
+
+.patient-modal--patient {
+  max-width: 760px;
+}
+
+.patient-modal__header {
+  background: #1f3f6c;
+  color: #ffffff;
+  padding: 18px 20px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.patient-modal__title {
+  margin: 0 0 4px;
+  font-size: 1.25rem;
+  font-weight: 800;
+}
+
+.patient-modal__subtitle {
+  margin: 0;
+  font-size: 0.78rem;
+  color: rgba(255, 255, 255, 0.82);
+}
+
+.patient-modal__close-button {
+  border: none;
+  background: transparent;
+  color: #ffffff;
+  font-size: 1.5rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.patient-modal__body {
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* 폼 공통 */
+.patient-form-grid {
+  display: grid;
+  gap: 12px;
+}
+
+.patient-form-grid--one {
+  grid-template-columns: 1fr;
+}
+
+.patient-form-grid--two {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.patient-form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.patient-form-field__label {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #111827;
+}
+
+.patient-form-field__input {
+  width: 100%;
+  height: 42px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  padding: 0 12px;
+  font-size: 0.84rem;
+  color: #111827;
+  background: #ffffff;
+}
+
+.patient-form-field__input::placeholder {
+  color: #9ca3af;
+}
+
+.patient-form-field__hint {
+  font-size: 0.72rem;
+  color: #6b7280;
+}
+
+.patient-form-message {
+  border-radius: 10px;
+  padding: 12px 14px;
+  font-size: 0.76rem;
+  line-height: 1.45;
+}
+
+.patient-form-message--success {
+  background: #eefbf4;
+  border: 1px solid #bbf7d0;
+  color: #16a34a;
+}
+
+.patient-form-message--warning {
+  background: #fff8e8;
+  border: 1px solid #facc15;
+  color: #b45309;
+}
+
+.patient-modal__actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.patient-modal__button {
+  height: 44px;
+  border-radius: 10px;
+  font-size: 0.88rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.patient-modal__button--secondary {
+  border: 1px solid #d1d5db;
+  background: #ffffff;
+  color: #374151;
+}
+
+.patient-modal__button--primary {
+  border: none;
+  background: linear-gradient(90deg, #06b6d4, #2563eb);
+  color: #ffffff;
+}
+
+/* 사진 등록 박스 */
+.patient-photo-box {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.patient-photo-box__area {
+  border: 1px solid #bfdbfe;
+  background: #eff6ff;
+  border-radius: 12px;
+  min-height: 180px;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  text-align: center;
+}
+
+.patient-photo-box__icon {
+  width: 64px;
+  height: 64px;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #0ea5e9;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.patient-photo-box__description {
+  margin: 0;
+  font-size: 0.78rem;
+  color: #6b7280;
+}
+
+.patient-photo-box__button {
+  border: none;
+  border-radius: 10px;
+  padding: 12px 18px;
+  background: #0ea5e9;
+  color: #ffffff;
+  font-size: 0.84rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+/* 반응형 */
+@media (max-width: 640px) {
+  .patient-empty-state__cards {
+    max-width: 100%;
+  }
+
+  .patient-register-card {
+    padding: 14px;
+    border-radius: 14px;
+  }
+
+  .patient-register-card__title {
+    font-size: 1.15rem;
+  }
+
+  .patient-modal-overlay {
+    padding: 16px 10px;
+  }
+
+  .patient-modal__header {
+    padding: 16px;
+  }
+
+  .patient-modal__body {
+    padding: 14px;
+  }
+
+  .patient-form-grid--two {
+    grid-template-columns: 1fr;
+  }
+
+  .patient-modal__actions {
+    grid-template-columns: 1fr;
+  }
+
+  .patient-photo-box__area {
+    min-height: 150px;
+    padding: 18px;
+  }
+}

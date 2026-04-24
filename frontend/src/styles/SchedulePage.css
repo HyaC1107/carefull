@@ -1,0 +1,816 @@
+.schedule-page {
+  min-height: 100vh;
+  background: #f3f5f8;
+}
+
+.schedule-layout {
+  display: flex;
+  min-height: 100vh;
+}
+
+.schedule-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.schedule-content {
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+/* 페이지 상단 */
+.schedule-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.schedule-header__title {
+  margin: 0 0 6px;
+  font-size: 1.45rem;
+  font-weight: 800;
+  color: #111827;
+}
+
+.schedule-header__subtitle {
+  margin: 0;
+  font-size: 0.84rem;
+  color: #6b7280;
+}
+
+.schedule-header__add-button {
+  border: none;
+  background: #2563eb;
+  color: #ffffff;
+  font-size: 0.82rem;
+  font-weight: 700;
+  border-radius: 10px;
+  padding: 12px 16px;
+  cursor: pointer;
+}
+
+/* 공통 카드 */
+.schedule-calendar-card,
+.schedule-summary-card,
+.schedule-list,
+.schedule-info-banner {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 16px;
+}
+
+/* 캘린더 카드 */
+.schedule-calendar-card {
+  padding: 18px;
+}
+
+.schedule-calendar-card__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 18px;
+}
+
+.schedule-calendar-card__title {
+  margin: 0;
+  font-size: 1.8rem;
+  font-weight: 800;
+  color: #111827;
+}
+
+.schedule-calendar-card__actions {
+  display: flex;
+  gap: 8px;
+}
+
+.schedule-calendar-card__nav-button {
+  width: 32px;
+  height: 32px;
+  border: 1px solid #e5e7eb;
+  border-radius: 999px;
+  background: #ffffff;
+  cursor: pointer;
+}
+
+.schedule-calendar-card__weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  margin-bottom: 10px;
+}
+
+.schedule-calendar-card__weekday {
+  text-align: center;
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: #4b5563;
+  padding: 8px 0;
+}
+
+.schedule-calendar-card__weekday--sunday {
+  color: #ef4444;
+}
+
+.schedule-calendar-card__weekday--saturday {
+  color: #2563eb;
+}
+
+.schedule-calendar-card__grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 10px;
+}
+
+.calendar-date-cell {
+  height: 62px;
+  border: none;
+  border-radius: 14px;
+  background: #f8fafc;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  cursor: pointer;
+}
+
+.calendar-date-cell--selected {
+  background: #2563eb;
+}
+
+.calendar-date-cell--empty {
+  background: transparent;
+  cursor: default;
+}
+
+.calendar-date-cell__number {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #111827;
+}
+
+.calendar-date-cell__number--sunday {
+  color: #ef4444;
+}
+
+.calendar-date-cell__number--saturday {
+  color: #2563eb;
+}
+
+.calendar-date-cell--selected .calendar-date-cell__number {
+  color: #ffffff;
+}
+
+.calendar-date-cell__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: #2563eb;
+}
+
+.calendar-date-cell--selected .calendar-date-cell__dot {
+  background: #ffffff;
+}
+
+/* 선택 날짜 요약 카드 */
+.schedule-summary-card {
+  padding: 18px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.schedule-summary-card__title {
+  margin: 0 0 6px;
+  font-size: 1.3rem;
+  font-weight: 800;
+  color: #111827;
+}
+
+.schedule-summary-card__subtitle {
+  margin: 0;
+  font-size: 0.8rem;
+  color: #6b7280;
+}
+
+.schedule-summary-card__progress-circle {
+  width: 58px;
+  height: 58px;
+  border-radius: 999px;
+  background: #2563eb;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  font-weight: 800;
+  flex-shrink: 0;
+}
+
+.schedule-summary-card__progress-value {
+  font-size: 1.2rem;
+  line-height: 1;
+}
+
+.schedule-summary-card__progress-label {
+  font-size: 0.8rem;
+  line-height: 1;
+}
+
+/* 일정 리스트 */
+.schedule-list {
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.schedule-list--empty {
+  padding: 24px 18px;
+}
+
+.schedule-list__empty-title {
+  margin: 0 0 6px;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #111827;
+}
+
+.schedule-list__empty-subtitle {
+  margin: 0;
+  font-size: 0.82rem;
+  color: #6b7280;
+}
+
+.schedule-item-card {
+  border: 1px solid #e5e7eb;
+  border-radius: 14px;
+  background: #ffffff;
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.schedule-item-card__left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.schedule-item-card__time-block {
+  min-width: 74px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #2563eb;
+}
+
+.schedule-item-card__clock {
+  font-size: 0.95rem;
+}
+
+.schedule-item-card__time {
+  font-size: 1rem;
+  font-weight: 800;
+  color: #111827;
+}
+
+.schedule-item-card__info {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.schedule-item-card__title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.schedule-item-card__medicine-name {
+  margin: 0;
+  font-size: 0.96rem;
+  font-weight: 800;
+  color: #111827;
+}
+
+.schedule-item-card__status-badge {
+  font-size: 0.68rem;
+  font-weight: 700;
+  border-radius: 999px;
+  padding: 3px 7px;
+}
+
+.schedule-item-card__status-badge--pending {
+  background: #f3f4f6;
+  color: #4b5563;
+}
+
+.schedule-item-card__status-badge--done {
+  background: #dcfce7;
+  color: #16a34a;
+}
+
+.schedule-item-card__dose {
+  margin: 0;
+  font-size: 0.82rem;
+  color: #6b7280;
+}
+
+.schedule-item-card__check-button {
+  width: 28px;
+  height: 28px;
+  border: 2px solid #d1d5db;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #ffffff;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.schedule-item-card__check-button--done {
+  border-color: #2563eb;
+  background: #2563eb;
+  color: #ffffff;
+}
+
+/* 하단 안내 배너 */
+.schedule-info-banner {
+  background: #eefcff;
+  border-color: #d2f1f7;
+  padding: 16px 18px;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.schedule-info-banner__icon {
+  font-size: 1rem;
+  color: #0891b2;
+}
+
+.schedule-info-banner__title {
+  margin: 0 0 6px;
+  font-size: 0.85rem;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.schedule-info-banner__description {
+  margin: 0;
+  font-size: 0.78rem;
+  color: #64748b;
+  line-height: 1.45;
+}
+
+/* 반응형 */
+@media (max-width: 1200px) {
+  .schedule-content {
+    padding: 16px;
+    gap: 16px;
+  }
+
+  .schedule-calendar-card__grid {
+    gap: 8px;
+  }
+}
+
+@media (max-width: 900px) {
+  .schedule-page {
+    padding-bottom: 74px;
+  }
+
+  .schedule-layout {
+    flex-direction: column;
+  }
+
+  .schedule-content {
+    padding: 14px;
+    gap: 14px;
+  }
+
+  .schedule-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .schedule-header__add-button {
+    width: 100%;
+  }
+}
+
+@media (max-width: 640px) {
+  .schedule-content {
+    padding: 12px;
+    gap: 12px;
+  }
+
+  .schedule-calendar-card,
+  .schedule-summary-card,
+  .schedule-list,
+  .schedule-info-banner {
+    border-radius: 14px;
+  }
+
+  .schedule-calendar-card {
+    padding: 14px;
+  }
+
+  .schedule-calendar-card__title {
+    font-size: 1.4rem;
+  }
+
+  .schedule-calendar-card__grid {
+    gap: 6px;
+  }
+
+  .calendar-date-cell {
+    height: 52px;
+    border-radius: 12px;
+  }
+
+  .calendar-date-cell__number {
+    font-size: 0.86rem;
+  }
+
+  .schedule-summary-card {
+    padding: 14px;
+  }
+
+  .schedule-summary-card__title {
+    font-size: 1.05rem;
+  }
+
+  .schedule-summary-card__subtitle {
+    font-size: 0.74rem;
+  }
+
+  .schedule-summary-card__progress-circle {
+    width: 50px;
+    height: 50px;
+  }
+
+  .schedule-item-card {
+    padding: 12px 14px;
+    align-items: flex-start;
+  }
+
+  .schedule-item-card__left {
+    gap: 12px;
+  }
+
+  .schedule-item-card__time-block {
+    min-width: 64px;
+  }
+
+  .schedule-item-card__time {
+    font-size: 0.92rem;
+  }
+
+  .schedule-item-card__medicine-name {
+    font-size: 0.9rem;
+  }
+
+  .schedule-item-card__dose {
+    font-size: 0.76rem;
+  }
+
+  .schedule-info-banner {
+    padding: 14px;
+  }
+}
+
+@media (max-width: 480px) {
+  .schedule-calendar-card__weekdays {
+    margin-bottom: 8px;
+  }
+
+  .schedule-calendar-card__weekday {
+    font-size: 0.78rem;
+  }
+
+  .calendar-date-cell {
+    height: 46px;
+  }
+
+  .schedule-item-card {
+    flex-direction: row;
+  }
+}
+
+/* ==================
+   복약 일정 추가 모달
+===================== */
+.schedule-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.32);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 28px 16px;
+  z-index: 1200;
+  overflow-y: auto;
+}
+
+.schedule-modal {
+  width: 100%;
+  max-width: 390px;
+  background: #ffffff;
+  border-radius: 16px;
+  box-shadow: 0 18px 44px rgba(15, 23, 42, 0.2);
+}
+
+.schedule-modal__header {
+  background: #1f3f6c;
+  color: #ffffff;
+  padding: 16px 18px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  border-radius: 16px 16px 0 0;
+}
+
+.schedule-modal__title {
+  margin: 0 0 4px;
+  font-size: 1.1rem;
+  font-weight: 800;
+}
+
+.schedule-modal__subtitle {
+  margin: 0;
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.82);
+}
+
+.schedule-modal__close-button {
+  border: none;
+  background: transparent;
+  color: #ffffff;
+  font-size: 1.45rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.schedule-modal__body {
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.schedule-modal__date-chip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 46px;
+  background: #eff6ff;
+  border-radius: 10px;
+  padding: 0 14px;
+  font-size: 0.84rem;
+  font-weight: 700;
+  color: #1d4ed8;
+}
+
+.schedule-modal__section {
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: #ffffff;
+}
+
+.schedule-modal__section--highlight {
+  background: #eefcff;
+  border-color: #bae6fd;
+}
+
+.schedule-modal__section-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.schedule-modal__section-icon {
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8rem;
+  background: #f3f4f6;
+}
+
+.schedule-modal__section-icon--pill {
+  background: #2563eb;
+  color: #ffffff;
+}
+
+.schedule-modal__section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.schedule-modal__section-title {
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 800;
+  color: #111827;
+}
+
+.schedule-modal__mini-button {
+  border: none;
+  border-radius: 8px;
+  background: #2563eb;
+  color: #ffffff;
+  padding: 8px 12px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.schedule-modal__field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.schedule-modal__label {
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: #111827;
+}
+
+.schedule-modal__input {
+  width: 100%;
+  height: 40px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  padding: 0 12px;
+  font-size: 0.82rem;
+  color: #111827;
+  background: #ffffff;
+}
+
+.schedule-modal__input::placeholder {
+  color: #9ca3af;
+}
+
+.schedule-modal__grid {
+  display: grid;
+  gap: 10px;
+}
+
+.schedule-modal__grid--two {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.schedule-modal__hint-box {
+  background: #eaf2ff;
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 0.72rem;
+  color: #6b7280;
+}
+
+/* 약 검색 자동완성 */
+.schedule-modal__search-wrapper {
+  position: relative;
+}
+
+.schedule-modal__search-dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  background: #ffffff;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  box-shadow: 0 6px 16px rgba(15, 23, 42, 0.12);
+  z-index: 200;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.schedule-modal__search-item {
+  padding: 10px 12px;
+  font-size: 0.82rem;
+  color: #111827;
+  cursor: pointer;
+  border-bottom: 1px solid #f3f4f6;
+  line-height: 1.4;
+}
+
+.schedule-modal__search-item:last-child {
+  border-bottom: none;
+}
+
+.schedule-modal__search-item:hover,
+.schedule-modal__search-item:focus {
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+.schedule-modal__search-empty {
+  padding: 14px 12px;
+  font-size: 0.8rem;
+  color: #9ca3af;
+  text-align: center;
+}
+
+.schedule-modal__search-hint {
+  font-size: 0.72rem;
+  color: #9ca3af;
+  padding: 2px 2px 0;
+}
+
+.schedule-modal__repeat-buttons {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.schedule-modal__repeat-button {
+  height: 36px;
+  border-radius: 8px;
+  border: 1px solid #d1d5db;
+  background: #ffffff;
+  color: #4b5563;
+  font-size: 0.74rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.schedule-modal__repeat-button--active {
+  background: #0ea5e9;
+  border-color: #0ea5e9;
+  color: #ffffff;
+}
+
+.schedule-modal__repeat-hint {
+  background: #f3f4f6;
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 0.72rem;
+  color: #6b7280;
+}
+
+.schedule-modal__notice {
+  background: #eefbf4;
+  border: 1px solid #bbf7d0;
+  border-radius: 10px;
+  padding: 12px 14px;
+  font-size: 0.75rem;
+  line-height: 1.45;
+  color: #16a34a;
+}
+
+.schedule-modal__actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.schedule-modal__button {
+  height: 42px;
+  border-radius: 10px;
+  font-size: 0.84rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.schedule-modal__button--secondary {
+  border: 1px solid #d1d5db;
+  background: #ffffff;
+  color: #374151;
+}
+
+.schedule-modal__button--primary {
+  border: none;
+  background: linear-gradient(90deg, #06b6d4, #2563eb);
+  color: #ffffff;
+}
+
+@media (max-width: 640px) {
+  .schedule-modal-overlay {
+    padding: 14px 10px;
+  }
+
+  .schedule-modal__grid--two,
+  .schedule-modal__repeat-buttons,
+  .schedule-modal__actions {
+    grid-template-columns: 1fr;
+  }
+}

@@ -1,0 +1,64 @@
+import cv2
+from PyQt5.QtCore import QRectF, Qt
+from PyQt5.QtGui import (
+    QColor, QFont, QImage, QPainter, QPainterPath, QPen, QPixmap,
+)
+from PyQt5.QtWidgets import QWidget
+
+
+class CameraCardWidget(QWidget):
+    """둥근 카드 형태의 카메라 뷰 + 점선 원 오버레이."""
+
+    def __init__(self, dash_color: str = "#7c3aed", parent=None):
+        super().__init__(parent)
+        self._frame = None
+        self._dash_color = QColor(dash_color)
+
+    def set_dash_color(self, color: str):
+        self._dash_color = QColor(color)
+        self.update()
+
+    def update_frame(self, bgr_frame):
+        self._frame = bgr_frame
+        self.update()
+
+    def paintEvent(self, event):
+        p = QPainter(self)
+        p.setRenderHint(QPainter.Antialiasing)
+
+        # 둥근 모서리 클립
+        clip = QPainterPath()
+        clip.addRoundedRect(QRectF(self.rect()), 16, 16)
+        p.setClipPath(clip)
+        p.fillRect(self.rect(), QColor("#1e2235"))
+
+        if self._frame is not None:
+            rgb = cv2.cvtColor(self._frame, cv2.COLOR_BGR2RGB)
+            h, w, ch = rgb.shape
+            img = QImage(rgb.data, w, h, ch * w, QImage.Format_RGB888)
+            pix = QPixmap.fromImage(img).scaled(
+                self.width(), self.height(),
+                Qt.KeepAspectRatioByExpanding,
+                Qt.SmoothTransformation,
+            )
+            ox = (pix.width() - self.width()) // 2
+            oy = (pix.height() - self.height()) // 2
+            p.drawPixmap(0, 0, pix, ox, oy, self.width(), self.height())
+
+        p.setClipping(False)
+
+        # 점선 원
+        pen = QPen(self._dash_color, 3, Qt.CustomDashLine)
+        pen.setDashPattern([8, 5])
+        p.setPen(pen)
+        cx = self.width() / 2
+        cy = self.height() / 2
+        r = min(self.width(), self.height()) * 0.36
+        p.drawEllipse(QRectF(cx - r, cy - r, r * 2, r * 2))
+
+        # 카메라 아이콘 (우상단)
+        icon_color = QColor(self._dash_color)
+        icon_color.setAlpha(220)
+        p.setPen(icon_color)
+        p.setFont(QFont("Segoe UI Emoji", 14))
+        p.drawText(self.width() - 34, 26, "📷")

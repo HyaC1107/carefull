@@ -1,0 +1,134 @@
+.sidebar {
+  width: 170px;
+  min-height: 100vh;
+  background: #ffffff;
+  border-right: 1px solid #e5e7eb;
+  padding-bottom: 24px;
+  display: flex;
+  flex-direction: column;
+  position: sticky;
+  top: 0;
+  align-self: flex-start;
+}
+
+.sidebar__brand {
+  height: 82px;
+  background: #1f436f;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 18px;
+}
+
+.sidebar__logo {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #1ec8ff, #2b80ff);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.sidebar__title {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 800;
+}
+
+.sidebar__subtitle {
+  margin: 2px 0 0;
+  font-size: 0.58rem;
+  opacity: 0.8;
+}
+
+.sidebar__nav {
+  padding: 14px 12px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.sidebar__menu-button {
+  height: 42px;
+  border: none;
+  background: transparent;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 14px;
+  font-size: 0.9rem;
+  color: #111827;
+  cursor: pointer;
+  text-align: left;
+}
+
+.sidebar__menu-button:hover {
+  background: #eff6ff;
+}
+
+.sidebar__menu-button--active {
+  background: #4d95f6;
+  color: #ffffff;
+}
+
+.sidebar__menu-icon {
+  width: 20px;
+  display: inline-flex;
+  justify-content: center;
+  font-size: 0.82rem;
+}
+
+
+/* =========================
+   사이드바 반응형
+   ========================= */
+
+/* 화면이 조금 줄어들면 사이드바 폭을 살짝 줄임 */
+@media (max-width: 1200px) {
+  .sidebar {
+    width: 150px;
+  }
+
+  .sidebar__brand {
+    padding: 0 14px;
+  }
+
+  .sidebar__menu-button {
+    font-size: 0.84rem;
+    padding: 0 12px;
+  }
+
+
+}
+
+/* 태블릿 이하: 좌측 사이드바는 숨기고 모바일 하단 탭바를 사용 */
+@media (max-width: 900px) {
+  .sidebar {
+    display: none;
+  }
+}
+
+/* 사이드바 메뉴 글자 */
+.sidebar__menu-text {
+  flex: 1;
+  text-align: left;
+}
+
+/* 알림 숫자 뱃지 */
+.sidebar__menu-badge {
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: #1d4ed8;
+  color: #ffffff;
+  font-size: 0.7rem;
+  font-weight: 800;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}

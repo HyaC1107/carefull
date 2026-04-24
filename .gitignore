@@ -68,3 +68,24 @@ datasets/
 
 # 🔥 OLED 테스트 이미지 (선택)
 assets/tmp/
+
+# 🔥 Node.js / React (Frontend & Backend)
+**/node_modules/       # 모든 폴더 내의 node_modules 제외
+**/dist/               # 빌드 결과물 (React 빌드 등)
+**/build/              # React 빌드 폴더
+.npm
+*.log
+package-lock.json      # 팀 협업 방식에 따라 다르지만, 보통은 올리기도 해요! (선택)
+yarn.lock              # yarn 사용 시
+
+# 🔥 API Keys (백엔드 env)
+backend/.env
+backend/.env.local
+
+# 🔥 데이터베이스 (라즈베리파이나 백엔드 SQLite 등)
+*.sqlite3
+*.db
+!raspberry/db/README.md # 폴더 구조 유지를 위해 README만 허용하는 센스!
+.gemini.md
+claude.md
+docs
