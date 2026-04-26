@@ -46,4 +46,4 @@ if __name__ == "__main__":
         except ValueError:
             print("숫자를 입력해주세요.")
     else:
-        print("사용법: python3 stepmotor.py [스텝수]")
+        print("사용법: python3 stepTest.py 스텝수")
