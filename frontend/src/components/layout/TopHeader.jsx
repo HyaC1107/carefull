@@ -11,17 +11,20 @@ function TopHeader({
   guardianName,
   deviceStatusText,
   lastSyncedText,
+  profileImg,
 }) {
   const [sharedHeaderData, setSharedHeaderData] = useState(() =>
     shouldReuseCachedHeader() ? cachedHeaderData : null,
   )
+  const [isProfileImageFailed, setIsProfileImageFailed] = useState(false)
 
   useEffect(() => {
     const needsSharedHeader =
       patientLabel === undefined ||
       guardianName === undefined ||
       deviceStatusText === undefined ||
-      lastSyncedText === undefined
+      lastSyncedText === undefined ||
+      profileImg === undefined
 
     if (!needsSharedHeader || !hasStoredToken()) {
       return
@@ -42,7 +45,13 @@ function TopHeader({
     return () => {
       isMounted = false
     }
-  }, [deviceStatusText, guardianName, lastSyncedText, patientLabel])
+  }, [deviceStatusText, guardianName, lastSyncedText, patientLabel, profileImg])
+
+  const resolvedProfileImg = profileImg ?? sharedHeaderData?.profileImg ?? ''
+
+  useEffect(() => {
+    setIsProfileImageFailed(false)
+  }, [resolvedProfileImg])
 
   const resolvedPatientLabel =
     patientLabel ?? sharedHeaderData?.patientLabel ?? '환자: -'
@@ -89,19 +98,28 @@ function TopHeader({
 
         <div className="top-header__guardian">
           <div className="top-header__guardian-avatar" aria-hidden="true">
-            <svg
-              viewBox="0 0 24 24"
-              width="16"
-              height="16"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <circle cx="12" cy="8" r="4" />
-              <path d="M4 20c1.5-4 5-6 8-6s6.5 2 8 6" />
-            </svg>
+            {resolvedProfileImg && !isProfileImageFailed ? (
+              <img
+                className="top-header__guardian-avatar-img"
+                src={resolvedProfileImg}
+                alt=""
+                onError={() => setIsProfileImageFailed(true)}
+              />
+            ) : (
+              <svg
+                viewBox="0 0 24 24"
+                width="16"
+                height="16"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <circle cx="12" cy="8" r="4" />
+                <path d="M4 20c1.5-4 5-6 8-6s6.5 2 8 6" />
+              </svg>
+            )}
           </div>
           <div>
             <p className="top-header__guardian-role">보호자</p>
@@ -153,6 +171,7 @@ function mapSharedHeaderData(dashboardData) {
       dashboardData?.patient_name,
     ),
     guardianName: dashboardData?.patient?.guardian_name || '-',
+    profileImg: dashboardData?.member?.profile_img || dashboardData?.profile_img || '',
     deviceStatusText: getHeaderDeviceStatusText(dashboardData?.device?.is_connected),
     lastSyncedText: formatHeaderRelativeTime(dashboardData?.device?.last_sync_time),
   }

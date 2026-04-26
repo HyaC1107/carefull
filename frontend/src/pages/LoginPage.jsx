@@ -36,10 +36,11 @@ function startSocialLogin(provider) {
   const loginUrl = buildSocialLoginStartUrl(provider)
 
   if (!loginUrl) {
-    console.error(`unsupported provider: ${provider}`)
+    console.error(`social login start URL could not be created: ${provider}`)
     return
   }
 
+  console.log('[social-login:debug]', { provider, loginUrl })
   window.location.assign(loginUrl)
 }
 
@@ -47,6 +48,11 @@ function buildSocialLoginStartUrl(provider) {
   const path = SOCIAL_LOGIN_START_PATHS[provider]
 
   if (!path) {
+    return ''
+  }
+
+  if (!API_BASE_URL) {
+    console.error('VITE_API_BASE_URL is not configured. Social login cannot start.')
     return ''
   }
 

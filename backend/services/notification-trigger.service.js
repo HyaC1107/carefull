@@ -94,6 +94,92 @@ const find_existing_notification = async (executor, activity_id, noti_type) => {
     return rows[0] || null;
 };
 
+const find_existing_missed_notification_for_schedule_date = async (
+    executor,
+    patient_id,
+    activity_id,
+    noti_type
+) => {
+    if (noti_type !== NOTIFICATION_TYPE.MISSED) {
+        return null;
+    }
+
+    const query = `
+        SELECT
+            n.noti_id,
+            n.mem_id,
+            n.activity_id,
+            n.noti_title,
+            n.noti_msg,
+            n.is_received,
+            n.noti_type,
+            n.created_at
+        FROM notifications n
+        INNER JOIN activities existing_activity
+            ON n.activity_id = existing_activity.activity_id
+        INNER JOIN activities current_activity
+            ON current_activity.activity_id = $2
+        WHERE n.patient_id = $1
+          AND n.noti_type = $3
+          AND existing_activity.patient_id = current_activity.patient_id
+          AND existing_activity.sche_id = current_activity.sche_id
+          AND existing_activity.sche_time::date = current_activity.sche_time::date
+        LIMIT 1
+    `;
+
+    const { rows } = await executor.query(query, [
+        patient_id,
+        activity_id,
+        noti_type
+    ]);
+    return rows[0] || null;
+};
+
+const find_existing_low_stock_notification_for_medication_date = async (
+    executor,
+    patient_id,
+    activity_id,
+    noti_type
+) => {
+    if (noti_type !== NOTIFICATION_TYPE.LOW_STOCK) {
+        return null;
+    }
+
+    const query = `
+        SELECT
+            n.noti_id,
+            n.mem_id,
+            n.activity_id,
+            n.noti_title,
+            n.noti_msg,
+            n.is_received,
+            n.noti_type,
+            n.created_at
+        FROM notifications n
+        INNER JOIN activities existing_activity
+            ON n.activity_id = existing_activity.activity_id
+        INNER JOIN schedules existing_schedule
+            ON existing_activity.sche_id = existing_schedule.sche_id
+        INNER JOIN activities current_activity
+            ON current_activity.activity_id = $2
+        INNER JOIN schedules current_schedule
+            ON current_activity.sche_id = current_schedule.sche_id
+        WHERE n.patient_id = $1
+          AND n.noti_type = $3
+          AND existing_activity.patient_id = current_activity.patient_id
+          AND existing_schedule.medi_id = current_schedule.medi_id
+          AND n.created_at::date = CURRENT_DATE
+        LIMIT 1
+    `;
+
+    const { rows } = await executor.query(query, [
+        patient_id,
+        activity_id,
+        noti_type
+    ]);
+    return rows[0] || null;
+};
+
 const create_notification = async (executor, {
     mem_id,
     patient_id,
@@ -119,6 +205,40 @@ const create_notification = async (executor, {
     if (existing_notification) {
         return {
             notification: to_notification_response(existing_notification),
+            created: false
+        };
+    }
+
+    const existing_missed_notification = await find_existing_missed_notification_for_schedule_date(
+        executor,
+        patient_id,
+        activity_id,
+        notification_content.noti_type
+    );
+
+    if (existing_missed_notification) {
+        console.log(
+            `[NOTIFICATION-TRIGGER] skipped duplicate MISSED notification - patient_id: ${patient_id}, activity_id: ${activity_id}`
+        );
+        return {
+            notification: to_notification_response(existing_missed_notification),
+            created: false
+        };
+    }
+
+    const existing_low_stock_notification = await find_existing_low_stock_notification_for_medication_date(
+        executor,
+        patient_id,
+        activity_id,
+        notification_content.noti_type
+    );
+
+    if (existing_low_stock_notification) {
+        console.log(
+            `[NOTIFICATION-TRIGGER] skipped duplicate LOW_STOCK notification - patient_id: ${patient_id}, activity_id: ${activity_id}`
+        );
+        return {
+            notification: to_notification_response(existing_low_stock_notification),
             created: false
         };
     }

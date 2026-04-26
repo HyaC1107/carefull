@@ -25,11 +25,6 @@ function PatientRegisterModal({ onClose, onSuccess }) {
   const handleSubmit = (event) => {
     event.preventDefault()
 
-    if (!photoCaptured) {
-      alert('환자 사진 등록을 먼저 완료해주세요.')
-      return
-    }
-
     if (!form.patient_name.trim() || !form.phone.trim()) {
       alert('이름과 연락처는 필수입니다.')
       return
@@ -37,7 +32,7 @@ function PatientRegisterModal({ onClose, onSuccess }) {
 
     onSuccess({
       ...form,
-      photoCaptured: true,
+      photoCaptured,
     })
   }
 
@@ -178,9 +173,7 @@ function PatientRegisterModal({ onClose, onSuccess }) {
             </label>
           </div>
 
-          <div className="patient-form-message patient-form-message--warning">
-            사진 등록을 완료해야 등록할 수 있습니다
-          </div>
+       
 
           <div className="patient-modal__actions">
             <button

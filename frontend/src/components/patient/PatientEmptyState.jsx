@@ -1,5 +1,6 @@
 function PatientEmptyState({
   hasDevice,
+  isDeviceRegistrationCompleted,
   onOpenDeviceModal,
   onOpenPatientModal,
 }) {
@@ -28,6 +29,12 @@ function PatientEmptyState({
               <path d="M12 22s-7-4-7-10V6l7-3 7 3v6c0 6-7 10-7 10Z" />
             </svg>
           </div>
+
+          {isDeviceRegistrationCompleted ? (
+            <span className="patient-register-card__check" aria-label="completed">
+              ✔
+            </span>
+          ) : null}
 
           <div className="patient-register-card__content">
             <h3 className="patient-register-card__title">기기 등록</h3>

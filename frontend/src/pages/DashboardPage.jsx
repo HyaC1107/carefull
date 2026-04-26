@@ -86,7 +86,13 @@ function DashboardPage() {
     dashboardData?.patient_name,
   )
   const headerData = useMemo(
-    () => mapTopHeaderData({ patient: dashboardData?.patient, device: dashboardData?.device }),
+    () =>
+      mapTopHeaderData({
+        patient: dashboardData?.patient,
+        device: dashboardData?.device,
+        profileImg:
+          dashboardData?.member?.profile_img || dashboardData?.profile_img || '',
+      }),
     [dashboardData],
   )
 
@@ -99,6 +105,7 @@ function DashboardPage() {
           <TopHeader
             patientLabel={patientLabel}
             guardianName={headerData.guardianName}
+            profileImg={headerData.profileImg}
             deviceStatusText={headerData.deviceStatusText}
             lastSyncedText={headerData.lastSyncedText}
           />
@@ -216,9 +223,10 @@ function mapNextMedication(schedules = [], nextScheduleTime) {
   return DEFAULT_NEXT_MEDICATION
 }
 
-function mapTopHeaderData({ patient, device }) {
+function mapTopHeaderData({ patient, device, profileImg }) {
   return {
     guardianName: patient?.guardian_name || '-',
+    profileImg,
     deviceStatusText: getTopHeaderDeviceStatus(device?.is_connected),
     lastSyncedText: formatRelativeTime(device?.last_sync_time),
   }

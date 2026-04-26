@@ -9,13 +9,67 @@ const { sendSuccess, sendError } = require('../utils/response');
 
 const validate_schedule_payload = (body) => {
     const required_fields = [
-        'medi_id',
         'time_to_take',
         'start_date',
         'status'
     ];
 
-    return validateRequiredFields(body, required_fields);
+    const validation_error = validateRequiredFields(body, required_fields);
+    if (validation_error) {
+        return validation_error;
+    }
+
+    if (Array.isArray(body.medications) && body.medications.length > 0) {
+        return null;
+    }
+
+    return validateRequiredFields(body, ['medi_id']);
+};
+
+const parse_schedule_medi_ids = (body) => {
+    if (Array.isArray(body.medications) && body.medications.length > 0) {
+        const medi_ids = [];
+
+        for (const medication of body.medications) {
+            const raw_medi_id =
+                typeof medication === 'object' && medication !== null
+                    ? medication.medi_id
+                    : medication;
+            const parsed_medi_id = parseNumericValue(raw_medi_id);
+
+            if (parsed_medi_id === null) {
+                return null;
+            }
+
+            if (!medi_ids.includes(parsed_medi_id)) {
+                medi_ids.push(parsed_medi_id);
+            }
+        }
+
+        return medi_ids;
+    }
+
+    const parsed_medi_id = parseNumericValue(body.medi_id);
+    return parsed_medi_id === null ? null : [parsed_medi_id];
+};
+
+const parse_schedule_dose_interval = (value) => {
+    if (value === undefined || value === null || value === '') {
+        return null;
+    }
+
+    const parsed_dose_interval = parseNumericValue(value);
+
+    if (
+        parsed_dose_interval === null ||
+        !Number.isInteger(parsed_dose_interval) ||
+        parsed_dose_interval < 1 ||
+        parsed_dose_interval > 5
+    ) {
+        return undefined;
+    }
+
+    return parsed_dose_interval;
 };
 
 const to_schedule_response = (row) => ({
@@ -46,13 +100,17 @@ router.post('/', verifyToken, async (req, res) => {
         status
     } = req.body;
 
-    const numeric_fields = parseNumericFields(req.body, ['medi_id']);
+    const parsed_medi_ids = parse_schedule_medi_ids(req.body);
 
-    if (!numeric_fields) {
+    if (!parsed_medi_ids) {
         return sendError(res, 400, 'medi_id must be numeric.');
     }
 
-    const { medi_id: parsed_medi_id } = numeric_fields;
+    const parsed_dose_interval = parse_schedule_dose_interval(dose_interval);
+
+    if (parsed_dose_interval === undefined) {
+        return sendError(res, 400, 'dose_interval must be an integer from 1 to 5.');
+    }
 
     try {
         const patient_id = await find_patient_id_by_mem_id(mem_id);
@@ -83,20 +141,40 @@ router.post('/', verifyToken, async (req, res) => {
                 status
         `;
 
-        const { rows } = await pool.query(insert_query, [
-            patient_id,
-            parsed_medi_id,
-            time_to_take,
-            start_date,
-            end_date,
-            dose_interval ?? null,
-            status
-        ]);
+        const client = await pool.connect();
 
-        return sendSuccess(res, 201, {
-            message: 'Schedule created successfully.',
-            schedule: to_schedule_response(rows[0])
-        });
+        try {
+            await client.query('BEGIN');
+
+            const created_rows = [];
+
+            for (const parsed_medi_id of parsed_medi_ids) {
+                const { rows } = await client.query(insert_query, [
+                    patient_id,
+                    parsed_medi_id,
+                    time_to_take,
+                    start_date,
+                    end_date,
+                    parsed_dose_interval,
+                    status
+                ]);
+
+                created_rows.push(rows[0]);
+            }
+
+            await client.query('COMMIT');
+
+            return sendSuccess(res, 201, {
+                message: 'Schedule created successfully.',
+                schedule: to_schedule_response(created_rows[0]),
+                schedules: created_rows.map(to_schedule_response)
+            });
+        } catch (error) {
+            await client.query('ROLLBACK');
+            throw error;
+        } finally {
+            client.release();
+        }
     } catch (error) {
         console.error('Schedule create error:', error);
         return sendError(res, 500, 'Server error while creating schedule.');
@@ -169,6 +247,11 @@ router.put('/:id', verifyToken, async (req, res) => {
     }
 
     const { medi_id: parsed_medi_id } = numeric_fields;
+    const parsed_dose_interval = parse_schedule_dose_interval(dose_interval);
+
+    if (parsed_dose_interval === undefined) {
+        return sendError(res, 400, 'dose_interval must be an integer from 1 to 5.');
+    }
 
     try {
         const patient_id = await find_patient_id_by_mem_id(mem_id);
@@ -205,7 +288,7 @@ router.put('/:id', verifyToken, async (req, res) => {
             time_to_take,
             start_date,
             end_date,
-            dose_interval ?? null,
+            parsed_dose_interval,
             status,
             parsed_sche_id,
             patient_id

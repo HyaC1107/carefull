@@ -104,7 +104,61 @@ router.post('/register', verifyToken, async (req, res) => {
         const device_result = await pool.query(find_device_query, [normalized_device_uid]);
 
         if (device_result.rows.length === 0) {
-            return sendError(res, 404, 'Device not found.');
+            const existing_my_device_query = `
+                SELECT
+                    device_id,
+                    device_uid,
+                    patient_id,
+                    device_status,
+                    last_ping,
+                    registered_at
+                FROM devices
+                WHERE patient_id = $1
+                LIMIT 1
+            `;
+            const existing_my_device_result = await pool.query(existing_my_device_query, [patient_id]);
+
+            if (existing_my_device_result.rows.length > 0) {
+                return sendError(res, 409, 'A device is already assigned to this patient.', {
+                    device: to_device_response(existing_my_device_result.rows[0])
+                });
+            }
+
+            console.log('[DEVICE-REGISTER] creating new device row:', {
+                mem_id,
+                patient_id,
+                device_uid: normalized_device_uid
+            });
+
+            const insert_query = `
+                INSERT INTO devices (
+                    device_uid,
+                    patient_id,
+                    device_status,
+                    registered_at,
+                    last_ping,
+                    device_name
+                )
+                VALUES ($1, $2, 'REGISTERED', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, COALESCE(NULLIF($3, ''), 'UNKNOWN'))
+                RETURNING
+                    device_id,
+                    device_uid,
+                    patient_id,
+                    device_status,
+                    last_ping,
+                    registered_at
+            `;
+
+            const { rows } = await pool.query(insert_query, [
+                normalized_device_uid,
+                patient_id,
+                normalized_device_name
+            ]);
+
+            return sendSuccess(res, 201, {
+                message: 'Device registered successfully.',
+                device: to_device_response(rows[0])
+            });
         }
 
         const device = device_result.rows[0];

@@ -736,6 +736,23 @@
   padding: 2px 2px 0;
 }
 
+.schedule-modal__selected-meds {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding-top: 6px;
+}
+
+.schedule-modal__selected-med {
+  border-radius: 999px;
+  background: #eaf2ff;
+  color: #1d4ed8;
+  font-size: 0.72rem;
+  font-weight: 700;
+  line-height: 1;
+  padding: 6px 8px;
+}
+
 .schedule-modal__repeat-buttons {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
