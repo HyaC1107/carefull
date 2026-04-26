@@ -21,6 +21,7 @@ const {
 } = process.env;
 
 if (!FRONTEND_URL) throw new Error('Missing env variable: FRONTEND_URL');
+if (!KAKAO_REDIRECT_URI) throw new Error('Missing env variable: KAKAO_REDIRECT_URI');
 const RESOLVED_FRONTEND_URL = FRONTEND_URL;
 
 const redact_callback_query = (req) => {
@@ -33,19 +34,17 @@ const redact_callback_query = (req) => {
     return callback_url.toString();
 };
 
-const get_kakao_redirect_uri = (req) => {
-    const host = req.get('host');
+const get_kakao_redirect_uri = () => KAKAO_REDIRECT_URI;
 
-    return `https://${host}/api/user/kakao/callback`;
-};
-
-const build_kakao_authorize_url = (req) => {
+const build_kakao_authorize_url = () => {
     const params = new URLSearchParams({
         client_id: KAKAO_CLIENT_ID,
-        redirect_uri: get_kakao_redirect_uri(req),
+        redirect_uri: get_kakao_redirect_uri(),
         response_type: 'code',
         prompt: 'select_account'
     });
+
+    console.log('[kakao] authorize redirect_uri:', KAKAO_REDIRECT_URI);
 
     return `https://kauth.kakao.com/oauth/authorize?${params.toString()}`;
 };
@@ -119,7 +118,7 @@ const build_frontend_callback_url = (req, { provider, token, is_new_user, error 
 const handle_social_login = async (social_data, provider) => {
     try {
         const find_query = `
-            SELECT mem_id, nick
+            SELECT mem_id, nick, profile_img
             FROM members
             WHERE social_id = $1 AND provider = $2
         `;
@@ -127,6 +126,7 @@ const handle_social_login = async (social_data, provider) => {
 
         let mem_id;
         let nick;
+        let profile_img;
         let is_new_user = false;
 
         if (result.rows.length === 0) {
@@ -135,7 +135,7 @@ const handle_social_login = async (social_data, provider) => {
             const insert_query = `
                 INSERT INTO members (social_id, provider, email, nick, profile_img)
                 VALUES ($1, $2, $3, $4, $5)
-                RETURNING mem_id, nick
+                RETURNING mem_id, nick, profile_img
             `;
             const new_user = await pool.query(insert_query, [
                 social_data.id,
@@ -147,9 +147,24 @@ const handle_social_login = async (social_data, provider) => {
 
             mem_id = new_user.rows[0].mem_id;
             nick = new_user.rows[0].nick;
+            profile_img = new_user.rows[0].profile_img;
         } else {
             mem_id = result.rows[0].mem_id;
             nick = result.rows[0].nick;
+            profile_img = result.rows[0].profile_img;
+
+            if (social_data.profile_img) {
+                const update_result = await pool.query(
+                    `
+                        UPDATE members
+                        SET profile_img = $1
+                        WHERE mem_id = $2
+                        RETURNING profile_img
+                    `,
+                    [social_data.profile_img, mem_id]
+                );
+                profile_img = update_result.rows[0]?.profile_img || profile_img;
+            }
         }
 
         const access_token = jwt.sign(
@@ -166,7 +181,8 @@ const handle_social_login = async (social_data, provider) => {
             user_data: {
                 mem_id,
                 nick,
-                provider
+                provider,
+                profile_img
             }
         };
     } catch (error) {
@@ -179,8 +195,8 @@ const handle_social_login = async (social_data, provider) => {
 };
 
 router.get('/kakao', (req, res) => {
-    const redirect_uri = get_kakao_redirect_uri(req);
-    const authorize_url = build_kakao_authorize_url(req);
+    const redirect_uri = get_kakao_redirect_uri();
+    const authorize_url = build_kakao_authorize_url();
     console.log(`[social:kakao:start] redirect_uri=${redirect_uri} authorize_url=${authorize_url}`);
     return res.redirect(authorize_url);
 });
@@ -200,13 +216,14 @@ router.get('/naver', (req, res) => {
 router.get('/kakao/callback', async (req, res) => {
     console.log(`[social:kakao:callback] callback_url=${redact_callback_query(req)} state=${req.query.state || ''}`);
     try {
+        console.log('[kakao] redirect_uri:', KAKAO_REDIRECT_URI);
         const token_response = await axios.post(
             'https://kauth.kakao.com/oauth/token',
             new URLSearchParams({
                 grant_type: 'authorization_code',
                 client_id: KAKAO_CLIENT_ID,
                 client_secret: KAKAO_CLIENT_SECRET,
-                redirect_uri: get_kakao_redirect_uri(req),
+                redirect_uri: get_kakao_redirect_uri(),
                 code: req.query.code
             }),
             {
@@ -227,8 +244,8 @@ router.get('/kakao/callback', async (req, res) => {
         const login_result = await handle_social_login({
             id: user_response.data.id.toString(),
             nickname: user_response.data.properties.nickname,
-            email: user_response.data.kakao_account.email || null,
-            profile_img: user_response.data.properties.profile_image || null
+            email: user_response.data.kakao_account?.email || null,
+            profile_img: user_response.data.kakao_account?.profile?.profile_image_url || null
         }, 'kakao');
 
         if (!login_result.success || !login_result.token) {
@@ -387,9 +404,13 @@ router.post('/register-patient', verifyToken, async (req, res) => {
         patient_name,
         birthdate,
         gender,
+        phone,
+        address,
         bloodtype,
         height,
         weight,
+        guardian_name,
+        guardian_phone,
         device_uid,
         deviceName,
         device_name
@@ -418,11 +439,23 @@ router.post('/register-patient', verifyToken, async (req, res) => {
                 )
                 VALUES (
                     $1, $2, $3, $4, $5, $6, $7,
-                    '', '', 0, '', ''
+                    $8, $9, 0, $10, $11
                 )
                 RETURNING patient_id
             `,
-            [mem_id, patient_name, birthdate, gender, bloodtype, height, weight]
+            [
+                mem_id,
+                patient_name,
+                birthdate,
+                gender,
+                bloodtype,
+                height,
+                weight,
+                phone || '',
+                address || '',
+                guardian_name || '',
+                guardian_phone || ''
+            ]
         );
         const patient_id = patient_result.rows[0].patient_id;
 

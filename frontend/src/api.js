@@ -1,4 +1,10 @@
-export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || ''
+const configuredApiBaseUrl = import.meta.env.VITE_API_BASE_URL?.trim() || ''
+
+export const API_BASE_URL = configuredApiBaseUrl.replace(/\/+$/, '')
+
+if (!API_BASE_URL) {
+  console.error('VITE_API_BASE_URL is not configured. Set it in frontend/.env.')
+}
 
 export const TOKEN_STORAGE_KEY = 'carefull_token'
 

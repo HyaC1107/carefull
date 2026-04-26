@@ -1,8 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
 import { requestJson } from '../../api'
 
+const DOSE_INTERVAL_OPTIONS = [1, 2, 3, 4, 5]
+
 function ScheduleAddModal({ selectedDateLabel, onClose, onSubmit }) {
   const [repeatType, setRepeatType] = useState('none')
+  const [doseInterval, setDoseInterval] = useState('')
   const [form, setForm] = useState({
     dose: '1',
     time_to_take: '',
@@ -15,6 +18,7 @@ function ScheduleAddModal({ selectedDateLabel, onClose, onSubmit }) {
   const [isSearching, setIsSearching] = useState(false)
   const [showDropdown, setShowDropdown] = useState(false)
   const [selectedMed, setSelectedMed] = useState(null)
+  const [selectedMeds, setSelectedMeds] = useState([])
 
   const debounceRef = useRef(null)
 
@@ -60,7 +64,10 @@ function ScheduleAddModal({ selectedDateLabel, onClose, onSubmit }) {
 
   const handleSelectMed = (med) => {
     setSelectedMed(med)
-    setSearchQuery(med.medi_name)
+    setSelectedMeds((prev) =>
+      prev.some((item) => item.medi_id === med.medi_id) ? prev : [...prev, med],
+    )
+    setSearchQuery('')
     setShowDropdown(false)
     setSearchResults([])
   }
@@ -76,7 +83,7 @@ function ScheduleAddModal({ selectedDateLabel, onClose, onSubmit }) {
   const handleSubmit = (event) => {
     event.preventDefault()
 
-    if (!selectedMed) {
+    if (selectedMeds.length === 0) {
       alert('약을 목록에서 선택해주세요.')
       return
     }
@@ -88,8 +95,14 @@ function ScheduleAddModal({ selectedDateLabel, onClose, onSubmit }) {
 
     onSubmit({
       ...form,
-      medi_id: selectedMed.medi_id,
-      medi_name: selectedMed.medi_name,
+      medi_id: selectedMeds[0].medi_id,
+      medi_name: selectedMeds.map((med) => med.medi_name).join(', '),
+      medications: selectedMeds.map((med) => ({
+        medi_id: med.medi_id,
+        medi_name: med.medi_name,
+      })),
+      dose_interval:
+        repeatType === 'interval' && doseInterval ? Number(doseInterval) : null,
       repeatType,
     })
   }
@@ -198,6 +211,18 @@ function ScheduleAddModal({ selectedDateLabel, onClose, onSubmit }) {
                   목록에서 약을 선택해주세요
                 </span>
               ) : null}
+              {selectedMeds.length > 0 ? (
+                <div className="schedule-modal__selected-meds">
+                  {selectedMeds.map((med) => (
+                    <span
+                      key={med.medi_id}
+                      className="schedule-modal__selected-med"
+                    >
+                      {med.medi_name}
+                    </span>
+                  ))}
+                </div>
+              ) : null}
             </label>
 
           </section>
@@ -249,7 +274,10 @@ function ScheduleAddModal({ selectedDateLabel, onClose, onSubmit }) {
                     ? 'schedule-modal__repeat-button--active'
                     : ''
                 }`}
-                onClick={() => setRepeatType('none')}
+                onClick={() => {
+                  setRepeatType('none')
+                  setDoseInterval('')
+                }}
               >
                 반복 안 함
               </button>
@@ -261,7 +289,8 @@ function ScheduleAddModal({ selectedDateLabel, onClose, onSubmit }) {
                     ? 'schedule-modal__repeat-button--active'
                     : ''
                 }`}
-                onClick={() => setRepeatType('weekly')}
+                disabled
+                hidden
               >
                 요일 선택
               </button>
@@ -273,11 +302,33 @@ function ScheduleAddModal({ selectedDateLabel, onClose, onSubmit }) {
                     ? 'schedule-modal__repeat-button--active'
                     : ''
                 }`}
-                onClick={() => setRepeatType('interval')}
+                onClick={() => {
+                  setRepeatType('interval')
+                  setDoseInterval((prev) => prev || '1')
+                }}
               >
                 일수 간격
               </button>
             </div>
+
+            {repeatType === 'interval' ? (
+              <div className="schedule-modal__repeat-buttons">
+                {DOSE_INTERVAL_OPTIONS.map((interval) => (
+                  <button
+                    key={interval}
+                    type="button"
+                    className={`schedule-modal__repeat-button ${
+                      Number(doseInterval) === interval
+                        ? 'schedule-modal__repeat-button--active'
+                        : ''
+                    }`}
+                    onClick={() => setDoseInterval(String(interval))}
+                  >
+                    {interval}일 간격
+                  </button>
+                ))}
+              </div>
+            ) : null}
 
             <div className="schedule-modal__repeat-hint">
               1회성 복약으로 설정됩니다.
