@@ -44,6 +44,6 @@ if __name__ == "__main__":
             print("회전 완료!")
             GPIO.cleanup()
         except ValueError:
-            print("숫자를 입력해줘, 친구야!")
+            print("숫자를 입력해주세요.")
     else:
         print("사용법: python3 stepmotor.py [스텝수]")
