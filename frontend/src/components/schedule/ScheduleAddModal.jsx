@@ -19,6 +19,7 @@ function ScheduleAddModal({ selectedDateLabel, onClose, onSubmit }) {
   const [showDropdown, setShowDropdown] = useState(false)
   const [selectedMed, setSelectedMed] = useState(null)
   const [selectedMeds, setSelectedMeds] = useState([])
+  const [selectedTimes, setSelectedTimes] = useState([])
 
   const debounceRef = useRef(null)
 
@@ -80,21 +81,47 @@ function ScheduleAddModal({ selectedDateLabel, onClose, onSubmit }) {
     setForm((prev) => ({ ...prev, [field]: value }))
   }
 
+  const handleAddTime = () => {
+    const nextTime = form.time_to_take.trim()
+
+    if (!nextTime) {
+      alert('복용 시간을 입력해주세요.')
+      return
+    }
+
+    setSelectedTimes((prev) =>
+      prev.includes(nextTime) ? prev : [...prev, nextTime].sort(),
+    )
+    handleChange('time_to_take', '')
+  }
+
+  const handleRemoveTime = (timeToRemove) => {
+    setSelectedTimes((prev) => prev.filter((time) => time !== timeToRemove))
+  }
+
   const handleSubmit = (event) => {
     event.preventDefault()
+    const timeToTakeList =
+      selectedTimes.length > 0
+        ? selectedTimes
+        : form.time_to_take.trim()
+          ? [form.time_to_take.trim()]
+          : []
 
     if (selectedMeds.length === 0) {
       alert('약을 목록에서 선택해주세요.')
       return
     }
 
-    if (!form.dose.trim() || !form.time_to_take.trim()) {
+    if (!form.dose.trim() || timeToTakeList.length === 0) {
       alert('수량과 복용 시간은 필수입니다.')
       return
     }
 
     onSubmit({
       ...form,
+      time_to_take: timeToTakeList[0],
+      time_to_take_list: timeToTakeList,
       medi_id: selectedMeds[0].medi_id,
       medi_name: selectedMeds.map((med) => med.medi_name).join(', '),
       medications: selectedMeds.map((med) => ({
@@ -139,11 +166,20 @@ function ScheduleAddModal({ selectedDateLabel, onClose, onSubmit }) {
           </div>
 
           <section className="schedule-modal__section">
-            <div className="schedule-modal__section-title-row">
-              <span className="schedule-modal__section-icon" aria-hidden="true">
-                🕒
-              </span>
-              <h4 className="schedule-modal__section-title">복용 시간</h4>
+            <div className="schedule-modal__section-header">
+              <div className="schedule-modal__section-title-row">
+                <span className="schedule-modal__section-icon" aria-hidden="true">
+                  🕒
+                </span>
+                <h4 className="schedule-modal__section-title">복용 시간</h4>
+              </div>
+              <button
+                type="button"
+                className="schedule-modal__mini-button"
+                onClick={handleAddTime}
+              >
+                추가
+              </button>
             </div>
 
             <input
@@ -152,6 +188,23 @@ function ScheduleAddModal({ selectedDateLabel, onClose, onSubmit }) {
               value={form.time_to_take}
               onChange={(e) => handleChange('time_to_take', e.target.value)}
             />
+            {selectedTimes.length > 0 ? (
+              <div className="schedule-modal__selected-meds">
+                {selectedTimes.map((time) => (
+                  <span key={time} className="schedule-modal__selected-med">
+                    {time}
+                    <button
+                      type="button"
+                      className="schedule-modal__selected-med-remove"
+                      onClick={() => handleRemoveTime(time)}
+                      aria-label={`${time} 삭제`}
+                    >
+                      ×
+                    </button>
+                  </span>
+                ))}
+              </div>
+            ) : null}
           </section>
 
           <section className="schedule-modal__section schedule-modal__section--highlight">

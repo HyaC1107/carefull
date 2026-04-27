@@ -27,15 +27,33 @@ const get_today_context = () => {
 };
 
 const get_dashboard_data_by_mem_id = async (mem_id) => {
+    const member = await get_member_header(mem_id);
+
+    if (!member) {
+        return null;
+    }
+
     const patient_id = await find_patient_id_by_mem_id(mem_id);
 
     if (!patient_id) {
-        return null;
+        return build_dashboard_data({
+            patient: null,
+            member,
+            summary: null,
+            device: null,
+            medication_stock: {
+                remainingMedicationCount: 0,
+                lowStockMedications: [],
+                medications: []
+            },
+            today_schedules: [],
+            recent_notifications: await get_recent_notifications(mem_id),
+            recent_activities: []
+        });
     }
 
     const [
         patient,
-        member,
         summary,
         device,
         medication_stock,
@@ -44,7 +62,6 @@ const get_dashboard_data_by_mem_id = async (mem_id) => {
         recent_activities
     ] = await Promise.all([
         get_patient_header(patient_id),
-        get_member_header(mem_id),
         get_dashboard_summary(patient_id),
         get_device_status(patient_id),
         get_estimated_medication_stock(patient_id),
@@ -64,19 +81,45 @@ const get_dashboard_data_by_mem_id = async (mem_id) => {
         medication_stock
     );
 
-    const dashboard_data = {
+    const dashboard_data = build_dashboard_data({
+        patient,
+        member,
+        summary,
+        device: resolved_device,
+        medication_stock,
+        today_schedules,
+        recent_notifications,
+        recent_activities
+    });
+
+    return dashboard_data;
+};
+
+const build_dashboard_data = ({
+    patient,
+    member,
+    summary,
+    device,
+    medication_stock,
+    today_schedules,
+    recent_notifications,
+    recent_activities
+}) => {
+    return {
         patient_name: patient?.patient_name || null,
+        guardian_name: patient?.guardian_name || null,
         patient: {
             patient_name: patient?.patient_name || null,
             birthdate: patient?.birthdate || null,
             guardian_name: patient?.guardian_name || null
         },
         member: {
+            nick: member?.nick || null,
             profile_img: member?.profile_img || ''
         },
         profile_img: member?.profile_img || '',
         summary,
-        device: resolved_device,
+        device,
         remainingMedicationCount: medication_stock.remainingMedicationCount,
         lowStockMedications: medication_stock.lowStockMedications,
         estimatedMedicationStock: medication_stock.medications,
@@ -84,13 +127,11 @@ const get_dashboard_data_by_mem_id = async (mem_id) => {
         recent_notifications,
         recent_activities
     };
-
-    return dashboard_data;
 };
 
 const get_member_header = async (mem_id) => {
     const query = `
-        SELECT profile_img
+        SELECT nick, profile_img
         FROM members
         WHERE mem_id = $1
         LIMIT 1

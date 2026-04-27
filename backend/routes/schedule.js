@@ -9,7 +9,6 @@ const { sendSuccess, sendError } = require('../utils/response');
 
 const validate_schedule_payload = (body) => {
     const required_fields = [
-        'time_to_take',
         'start_date',
         'status'
     ];
@@ -17,6 +16,21 @@ const validate_schedule_payload = (body) => {
     const validation_error = validateRequiredFields(body, required_fields);
     if (validation_error) {
         return validation_error;
+    }
+
+    if (body.time_to_take_list !== undefined) {
+        if (!Array.isArray(body.time_to_take_list)) {
+            return 'time_to_take_list must be an array.';
+        }
+
+        if (body.time_to_take_list.length === 0) {
+            return 'time_to_take_list must not be empty.';
+        }
+    } else {
+        const time_validation_error = validateRequiredFields(body, ['time_to_take']);
+        if (time_validation_error) {
+            return time_validation_error;
+        }
     }
 
     if (Array.isArray(body.medications) && body.medications.length > 0) {
@@ -72,6 +86,28 @@ const parse_schedule_dose_interval = (value) => {
     return parsed_dose_interval;
 };
 
+const parse_schedule_times = (body) => {
+    const raw_times =
+        body.time_to_take_list !== undefined
+            ? body.time_to_take_list
+            : [body.time_to_take];
+    const parsed_times = [];
+
+    for (const raw_time of raw_times) {
+        const parsed_time = String(raw_time || '').trim();
+
+        if (!parsed_time) {
+            return null;
+        }
+
+        if (!parsed_times.includes(parsed_time)) {
+            parsed_times.push(parsed_time);
+        }
+    }
+
+    return parsed_times.length > 0 ? parsed_times : null;
+};
+
 const to_schedule_response = (row) => ({
     sche_id: row.sche_id,
     patient_id: row.patient_id,
@@ -93,7 +129,6 @@ router.post('/', verifyToken, async (req, res) => {
     }
 
     const {
-        time_to_take,
         start_date,
         end_date,
         dose_interval,
@@ -104,6 +139,12 @@ router.post('/', verifyToken, async (req, res) => {
 
     if (!parsed_medi_ids) {
         return sendError(res, 400, 'medi_id must be numeric.');
+    }
+
+    const parsed_times = parse_schedule_times(req.body);
+
+    if (!parsed_times) {
+        return sendError(res, 400, 'time_to_take is required.');
     }
 
     const parsed_dose_interval = parse_schedule_dose_interval(dose_interval);
@@ -149,17 +190,19 @@ router.post('/', verifyToken, async (req, res) => {
             const created_rows = [];
 
             for (const parsed_medi_id of parsed_medi_ids) {
-                const { rows } = await client.query(insert_query, [
-                    patient_id,
-                    parsed_medi_id,
-                    time_to_take,
-                    start_date,
-                    end_date,
-                    parsed_dose_interval,
-                    status
-                ]);
+                for (const parsed_time of parsed_times) {
+                    const { rows } = await client.query(insert_query, [
+                        patient_id,
+                        parsed_medi_id,
+                        parsed_time,
+                        start_date,
+                        end_date,
+                        parsed_dose_interval,
+                        status
+                    ]);
 
-                created_rows.push(rows[0]);
+                    created_rows.push(rows[0]);
+                }
             }
 
             await client.query('COMMIT');

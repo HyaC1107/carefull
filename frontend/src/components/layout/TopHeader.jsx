@@ -1,10 +1,13 @@
 import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { getStoredToken, hasStoredToken, requestJson } from '../../api'
 import '../../styles/TopHeader.css'
 
 let cachedHeaderToken = ''
 let cachedHeaderData = null
 let cachedHeaderPromise = null
+const TOP_HEADER_REFRESH_EVENT = 'carefull:top-header-refresh'
+const PATIENT_REGISTRATION_LABEL = '환자를 등록해주세요.'
 
 function TopHeader({
   patientLabel,
@@ -13,10 +16,11 @@ function TopHeader({
   lastSyncedText,
   profileImg,
 }) {
+  const navigate = useNavigate()
   const [sharedHeaderData, setSharedHeaderData] = useState(() =>
     shouldReuseCachedHeader() ? cachedHeaderData : null,
   )
-  const [isProfileImageFailed, setIsProfileImageFailed] = useState(false)
+  const [failedProfileImg, setFailedProfileImg] = useState('')
 
   useEffect(() => {
     const needsSharedHeader =
@@ -48,24 +52,76 @@ function TopHeader({
   }, [deviceStatusText, guardianName, lastSyncedText, patientLabel, profileImg])
 
   const resolvedProfileImg = profileImg ?? sharedHeaderData?.profileImg ?? ''
+  const shouldShowProfileImg =
+    resolvedProfileImg && failedProfileImg !== resolvedProfileImg
 
   useEffect(() => {
-    setIsProfileImageFailed(false)
-  }, [resolvedProfileImg])
+    const handleHeaderRefresh = () => {
+      clearTopHeaderCache()
+
+      if (!hasStoredToken()) {
+        return
+      }
+
+      loadSharedHeaderData()
+        .then((data) => {
+          setSharedHeaderData(data)
+        })
+        .catch((error) => {
+          console.error('top header refresh error:', error)
+        })
+    }
+
+    window.addEventListener(TOP_HEADER_REFRESH_EVENT, handleHeaderRefresh)
+
+    return () => {
+      window.removeEventListener(TOP_HEADER_REFRESH_EVENT, handleHeaderRefresh)
+    }
+  }, [])
 
   const resolvedPatientLabel =
     patientLabel ?? sharedHeaderData?.patientLabel ?? '환자: -'
-  const resolvedGuardianName = guardianName ?? sharedHeaderData?.guardianName ?? '-'
+  const shouldNavigateToPatientRegistration = resolvedPatientLabel.includes(
+    PATIENT_REGISTRATION_LABEL,
+  )
+  const resolvedGuardianName =
+    resolveDisplayName(guardianName) ||
+    resolveDisplayName(sharedHeaderData?.guardianName) ||
+    '-'
   const resolvedDeviceStatusText =
     deviceStatusText ?? sharedHeaderData?.deviceStatusText ?? '기기 상태 확인 중'
   const resolvedLastSyncedText =
     lastSyncedText ?? sharedHeaderData?.lastSyncedText ?? '-'
 
+  const handlePatientLabelClick = () => {
+    if (shouldNavigateToPatientRegistration) {
+      navigate('/patient')
+    }
+  }
+
+  const handlePatientLabelKeyDown = (event) => {
+    if (
+      shouldNavigateToPatientRegistration &&
+      (event.key === 'Enter' || event.key === ' ')
+    ) {
+      event.preventDefault()
+      navigate('/patient')
+    }
+  }
+
   return (
     <header className="top-header">
       <div className="top-header__title-group">
         <h1 className="top-header__title">복약 모니터링 대시보드</h1>
-        <p className="top-header__subtitle">{resolvedPatientLabel}</p>
+        <p
+          className="top-header__subtitle"
+          role={shouldNavigateToPatientRegistration ? 'button' : undefined}
+          tabIndex={shouldNavigateToPatientRegistration ? 0 : undefined}
+          onClick={handlePatientLabelClick}
+          onKeyDown={handlePatientLabelKeyDown}
+        >
+          {resolvedPatientLabel}
+        </p>
       </div>
 
       <div className="top-header__right">
@@ -98,12 +154,12 @@ function TopHeader({
 
         <div className="top-header__guardian">
           <div className="top-header__guardian-avatar" aria-hidden="true">
-            {resolvedProfileImg && !isProfileImageFailed ? (
+            {shouldShowProfileImg ? (
               <img
                 className="top-header__guardian-avatar-img"
                 src={resolvedProfileImg}
                 alt=""
-                onError={() => setIsProfileImageFailed(true)}
+                onError={() => setFailedProfileImg(resolvedProfileImg)}
               />
             ) : (
               <svg
@@ -165,20 +221,41 @@ async function loadSharedHeaderData() {
 }
 
 function mapSharedHeaderData(dashboardData) {
+  const guardianName = resolveGuardianName(
+    dashboardData?.patient?.guardian_name,
+    dashboardData?.member?.nick,
+    '-',
+  )
+
   return {
     patientLabel: buildPatientLabel(
       dashboardData?.patient,
       dashboardData?.patient_name,
     ),
-    guardianName: dashboardData?.patient?.guardian_name || '-',
+    guardianName,
     profileImg: dashboardData?.member?.profile_img || dashboardData?.profile_img || '',
     deviceStatusText: getHeaderDeviceStatusText(dashboardData?.device?.is_connected),
     lastSyncedText: formatHeaderRelativeTime(dashboardData?.device?.last_sync_time),
   }
 }
 
+function resolveGuardianName(guardianName, nick, fallbackName) {
+  return (
+    resolveDisplayName(guardianName) ||
+    resolveDisplayName(nick) ||
+    fallbackName
+  )
+}
+
+function resolveDisplayName(value) {
+  return typeof value === 'string' && value.trim() ? value.trim() : ''
+}
+
 function buildPatientLabel(patient, fallbackName) {
-  const patientName = patient?.patient_name || fallbackName || '-'
+  const patientName =
+    resolveDisplayName(patient?.patient_name) ||
+    resolveDisplayName(fallbackName) ||
+    PATIENT_REGISTRATION_LABEL
   const patientAge = calculateAgeFromBirthdate(patient?.birthdate)
 
   return patientAge === null
@@ -252,6 +329,12 @@ function formatHeaderRelativeTime(value) {
   }
 
   return `${Math.floor(diffHours / 24)}일 전`
+}
+
+function clearTopHeaderCache() {
+  cachedHeaderToken = ''
+  cachedHeaderData = null
+  cachedHeaderPromise = null
 }
 
 export default TopHeader
