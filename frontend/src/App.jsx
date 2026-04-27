@@ -7,7 +7,10 @@ import StatsPage from './pages/StatsPage'
 import AlertsPage from './pages/AlertsPage'
 import PatientPage from './pages/PatientPage'
 import SettingsPage from './pages/SettingsPage'
+import AdminLoginPage from './pages/AdminLoginPage'
+import AdminDashboardPage from './pages/AdminDashboardPage'
 import { hasStoredToken } from './api'
+import { hasAdminToken } from './adminApi'
 
 function App() {
   return (
@@ -38,6 +41,10 @@ function App() {
       {/* 설정 페이지 */}
       <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
 
+      {/* 관리자 페이지 */}
+      <Route path="/admin" element={<AdminLoginPage />} />
+      <Route path="/admin/dashboard" element={<AdminProtectedRoute><AdminDashboardPage /></AdminProtectedRoute>} />
+
       {/* 없는 주소로 들어오면 로그인 페이지로 보냄 */}
       <Route path="*" element={<Navigate to="/login" replace />} />
     </Routes>
@@ -48,7 +55,13 @@ function ProtectedRoute({ children }) {
   if (!hasStoredToken()) {
     return <Navigate to="/login" replace />
   }
+  return children
+}
 
+function AdminProtectedRoute({ children }) {
+  if (!hasAdminToken()) {
+    return <Navigate to="/admin" replace />
+  }
   return children
 }
 
