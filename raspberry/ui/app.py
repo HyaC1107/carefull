@@ -8,6 +8,7 @@ from ui.screens.auth_result import AuthResultScreen
 from ui.screens.camera_view import CameraViewScreen
 from ui.screens.complete import CompleteScreen
 from ui.screens.dispensing import DispensingScreen
+from ui.screens.fingerprint_auth import FingerprintAuthScreen
 from ui.screens.fingerprint_register import FingerprintRegisterScreen
 from ui.screens.home import HomeScreen
 from ui.screens.medication import MedicationScreen
@@ -57,6 +58,7 @@ class App(QMainWindow):
             "register":             RegisterScreen(self),
             "camera_view":          CameraViewScreen(self),
             "fingerprint_register": FingerprintRegisterScreen(self),
+            "fingerprint_auth":     FingerprintAuthScreen(self),
             "register_complete":    RegisterCompleteScreen(self),
             "medication_start":     MedicationStartScreen(self),
             "auth_result":          AuthResultScreen(self),

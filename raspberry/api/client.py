@@ -27,6 +27,47 @@ def ping_device(device_uid: str = DEVICE_UID) -> bool:
         return False
 
 
+def fetch_device_status(device_uid: str = DEVICE_UID) -> dict:
+    """기기 페어링 여부와 얼굴 등록 여부를 반환한다.
+
+    Returns:
+        {"is_paired": bool, "has_face": bool}
+        - is_paired: 웹 대시보드에서 기기에 환자가 연결되어 있는지
+        - has_face: 해당 기기에 얼굴 임베딩이 1건 이상 등록되어 있는지
+    """
+    result = {"is_paired": False, "has_face": False}
+    if not device_uid:
+        return result
+
+    try:
+        r = requests.post(
+            _url("/api/device/ping"),
+            json={"device_uid": device_uid},
+            timeout=API_TIMEOUT,
+        )
+        if r.status_code == 200:
+            device = r.json().get("device", {})
+            result["is_paired"] = device.get("patient_id") is not None
+    except Exception as e:
+        logger.warning("fetch_device_status ping failed: %s", e)
+        return result
+
+    if result["is_paired"]:
+        try:
+            r = requests.get(
+                _url("/api/face-data/device"),
+                params={"device_uid": device_uid},
+                timeout=API_TIMEOUT,
+            )
+            if r.status_code == 200:
+                embeddings = r.json().get("face_embeddings", [])
+                result["has_face"] = len(embeddings) > 0
+        except Exception as e:
+            logger.warning("fetch_device_status face check failed: %s", e)
+
+    return result
+
+
 def send_device_event(
     sche_id: int,
     face_verified: bool,

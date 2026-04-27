@@ -77,7 +77,7 @@ class AuthResultScreen(QWidget):
         self._app = parent
         self._build_ui()
 
-    def set_result(self, success: bool, user: str = None):
+    def set_result(self, success: bool, user: str = None, fingerprint: bool = False):
         if success:
             self.setStyleSheet("AuthResultScreen { background-color: #dff4ef; }")
             _png = os.path.join(_ICONS_DIR, "check_small.png")
@@ -92,7 +92,8 @@ class AuthResultScreen(QWidget):
                 self._icon_lbl.hide()
             self._title_lbl.setText("인증 완료")
             self._title_lbl.setStyleSheet("color: #1e3a5f;")
-            self._sub_lbl.setText("약을 준비하고 있습니다")
+            sub = "지문으로 확인되었습니다" if fingerprint else "약을 준비하고 있습니다"
+            self._sub_lbl.setText(sub)
             self._sub_lbl.setStyleSheet("color: #3b82f6;")
             QTimer.singleShot(_AUTO_SUCCESS_MS, lambda: self._go("dispensing"))
         else:
