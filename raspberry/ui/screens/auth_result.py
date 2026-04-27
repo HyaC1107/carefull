@@ -1,6 +1,12 @@
+import os
+
 from PyQt5.QtCore import QPointF, QRectF, Qt, QTimer
-from PyQt5.QtGui import QColor, QFont, QPainter, QPen
+from PyQt5.QtGui import QColor, QFont, QPainter, QPen, QPixmap
 from PyQt5.QtWidgets import QLabel, QSizePolicy, QVBoxLayout, QWidget
+
+_ICONS_DIR = os.path.normpath(
+    os.path.join(os.path.dirname(__file__), "..", "..", "assets", "icons")
+)
 
 _AUTO_SUCCESS_MS = 2000
 _AUTO_FAIL_MS = 3000
@@ -71,18 +77,30 @@ class AuthResultScreen(QWidget):
         self._app = parent
         self._build_ui()
 
-    def set_result(self, success: bool, user: str = None):
+    def set_result(self, success: bool, user: str = None, fingerprint: bool = False):
         if success:
-            self.setStyleSheet("background-color: #dff4ef;")
-            self._card.set_state(_ResultCardWidget.SUCCESS)
+            self.setStyleSheet("AuthResultScreen { background-color: #dff4ef; }")
+            _png = os.path.join(_ICONS_DIR, "check_small.png")
+            if os.path.exists(_png):
+                _pix = QPixmap(_png).scaled(160, 160, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+                self._icon_lbl.setPixmap(_pix)
+                self._icon_lbl.show()
+                self._card.hide()
+            else:
+                self._card.set_state(_ResultCardWidget.SUCCESS)
+                self._card.show()
+                self._icon_lbl.hide()
             self._title_lbl.setText("인증 완료")
             self._title_lbl.setStyleSheet("color: #1e3a5f;")
-            self._sub_lbl.setText("약을 준비하고 있습니다")
+            sub = "지문으로 확인되었습니다" if fingerprint else "약을 준비하고 있습니다"
+            self._sub_lbl.setText(sub)
             self._sub_lbl.setStyleSheet("color: #3b82f6;")
             QTimer.singleShot(_AUTO_SUCCESS_MS, lambda: self._go("dispensing"))
         else:
-            self.setStyleSheet("background-color: #ffeaea;")
+            self.setStyleSheet("AuthResultScreen { background-color: #ffeaea; }")
             self._card.set_state(_ResultCardWidget.FAIL)
+            self._card.show()
+            self._icon_lbl.hide()
             self._title_lbl.setText("인증 실패")
             self._title_lbl.setStyleSheet("color: #7f1d1d;")
             self._sub_lbl.setText("다시 시도해주세요")
@@ -90,13 +108,21 @@ class AuthResultScreen(QWidget):
             QTimer.singleShot(_AUTO_FAIL_MS, lambda: self._go("home"))
 
     def _build_ui(self):
-        self.setStyleSheet("background-color: #dff4ef;")
+        self.setStyleSheet("AuthResultScreen { background-color: #dff4ef; }")
         root = QVBoxLayout(self)
         root.setContentsMargins(20, 20, 20, 24)
         root.setSpacing(0)
 
         self._card = _ResultCardWidget()
+        self._card.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+
+        self._icon_lbl = QLabel()
+        self._icon_lbl.setAlignment(Qt.AlignCenter)
+        self._icon_lbl.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+
         root.addWidget(self._card, stretch=3)
+        root.addWidget(self._icon_lbl, stretch=3)
+        self._icon_lbl.hide()
 
         root.addSpacing(18)
 
