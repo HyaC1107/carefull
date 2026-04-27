@@ -195,6 +195,7 @@ const handle_social_login = async (social_data, provider) => {
 };
 
 router.get('/kakao', (req, res) => {
+     console.log('[ENV CHECK]', process.env.KAKAO_REDIRECT_URI);
     const redirect_uri = get_kakao_redirect_uri();
     const authorize_url = build_kakao_authorize_url();
     console.log(`[social:kakao:start] redirect_uri=${redirect_uri} authorize_url=${authorize_url}`);

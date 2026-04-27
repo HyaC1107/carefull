@@ -753,6 +753,16 @@
   padding: 6px 8px;
 }
 
+.schedule-modal__selected-med-remove {
+  border: none;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  margin-left: 6px;
+  padding: 0;
+}
+
 .schedule-modal__repeat-buttons {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));

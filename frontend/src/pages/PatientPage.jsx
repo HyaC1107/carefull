@@ -176,6 +176,7 @@ function PatientPage() {
       setIsDeviceRegistered(hasRegisteredDevice(deviceResponse?.device))
       setPendingDevice(null)
       setIsPatientModalOpen(false)
+      window.dispatchEvent(new Event('carefull:top-header-refresh'))
     } catch (error) {
       console.error('patient register error:', error)
       alert(error.message || '환자 등록에 실패했습니다.')
@@ -188,7 +189,7 @@ function PatientPage() {
         <Sidebar activeMenu="patient" />
 
         <div className="patient-main">
-          <TopHeader />
+          <TopHeader key={isPatientRegistered ? 'registered' : 'pending'} />
 
           <main className="patient-content">
             {isRegistrationCheckLoading ? (

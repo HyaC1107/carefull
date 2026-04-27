@@ -29,6 +29,7 @@ const DEFAULT_NEXT_MEDICATION = {
   title: '다음 복약 일정이 없습니다.',
   description: '백엔드에서 예정된 복약 정보를 불러오면 여기에 표시됩니다.',
 }
+const PATIENT_REGISTRATION_LABEL = '환자를 등록해주세요.'
 
 function DashboardPage() {
   const [dashboardData, setDashboardData] = useState(null)
@@ -90,6 +91,7 @@ function DashboardPage() {
       mapTopHeaderData({
         patient: dashboardData?.patient,
         device: dashboardData?.device,
+        nick: dashboardData?.member?.nick,
         profileImg:
           dashboardData?.member?.profile_img || dashboardData?.profile_img || '',
       }),
@@ -223,17 +225,31 @@ function mapNextMedication(schedules = [], nextScheduleTime) {
   return DEFAULT_NEXT_MEDICATION
 }
 
-function mapTopHeaderData({ patient, device, profileImg }) {
+function mapTopHeaderData({ patient, device, nick, profileImg }) {
   return {
-    guardianName: patient?.guardian_name || '-',
+    guardianName: resolveGuardianName(patient?.guardian_name, nick, '-'),
     profileImg,
     deviceStatusText: getTopHeaderDeviceStatus(device?.is_connected),
     lastSyncedText: formatRelativeTime(device?.last_sync_time),
   }
 }
 
+function resolveGuardianName(guardianName, nick, fallbackName) {
+  const normalizedGuardianName = normalizeDisplayName(guardianName)
+  const normalizedNick = normalizeDisplayName(nick)
+
+  return normalizedGuardianName || normalizedNick || fallbackName
+}
+
+function normalizeDisplayName(value) {
+  return typeof value === 'string' && value.trim() ? value.trim() : ''
+}
+
 function buildPatientLabel(patient, fallbackName) {
-  const patientName = patient?.patient_name || fallbackName || '-'
+  const patientName =
+    normalizeDisplayName(patient?.patient_name) ||
+    normalizeDisplayName(fallbackName) ||
+    PATIENT_REGISTRATION_LABEL
   const patientAge = calculateAgeFromBirthdate(patient?.birthdate)
 
   return patientAge === null

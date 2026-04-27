@@ -152,6 +152,9 @@ function SchedulePage() {
           medi_id: newSchedule.medi_id,
           medications: newSchedule.medications,
           time_to_take: ensureSeconds(newSchedule.time_to_take),
+          time_to_take_list: Array.isArray(newSchedule.time_to_take_list)
+            ? newSchedule.time_to_take_list.map(ensureSeconds)
+            : undefined,
           start_date: newSchedule.start_date || selectedDate,
           end_date: newSchedule.end_date || null,
           dose_interval:
