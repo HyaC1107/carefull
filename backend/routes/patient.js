@@ -197,6 +197,151 @@ router.get('/me', verifyToken, async (req, res) => {
     }
 });
 
+router.patch('/me', verifyToken, async (req, res) => {
+    const mem_id = req.user.mem_id;
+    const {
+        patient_name,
+        birthdate,
+        gender,
+        phone,
+        address,
+        bloodtype
+    } = req.body;
+
+    const validation_error = validate_patient_payload(req.body);
+    if (validation_error) {
+        return sendError(res, 400, validation_error);
+    }
+
+    const numeric_fields = parseNumericFields(req.body, [
+        'height',
+        'weight'
+    ]);
+
+    if (!numeric_fields) {
+        return sendError(res, 400, 'height and weight must be numeric.');
+    }
+
+    const {
+        height: parsed_height,
+        weight: parsed_weight
+    } = numeric_fields;
+
+    try {
+        const update_query = `
+            UPDATE patients
+            SET
+                patient_name = $1,
+                birthdate = $2,
+                gender = $3,
+                phone = $4,
+                address = $5,
+                bloodtype = $6,
+                height = $7,
+                weight = $8,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE mem_id = $9
+            RETURNING
+                patient_id,
+                mem_id,
+                patient_name,
+                birthdate,
+                gender,
+                phone,
+                address,
+                bloodtype,
+                height,
+                weight,
+                fingerprint_id,
+                guardian_name,
+                guardian_phone,
+                created_at,
+                updated_at
+        `;
+
+        const { rows } = await pool.query(update_query, [
+            patient_name,
+            birthdate,
+            gender,
+            phone,
+            address,
+            bloodtype,
+            parsed_height,
+            parsed_weight,
+            mem_id
+        ]);
+
+        if (rows.length === 0) {
+            return sendError(res, 404, 'Patient not found.');
+        }
+
+        return sendSuccess(res, 200, {
+            message: 'Patient updated successfully.',
+            patient: to_patient_response(rows[0])
+        });
+    } catch (error) {
+        console.error('Patient patch error:', error);
+        return sendError(res, 500, 'Server error while updating patient.');
+    }
+});
+
+router.patch('/guardian', verifyToken, async (req, res) => {
+    const mem_id = req.user.mem_id;
+    const {
+        guardian_name,
+        guardian_phone
+    } = req.body;
+
+    if (!guardian_name || !guardian_phone) {
+        return sendError(res, 400, 'guardian_name and guardian_phone are required.');
+    }
+
+    try {
+        const update_query = `
+            UPDATE patients
+            SET
+                guardian_name = $1,
+                guardian_phone = $2,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE mem_id = $3
+            RETURNING
+                patient_id,
+                mem_id,
+                patient_name,
+                birthdate,
+                gender,
+                phone,
+                address,
+                bloodtype,
+                height,
+                weight,
+                fingerprint_id,
+                guardian_name,
+                guardian_phone,
+                created_at,
+                updated_at
+        `;
+
+        const { rows } = await pool.query(update_query, [
+            guardian_name,
+            guardian_phone,
+            mem_id
+        ]);
+
+        if (rows.length === 0) {
+            return sendError(res, 404, 'Patient not found.');
+        }
+
+        return sendSuccess(res, 200, {
+            message: 'Guardian updated successfully.',
+            patient: to_patient_response(rows[0])
+        });
+    } catch (error) {
+        console.error('Guardian patch error:', error);
+        return sendError(res, 500, 'Server error while updating guardian.');
+    }
+});
+
 router.put('/me', verifyToken, async (req, res) => {
     const mem_id = req.user.mem_id;
 

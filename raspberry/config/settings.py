@@ -15,7 +15,7 @@ AUTH_RETRY_COUNT = int(os.getenv("CAREFULL_AUTH_RETRY_COUNT", "5"))
 AUTH_RETRY_DELAY_SECONDS = float(os.getenv("CAREFULL_AUTH_RETRY_DELAY_SECONDS", "1"))
 FACE_MATCH_THRESHOLD = float(os.getenv("CAREFULL_FACE_MATCH_THRESHOLD", "0.8"))
 
-SCREEN_WIDTH = int(os.getenv("CAREFULL_SCREEN_WIDTH", "1024"))
+SCREEN_WIDTH = int(os.getenv("CAREFULL_SCREEN_WIDTH", "1280"))
 SCREEN_HEIGHT = int(os.getenv("CAREFULL_SCREEN_HEIGHT", "600"))
 
 USE_WEBCAM    = os.getenv("CAREFULL_USE_WEBCAM",    "0") == "1"
@@ -31,3 +31,9 @@ API_TIMEOUT  = int(os.getenv("CAREFULL_API_TIMEOUT", "10"))
 VOICES_DIR = os.path.join(BASE_DIR, "voices")
 TTS_LANG = os.getenv("CAREFULL_TTS_LANG", "ko")
 TTS_FILE_PATH = os.path.join(VOICES_DIR, "default_alarm.mp3")
+# UI 폰트 크기 (pt) — 고령자 대상, 여기서만 수정하면 전체 반영
+FONT_TITLE  = 50   # 화면 메인 타이틀
+FONT_HEAD   = 42   # 섹션 헤딩 / 인증 타이틀
+FONT_BODY   = 30   # 본문 / 설명 텍스트
+FONT_SMALL  = 24   # 보조 텍스트, 카운터
+FONT_BUTTON = 28   # 버튼 텍스트

@@ -1,0 +1,11 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Carefull
+Name[ko]=케어풀
+Comment=스마트 복약 관리 시스템
+Exec=bash /home/pi/carefull/raspberry/run.sh
+Icon=/home/pi/carefull/raspberry/assets/icons/medication.png
+Terminal=false
+Categories=Health;
+StartupNotify=false

@@ -102,25 +102,37 @@ function SettingsPage() {
   }
 
   const handleSavePatient = async (updatedFields) => {
-    const payload = { ...patientData, ...updatedFields }
     const res = await requestJson('/api/patient/me', {
-      method: 'PUT',
+      method: 'PATCH',
       auth: true,
-      body: payload,
+      body: {
+        patient_name: updatedFields.patient_name,
+        birthdate: updatedFields.birthdate,
+        gender: updatedFields.gender,
+        phone: updatedFields.phone,
+        address: updatedFields.address,
+        bloodtype: updatedFields.bloodtype,
+        height: updatedFields.height,
+        weight: updatedFields.weight,
+      },
     })
     setPatientData(res?.patient || patientData)
     setIsPatientModalOpen(false)
+    window.dispatchEvent(new Event('carefull:top-header-refresh'))
   }
 
   const handleSaveGuardian = async (updatedFields) => {
-    const payload = { ...patientData, ...updatedFields }
-    const res = await requestJson('/api/patient/me', {
-      method: 'PUT',
+    const res = await requestJson('/api/patient/guardian', {
+      method: 'PATCH',
       auth: true,
-      body: payload,
+      body: {
+        guardian_name: updatedFields.guardian_name,
+        guardian_phone: updatedFields.guardian_phone,
+      },
     })
     setPatientData(res?.patient || patientData)
     setIsGuardianModalOpen(false)
+    window.dispatchEvent(new Event('carefull:top-header-refresh'))
   }
 
   const handleAccountAction = (id) => {

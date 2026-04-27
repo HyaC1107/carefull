@@ -108,7 +108,7 @@ class CompleteScreen(QWidget):
     def _build_ui(self):
         self.setStyleSheet(f"CompleteScreen {{ background-color: {_BG}; }}")
         root = QVBoxLayout(self)
-        root.setContentsMargins(36, 0, 36, 36)
+        root.setContentsMargins(24, 0, 24, 24)
         root.setSpacing(0)
         root.setAlignment(Qt.AlignCenter)
 
@@ -126,7 +126,7 @@ class CompleteScreen(QWidget):
         root.addSpacing(16)
 
         title = QLabel("복약 완료")
-        title.setFont(QFont("Sans Serif", 30, QFont.Bold))
+        title.setFont(QFont("Sans Serif", 50, QFont.Bold))
         title.setAlignment(Qt.AlignCenter)
         title.setStyleSheet(f"color: {_DARK};")
         root.addWidget(title)
@@ -134,7 +134,7 @@ class CompleteScreen(QWidget):
         root.addSpacing(8)
 
         sub = QLabel("수고하셨습니다")
-        sub.setFont(QFont("Sans Serif", 18))
+        sub.setFont(QFont("Sans Serif", 32))
         sub.setAlignment(Qt.AlignCenter)
         sub.setStyleSheet(f"color: {_GREEN};")
         root.addWidget(sub)
@@ -148,13 +148,13 @@ class CompleteScreen(QWidget):
         card_lay.setSpacing(4)
 
         card_header = QLabel("다음 복약 시간")
-        card_header.setFont(QFont("Sans Serif", 13))
+        card_header.setFont(QFont("Sans Serif", 24))
         card_header.setAlignment(Qt.AlignCenter)
         card_header.setStyleSheet(f"color: {_GREEN};")
         card_lay.addWidget(card_header)
 
         self._next_time_lbl = QLabel("--:--")
-        self._next_time_lbl.setFont(QFont("Sans Serif", 32, QFont.Bold))
+        self._next_time_lbl.setFont(QFont("Sans Serif", 56, QFont.Bold))
         self._next_time_lbl.setAlignment(Qt.AlignCenter)
         self._next_time_lbl.setStyleSheet(f"color: {_DARK};")
         card_lay.addWidget(self._next_time_lbl)
@@ -164,7 +164,7 @@ class CompleteScreen(QWidget):
         root.addSpacing(16)
 
         self._countdown_lbl = QLabel("")
-        self._countdown_lbl.setFont(QFont("Sans Serif", 14))
+        self._countdown_lbl.setFont(QFont("Sans Serif", 24))
         self._countdown_lbl.setAlignment(Qt.AlignCenter)
         self._countdown_lbl.setStyleSheet(f"color: {_GREEN};")
         root.addWidget(self._countdown_lbl)

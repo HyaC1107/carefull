@@ -60,7 +60,7 @@ class DispensingScreen(QWidget):
     def _build_ui(self):
         self.setStyleSheet(f"DispensingScreen {{ background-color: {_BG}; }}")
         root = QVBoxLayout(self)
-        root.setContentsMargins(40, 0, 40, 40)
+        root.setContentsMargins(32, 0, 32, 24)
         root.setSpacing(0)
         root.setAlignment(Qt.AlignCenter)
 
@@ -70,7 +70,7 @@ class DispensingScreen(QWidget):
         root.addSpacing(20)
 
         title = QLabel("약이 나옵니다")
-        title.setFont(QFont("Sans Serif", 28, QFont.Bold))
+        title.setFont(QFont("Sans Serif", 48, QFont.Bold))
         title.setAlignment(Qt.AlignCenter)
         title.setStyleSheet(f"color: {_DARK};")
         root.addWidget(title)
@@ -98,7 +98,7 @@ class DispensingScreen(QWidget):
         root.addSpacing(14)
 
         sub = QLabel("잠시만 기다려주세요")
-        sub.setFont(QFont("Sans Serif", 16))
+        sub.setFont(QFont("Sans Serif", 30))
         sub.setAlignment(Qt.AlignCenter)
         sub.setStyleSheet(f"color: {_INDIGO};")
         root.addWidget(sub)
