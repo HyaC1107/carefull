@@ -118,7 +118,7 @@ class CompleteScreen(QWidget):
         if os.path.exists(_check_path):
             check_lbl = QLabel()
             check_lbl.setAlignment(Qt.AlignCenter)
-            _pix = QPixmap(_check_path).scaled(100, 100, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+            _pix = QPixmap(_check_path).scaled(120, 120, Qt.KeepAspectRatio, Qt.SmoothTransformation)
             check_lbl.setPixmap(_pix)
             root.addWidget(check_lbl, alignment=Qt.AlignCenter)
         else:
@@ -126,7 +126,7 @@ class CompleteScreen(QWidget):
         root.addSpacing(16)
 
         title = QLabel("복약 완료")
-        title.setFont(QFont("Sans Serif", 26, QFont.Bold))
+        title.setFont(QFont("Sans Serif", 30, QFont.Bold))
         title.setAlignment(Qt.AlignCenter)
         title.setStyleSheet(f"color: {_DARK};")
         root.addWidget(title)
@@ -154,7 +154,7 @@ class CompleteScreen(QWidget):
         card_lay.addWidget(card_header)
 
         self._next_time_lbl = QLabel("--:--")
-        self._next_time_lbl.setFont(QFont("Sans Serif", 28, QFont.Bold))
+        self._next_time_lbl.setFont(QFont("Sans Serif", 32, QFont.Bold))
         self._next_time_lbl.setAlignment(Qt.AlignCenter)
         self._next_time_lbl.setStyleSheet(f"color: {_DARK};")
         card_lay.addWidget(self._next_time_lbl)

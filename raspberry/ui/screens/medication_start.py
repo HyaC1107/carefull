@@ -14,7 +14,7 @@ class _BellWidget(QWidget):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setFixedSize(80, 80)
+        self.setFixedSize(100, 100)
 
     def paintEvent(self, event):
         p = QPainter(self)
@@ -67,7 +67,7 @@ class MedicationStartScreen(QWidget):
         root.addSpacing(24)
 
         title = QLabel("약 드실 시간입니다")
-        title.setFont(QFont("Sans Serif", 26, QFont.Bold))
+        title.setFont(QFont("Sans Serif", 30, QFont.Bold))
         title.setAlignment(Qt.AlignCenter)
         title.setStyleSheet(f"color: {_TEXT};")
         root.addWidget(title)
@@ -75,7 +75,7 @@ class MedicationStartScreen(QWidget):
         root.addSpacing(10)
 
         sub = QLabel("잠시 후 얼굴 인증을 시작합니다")
-        sub.setFont(QFont("Sans Serif", 16))
+        sub.setFont(QFont("Sans Serif", 18))
         sub.setAlignment(Qt.AlignCenter)
         sub.setStyleSheet(f"color: {_ORANGE};")
         root.addWidget(sub)

@@ -71,12 +71,12 @@ class CameraViewScreen(QWidget):
 
         # 텍스트 레이블 — 카메라 위에 오버레이
         self._title_lbl = QLabel(parent=self)
-        self._title_lbl.setFont(QFont("Sans Serif", 20, QFont.Bold))
+        self._title_lbl.setFont(QFont("Sans Serif", 22, QFont.Bold))
         self._title_lbl.setAlignment(Qt.AlignCenter)
         self._title_lbl.setAttribute(Qt.WA_TransparentForMouseEvents)
 
         self._sub_lbl = QLabel(parent=self)
-        self._sub_lbl.setFont(QFont("Sans Serif", 15))
+        self._sub_lbl.setFont(QFont("Sans Serif", 17))
         self._sub_lbl.setAlignment(Qt.AlignCenter)
         self._sub_lbl.setAttribute(Qt.WA_TransparentForMouseEvents)
 
@@ -88,11 +88,11 @@ class CameraViewScreen(QWidget):
 
         self._camera_card.setGeometry(0, 0, w, h)
 
-        overlay_h = 130
+        overlay_h = int(h * 0.27)
         self._gradient.setGeometry(0, h - overlay_h, w, overlay_h)
 
-        self._title_lbl.setGeometry(0, h - 85, w, 38)
-        self._sub_lbl.setGeometry(0, h - 44, w, 30)
+        self._title_lbl.setGeometry(0, h - int(h * 0.175), w, 42)
+        self._sub_lbl.setGeometry(0, h - int(h * 0.092), w, 34)
 
     def _apply_theme(self):
         t = _THEMES.get(self._mode, _THEMES[MODE_AUTH])

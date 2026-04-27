@@ -82,7 +82,7 @@ class AuthResultScreen(QWidget):
             self.setStyleSheet("AuthResultScreen { background-color: #dff4ef; }")
             _png = os.path.join(_ICONS_DIR, "check_small.png")
             if os.path.exists(_png):
-                _pix = QPixmap(_png).scaled(160, 160, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+                _pix = QPixmap(_png).scaled(190, 190, Qt.KeepAspectRatio, Qt.SmoothTransformation)
                 self._icon_lbl.setPixmap(_pix)
                 self._icon_lbl.show()
                 self._card.hide()
@@ -127,7 +127,7 @@ class AuthResultScreen(QWidget):
         root.addSpacing(18)
 
         self._title_lbl = QLabel("인증 완료")
-        self._title_lbl.setFont(QFont("Sans Serif", 22, QFont.Bold))
+        self._title_lbl.setFont(QFont("Sans Serif", 26, QFont.Bold))
         self._title_lbl.setAlignment(Qt.AlignCenter)
         root.addWidget(self._title_lbl)
 
