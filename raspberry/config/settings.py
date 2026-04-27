@@ -4,6 +4,7 @@ import os
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DB_DIR = os.path.join(BASE_DIR, "db")
 MODELS_DIR = os.path.join(BASE_DIR, "models")
+ENV_DIR = os.path.join(BASE_DIR, ".env")
 
 MODEL_PATH = os.path.join(MODELS_DIR, "mobilefacenet.tflite")
 CAMERA_WIDTH = int(os.getenv("CAREFULL_CAMERA_WIDTH", "640"))
