@@ -34,6 +34,8 @@ function PatientPage() {
     useState(true)
   const [isDeviceModalOpen, setIsDeviceModalOpen] = useState(false)
   const [isPatientModalOpen, setIsPatientModalOpen] = useState(false)
+  const [isDeviceRegistrationCompleted, setIsDeviceRegistrationCompleted] =
+    useState(false)
 
   useEffect(() => {
     const fetchPatientPageData = async () => {
@@ -77,11 +79,41 @@ function PatientPage() {
     !isRegistrationCheckLoading &&
     (!isPatientRegistered || !isDeviceRegistered)
 
-  const handleDeviceRegisterSuccess = (newDevice) => {
-    setPendingDevice({
+  const handleDeviceRegisterSuccess = async (newDevice) => {
+    const nextDevice = {
       device_uid: newDevice.device_uid?.trim() || '',
       deviceName: newDevice.deviceName?.trim() || '',
-    })
+    }
+
+    if (isPatientRegistered && hasStoredToken()) {
+      try {
+        console.log('[device-register] request:', {
+          device_uid: nextDevice.device_uid,
+          device_name: nextDevice.deviceName,
+        })
+        const deviceResponse = await requestJson('/api/device/register', {
+          method: 'POST',
+          auth: true,
+          body: {
+            device_uid: nextDevice.device_uid,
+            device_name: nextDevice.deviceName,
+          },
+        })
+
+        setDeviceData(mapDeviceDetail(deviceResponse?.device))
+        setIsDeviceRegistered(hasRegisteredDevice(deviceResponse?.device))
+        setIsDeviceRegistrationCompleted(true)
+        setPendingDevice(null)
+        setIsDeviceModalOpen(false)
+      } catch (error) {
+        console.error('device register error:', error)
+        alert(error.message || 'Device registration failed.')
+      }
+      return
+    }
+
+    setPendingDevice(nextDevice)
+    setIsDeviceRegistrationCompleted(true)
     setIsDeviceModalOpen(false)
   }
 
@@ -98,10 +130,15 @@ function PatientPage() {
           patient_name: newPatient.patient_name || '',
           birthdate: newPatient.birthdate || '',
           gender: newPatient.gender || '',
+          phone: newPatient.phone || '',
+          address: newPatient.address || '',
           bloodtype: newPatient.bloodtype || '',
           height: toNumber(newPatient.height),
           weight: toNumber(newPatient.weight),
+          guardian_name: newPatient.guardian_name || '',
+          guardian_phone: newPatient.guardian_phone || '',
           device_uid: pendingDevice.device_uid,
+          device_name: pendingDevice.deviceName,
         },
       })
 
@@ -139,6 +176,7 @@ function PatientPage() {
       setIsDeviceRegistered(hasRegisteredDevice(deviceResponse?.device))
       setPendingDevice(null)
       setIsPatientModalOpen(false)
+      window.dispatchEvent(new Event('carefull:top-header-refresh'))
     } catch (error) {
       console.error('patient register error:', error)
       alert(error.message || '환자 등록에 실패했습니다.')
@@ -151,7 +189,7 @@ function PatientPage() {
         <Sidebar activeMenu="patient" />
 
         <div className="patient-main">
-          <TopHeader />
+          <TopHeader key={isPatientRegistered ? 'registered' : 'pending'} />
 
           <main className="patient-content">
             {isRegistrationCheckLoading ? (
@@ -166,6 +204,7 @@ function PatientPage() {
             {shouldShowRegistrationGate ? (
               <PatientEmptyState
                 hasDevice={hasDevice}
+                isDeviceRegistrationCompleted={isDeviceRegistrationCompleted}
                 onOpenDeviceModal={() => setIsDeviceModalOpen(true)}
                 onOpenPatientModal={() => setIsPatientModalOpen(true)}
               />
