@@ -14,7 +14,7 @@ class _BellWidget(QWidget):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setFixedSize(100, 100)
+        self.setFixedSize(120, 120)
 
     def paintEvent(self, event):
         p = QPainter(self)
@@ -56,7 +56,7 @@ class MedicationStartScreen(QWidget):
     def _build_ui(self):
         self.setStyleSheet(f"MedicationStartScreen {{ background-color: {_BG}; }}")
         root = QVBoxLayout(self)
-        root.setContentsMargins(40, 0, 40, 36)
+        root.setContentsMargins(32, 0, 32, 24)
         root.setSpacing(0)
         root.setAlignment(Qt.AlignCenter)
 
@@ -67,7 +67,7 @@ class MedicationStartScreen(QWidget):
         root.addSpacing(24)
 
         title = QLabel("약 드실 시간입니다")
-        title.setFont(QFont("Sans Serif", 30, QFont.Bold))
+        title.setFont(QFont("Sans Serif", 48, QFont.Bold))
         title.setAlignment(Qt.AlignCenter)
         title.setStyleSheet(f"color: {_TEXT};")
         root.addWidget(title)
@@ -75,7 +75,7 @@ class MedicationStartScreen(QWidget):
         root.addSpacing(10)
 
         sub = QLabel("잠시 후 얼굴 인증을 시작합니다")
-        sub.setFont(QFont("Sans Serif", 18))
+        sub.setFont(QFont("Sans Serif", 30))
         sub.setAlignment(Qt.AlignCenter)
         sub.setStyleSheet(f"color: {_ORANGE};")
         root.addWidget(sub)
@@ -84,7 +84,7 @@ class MedicationStartScreen(QWidget):
 
         start_btn = QPushButton("복약 프로세스 시작")
         start_btn.setMinimumHeight(60)
-        start_btn.setFont(QFont("Sans Serif", 18, QFont.Bold))
+        start_btn.setFont(QFont("Sans Serif", 28, QFont.Bold))
         start_btn.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         start_btn.setStyleSheet(f"""
             QPushButton {{

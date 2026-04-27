@@ -1,7 +1,9 @@
 require('dotenv').config();
 
 const express = require('express');
+const fs = require('fs');
 const http = require('http');
+const https = require('https');
 const cors = require('cors');
 const path = require('path');
 
@@ -16,14 +18,15 @@ const device_router = require('./routes/device');
 const face_data_router = require('./routes/face-data');
 const notification_router = require('./routes/notification');
 const activity_router = require('./routes/activity');
+const admin_router    = require('./routes/admin');
 
 const { startMissedLogJob } = require('./jobs/missed-activity-job');
 
 const app = express();
 
 // ─────────────────────────── CORS ────────────────────────────────────────────
-// .env 에 ALLOWED_ORIGINS=https://carefull.vercel.app 형태로 입력
-// 여러 개면 콤마 구분: https://aaa.com,https://bbb.com
+// .env 에 ALLOWED_ORIGINS를 입력
+// 여러 개면 콤마 구분
 const allowed_origins = (process.env.ALLOWED_ORIGINS || '')
     .split(',')
     .map(o => o.trim())
@@ -65,16 +68,56 @@ app.use('/api/device',       device_router);
 app.use('/api/face-data',    face_data_router);
 app.use('/api/notification', notification_router);
 app.use('/api/log',          activity_router);
+app.use('/api/admin',        admin_router);
 
 // ─────────────────────────── Server ──────────────────────────────────────────
 // SSL 종료는 nginx 또는 ALB 에서 처리 → Node.js 는 HTTP 로만 실행
-const PORT = process.env.PORT || 3000;
-const server = http.createServer(app);
+const PORT = process.env.PORT;
+const HOST = process.env.HOST || undefined;
+const { SSL_KEY_PATH, SSL_CERT_PATH } = process.env;
 
-server.listen(PORT, () => {
-    console.log(`✅ Care-full server running on port ${PORT}`);
+if (!PORT) throw new Error('Missing env variable: PORT');
+
+const resolve_ssl_path = (file_path) => (
+    path.isAbsolute(file_path) ? file_path : path.resolve(__dirname, file_path)
+);
+
+const ssl_key_path = SSL_KEY_PATH ? resolve_ssl_path(SSL_KEY_PATH) : '';
+const ssl_cert_path = SSL_CERT_PATH ? resolve_ssl_path(SSL_CERT_PATH) : '';
+const use_https = Boolean(
+    ssl_key_path
+    && ssl_cert_path
+    && fs.existsSync(ssl_key_path)
+    && fs.existsSync(ssl_cert_path)
+);
+
+const server = use_https
+    ? https.createServer({
+        key: fs.readFileSync(ssl_key_path),
+        cert: fs.readFileSync(ssl_cert_path),
+    }, app)
+    : http.createServer(app);
+
+const on_server_listen = () => {
+    const protocol = use_https ? 'HTTPS' : 'HTTP';
+    console.log(`[${protocol} mode] Care-full server running on ${HOST || 'default interface'}:${PORT}`);
+    console.log(`[env] NODE_ENV=${process.env.NODE_ENV || 'undefined'}`);
+    console.log(`[env] FRONTEND_URL=${process.env.FRONTEND_URL || 'undefined'}`);
+    console.log(`[env] KAKAO_REDIRECT_URI=${process.env.KAKAO_REDIRECT_URI || 'undefined'}`);
+    console.log(`[env] GOOGLE_REDIRECT_URI=${process.env.GOOGLE_REDIRECT_URI || 'undefined'}`);
+    console.log(`[env] NAVER_REDIRECT_URI=${process.env.NAVER_REDIRECT_URI || 'undefined'}`);
+    if (use_https) {
+        console.log(`[HTTPS mode] SSL key: ${ssl_key_path}`);
+        console.log(`[HTTPS mode] SSL cert: ${ssl_cert_path}`);
+    }
     startMissedLogJob();
-});
+};
+
+if (HOST) {
+    server.listen(PORT, HOST, on_server_listen);
+} else {
+    server.listen(PORT, on_server_listen);
+}
 
 // ─────────────────────────── Graceful Shutdown ───────────────────────────────
 const graceful_shutdown = async (signal) => {

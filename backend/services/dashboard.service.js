@@ -12,6 +12,9 @@ const {
     getScheduleStatusColor
 } = require('../utils/dashboard-helpers');
 const { is_device_online } = require('../utils/device-status');
+const {
+    trigger_low_stock_notification
+} = require('./notification-trigger.service');
 
 const get_today_context = () => {
     const current_date = new Date();
@@ -24,34 +27,252 @@ const get_today_context = () => {
 };
 
 const get_dashboard_data_by_mem_id = async (mem_id) => {
-    const patient_id = await find_patient_id_by_mem_id(mem_id);
+    const member = await get_member_header(mem_id);
 
-    if (!patient_id) {
+    if (!member) {
         return null;
     }
 
-    const [patient, summary, device, today_schedules, recent_notifications, recent_activities] = await Promise.all([
+    const patient_id = await find_patient_id_by_mem_id(mem_id);
+
+    if (!patient_id) {
+        return build_dashboard_data({
+            patient: null,
+            member,
+            summary: null,
+            device: null,
+            medication_stock: {
+                remainingMedicationCount: 0,
+                lowStockMedications: [],
+                medications: []
+            },
+            today_schedules: [],
+            recent_notifications: await get_recent_notifications(mem_id),
+            recent_activities: []
+        });
+    }
+
+    const [
+        patient,
+        summary,
+        device,
+        medication_stock,
+        today_schedules,
+        recent_notifications,
+        recent_activities
+    ] = await Promise.all([
         get_patient_header(patient_id),
         get_dashboard_summary(patient_id),
         get_device_status(patient_id),
+        get_estimated_medication_stock(patient_id),
         get_today_schedules(patient_id),
         get_recent_notifications(mem_id),
         get_recent_activities(patient_id)
     ]);
 
+    await trigger_low_stock_notifications_for_estimated_stock(
+        mem_id,
+        patient_id,
+        medication_stock.lowStockMedications
+    );
+
+    const resolved_device = apply_estimated_medication_stock_to_device(
+        device,
+        medication_stock
+    );
+
+    const dashboard_data = build_dashboard_data({
+        patient,
+        member,
+        summary,
+        device: resolved_device,
+        medication_stock,
+        today_schedules,
+        recent_notifications,
+        recent_activities
+    });
+
+    return dashboard_data;
+};
+
+const build_dashboard_data = ({
+    patient,
+    member,
+    summary,
+    device,
+    medication_stock,
+    today_schedules,
+    recent_notifications,
+    recent_activities
+}) => {
     return {
         patient_name: patient?.patient_name || null,
+        guardian_name: patient?.guardian_name || null,
         patient: {
             patient_name: patient?.patient_name || null,
             birthdate: patient?.birthdate || null,
             guardian_name: patient?.guardian_name || null
         },
+        member: {
+            nick: member?.nick || null,
+            profile_img: member?.profile_img || ''
+        },
+        profile_img: member?.profile_img || '',
         summary,
         device,
+        remainingMedicationCount: medication_stock.remainingMedicationCount,
+        lowStockMedications: medication_stock.lowStockMedications,
+        estimatedMedicationStock: medication_stock.medications,
         today_schedules,
         recent_notifications,
         recent_activities
     };
+};
+
+const get_member_header = async (mem_id) => {
+    const query = `
+        SELECT nick, profile_img
+        FROM members
+        WHERE mem_id = $1
+        LIMIT 1
+    `;
+
+    const { rows } = await pool.query(query, [mem_id]);
+
+    return rows[0] || null;
+};
+
+const get_estimated_medication_stock = async (patient_id) => {
+    const query = `
+        WITH schedule_counts AS (
+            SELECT
+                s.medi_id,
+                COALESCE(m.medi_name, '') AS medi_name,
+                COUNT(*)::int AS total_schedule_count
+            FROM schedules s
+            LEFT JOIN medications m
+                ON m.medi_id = s.medi_id
+            WHERE s.patient_id = $1
+              AND UPPER(COALESCE(s.status, '')) NOT IN ('INACTIVE', 'DELETED')
+            GROUP BY s.medi_id, m.medi_name
+        ),
+        completed_counts AS (
+            SELECT
+                s.medi_id,
+                COUNT(a.activity_id)::int AS completed_count
+            FROM activities a
+            INNER JOIN schedules s
+                ON s.sche_id = a.sche_id
+            WHERE a.patient_id = $1
+              AND UPPER(a.status) = ANY($2::text[])
+            GROUP BY s.medi_id
+        ),
+        latest_activity AS (
+            SELECT DISTINCT ON (s.medi_id)
+                s.medi_id,
+                a.activity_id
+            FROM activities a
+            INNER JOIN schedules s
+                ON s.sche_id = a.sche_id
+            WHERE a.patient_id = $1
+            ORDER BY s.medi_id, a.created_at DESC, a.activity_id DESC
+        )
+        SELECT
+            sc.medi_id,
+            sc.medi_name,
+            sc.total_schedule_count,
+            COALESCE(cc.completed_count, 0)::int AS completed_count,
+            GREATEST(
+                sc.total_schedule_count - COALESCE(cc.completed_count, 0),
+                0
+            )::int AS remaining_count,
+            la.activity_id
+        FROM schedule_counts sc
+        LEFT JOIN completed_counts cc
+            ON cc.medi_id = sc.medi_id
+        LEFT JOIN latest_activity la
+            ON la.medi_id = sc.medi_id
+        ORDER BY remaining_count ASC, sc.medi_id ASC
+    `;
+
+    const { rows } = await pool.query(query, [patient_id, COMPLETED_STATUSES]);
+    const medications = rows.map((row) => ({
+        medi_id: row.medi_id,
+        medi_name: row.medi_name || null,
+        total_schedule_count: row.total_schedule_count,
+        completed_count: row.completed_count,
+        remaining_count: row.remaining_count,
+        activity_id: row.activity_id || null,
+        is_low_stock: row.remaining_count <= LOW_MEDICATION_THRESHOLD
+    }));
+
+    const remainingMedicationCount = medications.reduce(
+        (sum, item) => sum + item.remaining_count,
+        0
+    );
+
+    const minimumRemainingMedicationCount = medications.length > 0
+        ? Math.min(...medications.map((item) => item.remaining_count))
+        : null;
+
+    const lowStockMedications = medications.filter(
+        (item) => item.is_low_stock
+    );
+
+    return {
+        remainingMedicationCount,
+        minimumRemainingMedicationCount,
+        lowStockMedications,
+        medications
+    };
+};
+
+const apply_estimated_medication_stock_to_device = (device, medication_stock) => {
+    if (!device) {
+        return device;
+    }
+
+    const has_low_stock = medication_stock.lowStockMedications.length > 0;
+    const remainingMedicationCount =
+        medication_stock.remainingMedicationCount || 0;
+    const minimumRemainingMedicationCount =
+        medication_stock.minimumRemainingMedicationCount ?? 0;
+
+    return {
+        ...device,
+        medication_level: medication_stock.remainingMedicationCount ?? 0,
+        remainingCount: remainingMedicationCount,
+        remainingMedicationCount: remainingMedicationCount,
+        lowStockMedications: medication_stock.lowStockMedications,
+        status_color: has_low_stock ? 'orange' : device.status_color,
+        status_message: has_low_stock ? 'Warning' : device.status_message,
+        status_reason: has_low_stock
+            ? 'Schedule-based estimated remaining medication count is low.'
+            : device.status_reason
+    };
+};
+
+const trigger_low_stock_notifications_for_estimated_stock = async (
+    mem_id,
+    patient_id,
+    low_stock_medications
+) => {
+    for (const medication of low_stock_medications) {
+        if (!medication.activity_id) {
+            console.log(
+                `[LOW-STOCK] skipped notification because no activity_id is available for medi_id: ${medication.medi_id}`
+            );
+            continue;
+        }
+
+        await trigger_low_stock_notification({
+            mem_id,
+            patient_id,
+            activity_id: medication.activity_id,
+            medi_name: medication.medi_name,
+            remaining_quantity: medication.remaining_count
+        });
+    }
 };
 
 const get_patient_header = async (patient_id) => {

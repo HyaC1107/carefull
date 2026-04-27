@@ -25,17 +25,17 @@ class _StepRow(QWidget):
         lay.setSpacing(14)
 
         badge = QLabel(str(num))
-        badge.setFixedSize(28, 28)
+        badge.setFixedSize(36, 36)
         badge.setAlignment(Qt.AlignCenter)
-        badge.setFont(QFont("Sans Serif", 13, QFont.Bold))
+        badge.setFont(QFont("Sans Serif", 18, QFont.Bold))
         badge.setStyleSheet(f"""
             background-color: {_PURPLE};
             color: white;
-            border-radius: 14px;
+            border-radius: 18px;
         """)
 
         label = QLabel(text)
-        label.setFont(QFont("Sans Serif", 17))
+        label.setFont(QFont("Sans Serif", 28))
         label.setStyleSheet(f"color: {_DARK};")
 
         lay.addWidget(badge)
@@ -52,13 +52,13 @@ class RegisterScreen(QWidget):
     def _build_ui(self):
         self.setStyleSheet(f"RegisterScreen {{ background-color: {_BG}; }}")
         root = QVBoxLayout(self)
-        root.setContentsMargins(24, 20, 24, 28)
+        root.setContentsMargins(16, 12, 16, 20)
         root.setSpacing(0)
 
         # 뒤로가기 버튼
         back_btn = QPushButton("← 메인으로")
-        back_btn.setFont(QFont("Sans Serif", 13))
-        back_btn.setFixedHeight(36)
+        back_btn.setFont(QFont("Sans Serif", 18))
+        back_btn.setFixedHeight(44)
         back_btn.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
         back_btn.setStyleSheet("""
             QPushButton {
@@ -89,7 +89,7 @@ class RegisterScreen(QWidget):
         root.addSpacing(10)
 
         title = QLabel("사용자 등록")
-        title.setFont(QFont("Sans Serif", 28, QFont.Bold))
+        title.setFont(QFont("Sans Serif", 46, QFont.Bold))
         title.setAlignment(Qt.AlignCenter)
         title.setStyleSheet(f"color: {_DARK};")
         root.addWidget(title)
@@ -109,7 +109,7 @@ class RegisterScreen(QWidget):
         card_lay.setSpacing(6)
 
         card_title = QLabel("등록 절차")
-        card_title.setFont(QFont("Sans Serif", 16, QFont.Bold))
+        card_title.setFont(QFont("Sans Serif", 22, QFont.Bold))
         card_title.setAlignment(Qt.AlignCenter)
         card_title.setStyleSheet(f"color: {_DARK};")
         card_lay.addWidget(card_title)
@@ -124,8 +124,8 @@ class RegisterScreen(QWidget):
 
         # 등록 시작 버튼
         start_btn = QPushButton("등록 시작")
-        start_btn.setMinimumHeight(60)
-        start_btn.setFont(QFont("Sans Serif", 18, QFont.Bold))
+        start_btn.setMinimumHeight(70)
+        start_btn.setFont(QFont("Sans Serif", 30, QFont.Bold))
         start_btn.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         start_btn.setStyleSheet(f"""
             QPushButton {{
