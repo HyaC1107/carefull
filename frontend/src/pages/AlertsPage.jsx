@@ -36,6 +36,7 @@ function loadNotifPrefs() {
 function AlertsPage() {
   const [activeFilter, setActiveFilter] = useState('all')
   const [alerts, setAlerts] = useState([])
+  const [hasUnread, setHasUnread] = useState(false)
   const [notifPrefs] = useState(loadNotifPrefs)
 
   useEffect(() => {
@@ -58,6 +59,10 @@ function AlertsPage() {
 
     fetchNotifications()
   }, [])
+
+  useEffect(() => {
+    setHasUnread(alerts.some((item) => !item.isRead))
+  }, [alerts])
 
   const tabs = useMemo(() => {
     const completedCount = alerts.filter((item) => item.type === 'completed').length
@@ -99,6 +104,7 @@ function AlertsPage() {
           isRead: true,
         })),
       )
+      setHasUnread(false)
     } catch (error) {
       console.error('notification read-all error:', error)
     }
@@ -124,6 +130,7 @@ function AlertsPage() {
             <AlertListCard
               alerts={filteredAlerts}
               totalCount={filteredAlerts.length}
+              hasUnread={hasUnread}
               onMarkAllRead={handleMarkAllRead}
             />
 

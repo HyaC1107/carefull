@@ -66,6 +66,40 @@ const hasAnyActivityForScheduleTime = async (sche_id, patient_id, today_date_str
     return rows[0] || null;
 };
 
+const lockScheduleForMissedTarget = async (client, sche_id) => {
+    await client.query(
+        `
+            SELECT sche_id
+            FROM schedules
+            WHERE sche_id = $1
+            FOR UPDATE
+        `,
+        [sche_id]
+    );
+};
+
+const findMissedActivityForExactScheduleTime = async (client, target) => {
+    const query = `
+        SELECT
+            activity_id,
+            status
+        FROM activities
+        WHERE patient_id = $1
+          AND sche_id = $2
+          AND sche_time = $3::timestamptz
+          AND status = $4
+        LIMIT 1
+    `;
+
+    const { rows } = await client.query(query, [
+        target.patient_id,
+        target.sche_id,
+        target.sche_time,
+        ACTIVITY_STATUS.MISSED
+    ]);
+    return rows[0] || null;
+};
+
 const insertMissedActivity = async (client, target) => {
     const query = `
         INSERT INTO activities (
@@ -173,6 +207,35 @@ const runMissedLogJob = async () => {
                 }
 
                 await client.query('BEGIN');
+
+                await lockScheduleForMissedTarget(client, target.sche_id);
+
+                const existing_missed_activity = await findMissedActivityForExactScheduleTime(
+                    client,
+                    target
+                );
+
+                if (existing_missed_activity) {
+                    await client.query('ROLLBACK');
+                    console.log(
+                        `[MISSED-ACTIVITY-JOB] skipped duplicate MISSED activity - sche_id: ${target.sche_id}, activity_id: ${existing_missed_activity.activity_id}`
+                    );
+                    continue;
+                }
+
+                const existing_activity_after_lock = await hasAnyActivityForScheduleTime(
+                    target.sche_id,
+                    target.patient_id,
+                    today_date_string
+                );
+
+                if (existing_activity_after_lock) {
+                    await client.query('ROLLBACK');
+                    console.log(
+                        `[MISSED-ACTIVITY-JOB] skipped duplicate after lock - sche_id: ${target.sche_id}, activity_id: ${existing_activity_after_lock.activity_id}`
+                    );
+                    continue;
+                }
 
                 const inserted_activity = await insertMissedActivity(client, target);
 

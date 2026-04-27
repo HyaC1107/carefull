@@ -4,7 +4,7 @@
 
 | Method | Endpoint | 설명 | 인증 |
 |--------|----------|------|------|
-| GET | `/api/user/callback` | 카카오 OAuth 콜백 로그인 | X |
+| GET | `/api/user/kakao/callback` | 카카오 OAuth 콜백 로그인 | X |
 | GET | `/api/user/google/callback` | 구글 OAuth 콜백 로그인 | X |
 | GET | `/api/user/naver/callback` | 네이버 OAuth 콜백 로그인 | X |
 | POST | `/api/user/dev-login` | 개발용 mock 로그인 | X |
@@ -50,7 +50,7 @@
 
 ---
 
-### [GET] `/api/user/callback`
+### [GET] `/api/user/kakao/callback`
 
 설명: 카카오 OAuth code로 로그인/회원 생성 후 JWT 발급  
 인증: 불필요  
@@ -956,7 +956,7 @@ DB 사용
 
 ### 인증 없는 API
 
-- `/api/user/callback`
+- `/api/user/kakao/callback`
 - `/api/user/google/callback`
 - `/api/user/naver/callback`
 - `/api/user/dev-login`
