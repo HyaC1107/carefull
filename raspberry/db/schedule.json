@@ -1,10 +1,26 @@
 [
   {
-    "user": "user1",
-    "time": "12:05"
+    "sche_id": 1,
+    "user_id": "user_001",
+    "medication_name": "아침 약 (혈압약)",
+    "time_to_take": "08:00",
+    "dosage": "1정",
+    "status": "pending"
   },
   {
-    "user": "user1",
-    "time": "19:34"
+    "sche_id": 2,
+    "user_id": "user_001",
+    "medication_name": "점심 약 (영양제)",
+    "time_to_take": "13:00",
+    "dosage": "2정",
+    "status": "pending"
+  },
+  {
+    "sche_id": 3,
+    "user_id": "user_001",
+    "medication_name": "저녁 약 (소화제)",
+    "time_to_take": "19:00",
+    "dosage": "1정",
+    "status": "pending"
   }
 ]

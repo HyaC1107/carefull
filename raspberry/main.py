@@ -1,13 +1,47 @@
 import os
-
-# .env 파일이 있으면 자동 로드 (PC 테스트 시 .env.pc → .env 복사해서 사용)
-try:
-    from dotenv import load_dotenv
-    load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))
-except ImportError:
-    pass
-
+import sys
+import logging
+from raspberry.config.settings import BASE_DIR, ENV_DIR
 from ui.app import run
 
-if __name__ == "__main__":
-    run()
+# 로깅 설정 (프로그램이 실행되는 동안 일어나는 일들을 기록하는 '일기장'을 설정)
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s [%(levelname)s] %(name)s: %(message)s'
+)
+logger = logging.getLogger("Main")
+
+# 프로젝트 루트 경로 추가 (부모 디렉토리인 raspberry를 모듈로 인식하게 함)
+sys.path.append(BASE_DIR)
+
+# .env 파일 로드
+try:
+    from dotenv import load_dotenv
+    load_dotenv(ENV_DIR)
+except ImportError:
+    from ui.app import run
+    from hardware.manager import HardwareManager
+
+    if __name__ == "__main__":
+        try:
+            logger.info("Starting Carefull Raspberry Pi Application")
+
+            # 1. 하드웨어 초기화
+            if not HardwareManager.initialize():
+                logger.error("Failed to initialize hardware. Exiting.")
+                sys.exit(1)
+
+            # 2. 자가 진단 (필요 시)
+            HardwareManager.self_test()
+
+            # 3. UI 및 메인 루프 실행
+            run()
+
+        except KeyboardInterrupt:
+            logger.info("Application stopped by user")
+        except Exception as e:
+            logger.error(f"Unexpected error: {e}", exc_info=True)
+        finally:
+            # 4. 리소스 정리
+            HardwareManager.cleanup()
+
