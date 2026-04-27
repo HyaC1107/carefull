@@ -1,26 +1,35 @@
 [
   {
-    "sche_id": 1,
-    "user_id": "user_001",
-    "medication_name": "아침 약 (혈압약)",
-    "time_to_take": "08:00",
-    "dosage": "1정",
-    "status": "pending"
+    "sche_id": 101,
+    "patient_id": 1,
+    "medi_id": 1,
+    "medi_name": "아침 약 (혈압약)",
+    "start_date": "2024-04-20",
+    "end_date": "2024-12-31",
+    "time_to_take": "08:00:00",
+    "dose_interval": 1,
+    "status": "ACTIVE"
   },
   {
-    "sche_id": 2,
-    "user_id": "user_001",
-    "medication_name": "점심 약 (영양제)",
-    "time_to_take": "13:00",
-    "dosage": "2정",
-    "status": "pending"
+    "sche_id": 102,
+    "patient_id": 1,
+    "medi_id": 2,
+    "medi_name": "점심 약 (영양제)",
+    "start_date": "2024-04-20",
+    "end_date": "2024-12-31",
+    "time_to_take": "13:00:00",
+    "dose_interval": 1,
+    "status": "ACTIVE"
   },
   {
-    "sche_id": 3,
-    "user_id": "user_001",
-    "medication_name": "저녁 약 (소화제)",
-    "time_to_take": "19:00",
-    "dosage": "1정",
-    "status": "pending"
+    "sche_id": 103,
+    "patient_id": 1,
+    "medi_id": 3,
+    "medi_name": "저녁 약 (소화제)",
+    "start_date": "2024-04-20",
+    "end_date": "2024-12-31",
+    "time_to_take": "19:00:00",
+    "dose_interval": 1,
+    "status": "ACTIVE"
   }
 ]
