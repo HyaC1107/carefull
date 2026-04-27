@@ -61,7 +61,7 @@ class RegisterCompleteScreen(QWidget):
         if os.path.exists(_check_path):
             check_lbl = QLabel()
             check_lbl.setAlignment(Qt.AlignCenter)
-            _pix = QPixmap(_check_path).scaled(100, 100, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+            _pix = QPixmap(_check_path).scaled(120, 120, Qt.KeepAspectRatio, Qt.SmoothTransformation)
             check_lbl.setPixmap(_pix)
             root.addWidget(check_lbl, alignment=Qt.AlignCenter)
         else:
@@ -70,7 +70,7 @@ class RegisterCompleteScreen(QWidget):
         root.addSpacing(24)
 
         title = QLabel("등록 완료")
-        title.setFont(QFont("Sans Serif", 26, QFont.Bold))
+        title.setFont(QFont("Sans Serif", 30, QFont.Bold))
         title.setAlignment(Qt.AlignCenter)
         title.setStyleSheet(f"color: {_DARK};")
         root.addWidget(title)

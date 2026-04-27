@@ -26,7 +26,7 @@ class _FingerprintWidget(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self._progress = 0
-        self.setFixedSize(130, 130)
+        self.setFixedSize(160, 160)
 
     def set_progress(self, pct: int):
         self._progress = max(0, min(100, pct))
@@ -87,7 +87,7 @@ class FingerprintAuthScreen(QWidget):
         if os.path.exists(_fp_path):
             self._fp_widget = QLabel()
             self._fp_widget.setAlignment(Qt.AlignCenter)
-            _pix = QPixmap(_fp_path).scaled(130, 130, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+            _pix = QPixmap(_fp_path).scaled(160, 160, Qt.KeepAspectRatio, Qt.SmoothTransformation)
             self._fp_widget.setPixmap(_pix)
         else:
             self._fp_widget = _FingerprintWidget()
@@ -114,7 +114,7 @@ class FingerprintAuthScreen(QWidget):
         root.addSpacing(20)
 
         self._title_lbl = QLabel("지문을 인증하는 중...")
-        self._title_lbl.setFont(QFont("Sans Serif", 22, QFont.Bold))
+        self._title_lbl.setFont(QFont("Sans Serif", 26, QFont.Bold))
         self._title_lbl.setAlignment(Qt.AlignCenter)
         self._title_lbl.setStyleSheet(f"color: {_DARK};")
         root.addWidget(self._title_lbl)
