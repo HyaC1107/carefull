@@ -35,7 +35,7 @@ class _StepRow(QWidget):
         """)
 
         label = QLabel(text)
-        label.setFont(QFont("Sans Serif", 17))
+        label.setFont(QFont("Sans Serif", 22))
         label.setStyleSheet(f"color: {_DARK};")
 
         lay.addWidget(badge)
@@ -89,7 +89,7 @@ class RegisterScreen(QWidget):
         root.addSpacing(10)
 
         title = QLabel("사용자 등록")
-        title.setFont(QFont("Sans Serif", 28, QFont.Bold))
+        title.setFont(QFont("Sans Serif", 34, QFont.Bold))
         title.setAlignment(Qt.AlignCenter)
         title.setStyleSheet(f"color: {_DARK};")
         root.addWidget(title)
@@ -125,7 +125,7 @@ class RegisterScreen(QWidget):
         # 등록 시작 버튼
         start_btn = QPushButton("등록 시작")
         start_btn.setMinimumHeight(60)
-        start_btn.setFont(QFont("Sans Serif", 18, QFont.Bold))
+        start_btn.setFont(QFont("Sans Serif", 22, QFont.Bold))
         start_btn.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         start_btn.setStyleSheet(f"""
             QPushButton {{

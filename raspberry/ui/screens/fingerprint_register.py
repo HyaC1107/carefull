@@ -116,7 +116,7 @@ class FingerprintRegisterScreen(QWidget):
         root.addSpacing(20)
 
         self._title_lbl = QLabel("지문을 스캔하는 중...")
-        self._title_lbl.setFont(QFont("Sans Serif", 26, QFont.Bold))
+        self._title_lbl.setFont(QFont("Sans Serif", 32, QFont.Bold))
         self._title_lbl.setAlignment(Qt.AlignCenter)
         self._title_lbl.setStyleSheet(f"color: {_DARK};")
         root.addWidget(self._title_lbl)
@@ -124,7 +124,7 @@ class FingerprintRegisterScreen(QWidget):
         root.addSpacing(8)
 
         sub = QLabel("센서에 손가락을 올려주세요")
-        sub.setFont(QFont("Sans Serif", 16))
+        sub.setFont(QFont("Sans Serif", 22))
         sub.setAlignment(Qt.AlignCenter)
         sub.setStyleSheet(f"color: {_PURPLE};")
         root.addWidget(sub)
@@ -132,7 +132,7 @@ class FingerprintRegisterScreen(QWidget):
         root.addSpacing(10)
 
         self._pct_lbl = QLabel("0%")
-        self._pct_lbl.setFont(QFont("Sans Serif", 18, QFont.Bold))
+        self._pct_lbl.setFont(QFont("Sans Serif", 24, QFont.Bold))
         self._pct_lbl.setAlignment(Qt.AlignCenter)
         self._pct_lbl.setStyleSheet(f"color: {_DARK};")
         root.addWidget(self._pct_lbl)
