@@ -127,14 +127,14 @@ class AuthResultScreen(QWidget):
         root.addSpacing(18)
 
         self._title_lbl = QLabel("인증 완료")
-        self._title_lbl.setFont(QFont("Sans Serif", 32, QFont.Bold))
+        self._title_lbl.setFont(QFont("Sans Serif", 42, QFont.Bold))
         self._title_lbl.setAlignment(Qt.AlignCenter)
         root.addWidget(self._title_lbl)
 
         root.addSpacing(6)
 
         self._sub_lbl = QLabel("약을 준비하고 있습니다")
-        self._sub_lbl.setFont(QFont("Sans Serif", 22))
+        self._sub_lbl.setFont(QFont("Sans Serif", 28))
         self._sub_lbl.setAlignment(Qt.AlignCenter)
         root.addWidget(self._sub_lbl)
 

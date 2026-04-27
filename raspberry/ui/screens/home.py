@@ -124,7 +124,7 @@ class _MenuButton(QWidget):
             icon_lbl.setFont(QFont("Sans Serif", 22))
 
         self._text_lbl = QLabel(text)
-        self._text_lbl.setFont(QFont("Sans Serif", 20))
+        self._text_lbl.setFont(QFont("Sans Serif", 24))
         self._text_lbl.setAlignment(Qt.AlignCenter)
         self._text_lbl.setStyleSheet(f"background: transparent; border: none; color: {_DARK};")
 
@@ -167,7 +167,7 @@ class HomeScreen(QWidget):
     def _build_ui(self):
         self.setStyleSheet(f"HomeScreen {{ background-color: {_BG}; }}")
         root = QVBoxLayout(self)
-        root.setContentsMargins(36, 32, 36, 32)
+        root.setContentsMargins(24, 16, 24, 16)
         root.setSpacing(0)
 
         root.addStretch(2)
@@ -182,7 +182,7 @@ class HomeScreen(QWidget):
             _pix = QPixmap(_clock_path).scaled(20, 20, Qt.KeepAspectRatio, Qt.SmoothTransformation)
             clock_icon.setPixmap(_pix)
         time_label = QLabel("현재 시간")
-        time_label.setFont(QFont("Sans Serif", 17))
+        time_label.setFont(QFont("Sans Serif", 20))
         time_label.setStyleSheet(f"color: {_GRAY}; background-color: {_BG}; border: none;")
         time_row.addWidget(clock_icon)
         time_row.addWidget(time_label)
@@ -193,7 +193,7 @@ class HomeScreen(QWidget):
         # 큰 시계
         self._clock_lbl = QLabel()
         self._clock_lbl.setAlignment(Qt.AlignCenter)
-        self._clock_lbl.setFont(QFont("Sans Serif", 76, QFont.Bold))
+        self._clock_lbl.setFont(QFont("Sans Serif", 96, QFont.Bold))
         self._clock_lbl.setStyleSheet(f"""
             color: {_DARK};
             background-color: {_BG};
@@ -207,7 +207,7 @@ class HomeScreen(QWidget):
         # 다음 복약 뱃지
         self._badge_lbl = QLabel()
         self._badge_lbl.setAlignment(Qt.AlignCenter)
-        self._badge_lbl.setFont(QFont("Sans Serif", 22))
+        self._badge_lbl.setFont(QFont("Sans Serif", 28))
         self._badge_lbl.setStyleSheet(f"""
             color: #1d4ed8;
             background-color: white;
@@ -229,7 +229,7 @@ class HomeScreen(QWidget):
         dot.setStyleSheet(f"color: {_GREEN};")
 
         status_text = QLabel("정상 작동 중")
-        status_text.setFont(QFont("Sans Serif", 18))
+        status_text.setFont(QFont("Sans Serif", 22))
         status_text.setStyleSheet(f"color: {_GREEN};")
 
         status_row.addWidget(dot)
@@ -244,12 +244,12 @@ class HomeScreen(QWidget):
 
         self._btn_register = _MenuButton("register.png", "등록", "사용자 등록", lambda: self._go("register"))
         self._btn_register.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
-        self._btn_register.setMinimumHeight(130)
+        self._btn_register.setMinimumHeight(140)
         self._btn_register.hide()  # 기기 페어링 확인 전까지 숨김
 
         btn_settings = _MenuButton("settings.png", "설정", "설정", lambda: self._go("settings"))
         btn_settings.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
-        btn_settings.setMinimumHeight(130)
+        btn_settings.setMinimumHeight(140)
 
         btn_row.addWidget(self._btn_register)
         btn_row.addWidget(btn_settings)

@@ -79,7 +79,7 @@ class FingerprintRegisterScreen(QWidget):
     def _build_ui(self):
         self.setStyleSheet(f"FingerprintRegisterScreen {{ background-color: {_BG}; }}")
         root = QVBoxLayout(self)
-        root.setContentsMargins(40, 0, 40, 40)
+        root.setContentsMargins(24, 0, 24, 24)
         root.setSpacing(0)
         root.setAlignment(Qt.AlignCenter)
 
@@ -89,34 +89,34 @@ class FingerprintRegisterScreen(QWidget):
         if os.path.exists(_fp_path):
             self._fp_widget = QLabel()
             self._fp_widget.setAlignment(Qt.AlignCenter)
-            _pix = QPixmap(_fp_path).scaled(160, 160, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+            _pix = QPixmap(_fp_path).scaled(180, 180, Qt.KeepAspectRatio, Qt.SmoothTransformation)
             self._fp_widget.setPixmap(_pix)
         else:
             self._fp_widget = _FingerprintWidget()
         root.addWidget(self._fp_widget, alignment=Qt.AlignCenter)
-        root.addSpacing(24)
+        root.addSpacing(20)
 
         self._progress_bar = QProgressBar()
         self._progress_bar.setRange(0, 100)
         self._progress_bar.setValue(0)
-        self._progress_bar.setFixedHeight(6)
+        self._progress_bar.setFixedHeight(8)
         self._progress_bar.setTextVisible(False)
         self._progress_bar.setStyleSheet(f"""
             QProgressBar {{
                 border: none;
-                border-radius: 3px;
+                border-radius: 4px;
                 background: #d8b4fe;
             }}
             QProgressBar::chunk {{
                 background-color: {_PURPLE};
-                border-radius: 3px;
+                border-radius: 4px;
             }}
         """)
         root.addWidget(self._progress_bar)
-        root.addSpacing(20)
+        root.addSpacing(16)
 
         self._title_lbl = QLabel("지문을 스캔하는 중...")
-        self._title_lbl.setFont(QFont("Sans Serif", 32, QFont.Bold))
+        self._title_lbl.setFont(QFont("Sans Serif", 42, QFont.Bold))
         self._title_lbl.setAlignment(Qt.AlignCenter)
         self._title_lbl.setStyleSheet(f"color: {_DARK};")
         root.addWidget(self._title_lbl)
@@ -124,15 +124,15 @@ class FingerprintRegisterScreen(QWidget):
         root.addSpacing(8)
 
         sub = QLabel("센서에 손가락을 올려주세요")
-        sub.setFont(QFont("Sans Serif", 22))
+        sub.setFont(QFont("Sans Serif", 30))
         sub.setAlignment(Qt.AlignCenter)
         sub.setStyleSheet(f"color: {_PURPLE};")
         root.addWidget(sub)
 
-        root.addSpacing(10)
+        root.addSpacing(8)
 
         self._pct_lbl = QLabel("0%")
-        self._pct_lbl.setFont(QFont("Sans Serif", 24, QFont.Bold))
+        self._pct_lbl.setFont(QFont("Sans Serif", 32, QFont.Bold))
         self._pct_lbl.setAlignment(Qt.AlignCenter)
         self._pct_lbl.setStyleSheet(f"color: {_DARK};")
         root.addWidget(self._pct_lbl)
