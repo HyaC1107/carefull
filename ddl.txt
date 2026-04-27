@@ -175,3 +175,16 @@ CREATE TABLE public.notifications (
 );
 CREATE INDEX ix_notifications_1 ON public.notifications USING btree (created_at);
 CREATE INDEX ix_notifications_2 ON public.notifications USING btree (mem_id, is_received);
+
+CREATE TABLE public.admins (
+    admin_id  serial4      NOT NULL,
+    login_id  varchar(50)  NOT NULL,          -- 아이디 (예: admin01)
+    password  varchar(255) NOT NULL,          -- bcrypt 해시 저장
+    name      varchar(50)  NOT NULL,          -- 관리자 이름
+    role      varchar(20)  NOT NULL DEFAULT 'admin',  -- 'admin', 'super_admin' 등
+    is_active boolean      NOT NULL DEFAULT TRUE,
+    created_at timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    last_login_at timestamptz,
+    CONSTRAINT admins_pkey PRIMARY KEY (admin_id),
+    CONSTRAINT uq_admins_login_id UNIQUE (login_id)
+);
