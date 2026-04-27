@@ -79,7 +79,7 @@ class RegisterScreen(QWidget):
         icon_lbl.setAlignment(Qt.AlignCenter)
         _icon_path = os.path.join(_ICONS_DIR, "user_register.png")
         if os.path.exists(_icon_path):
-            _pix = QPixmap(_icon_path).scaled(64, 64, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+            _pix = QPixmap(_icon_path).scaled(80, 80, Qt.KeepAspectRatio, Qt.SmoothTransformation)
             icon_lbl.setPixmap(_pix)
         else:
             icon_lbl.setText("👤")
@@ -89,7 +89,7 @@ class RegisterScreen(QWidget):
         root.addSpacing(10)
 
         title = QLabel("사용자 등록")
-        title.setFont(QFont("Sans Serif", 24, QFont.Bold))
+        title.setFont(QFont("Sans Serif", 28, QFont.Bold))
         title.setAlignment(Qt.AlignCenter)
         title.setStyleSheet(f"color: {_DARK};")
         root.addWidget(title)

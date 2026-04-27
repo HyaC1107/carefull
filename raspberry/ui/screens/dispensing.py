@@ -25,7 +25,7 @@ class _PillsWidget(QWidget):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setFixedSize(140, 60)
+        self.setFixedSize(176, 76)
 
     def paintEvent(self, event):
         p = QPainter(self)
@@ -36,18 +36,16 @@ class _PillsWidget(QWidget):
         p.setBrush(Qt.NoBrush)
 
         configs = [
-            (20, 30, -30),
-            (70, 26, 0),
-            (120, 30, 30),
+            (25, 38, -30),
+            (88, 33, 0),
+            (151, 38, 30),
         ]
         for cx, cy, angle in configs:
             p.save()
             p.translate(cx, cy)
             p.rotate(angle)
-            # 캡슐 모양 (좌측 반원 + 우측 반원 + 연결선)
-            pw, ph = 26, 12
+            pw, ph = 33, 15
             p.drawRoundedRect(-pw // 2, -ph // 2, pw, ph, ph // 2, ph // 2)
-            # 중앙 구분선
             p.drawLine(0, -ph // 2, 0, ph // 2)
             p.restore()
 
@@ -72,7 +70,7 @@ class DispensingScreen(QWidget):
         root.addSpacing(20)
 
         title = QLabel("약이 나옵니다")
-        title.setFont(QFont("Sans Serif", 24, QFont.Bold))
+        title.setFont(QFont("Sans Serif", 28, QFont.Bold))
         title.setAlignment(Qt.AlignCenter)
         title.setStyleSheet(f"color: {_DARK};")
         root.addWidget(title)
