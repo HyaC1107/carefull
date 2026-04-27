@@ -2,7 +2,7 @@ import json
 import os
 from datetime import datetime
 
-from PyQt5.QtCore import Qt, QTimer
+from PyQt5.QtCore import Qt, QThread, QTimer, pyqtSignal
 from PyQt5.QtGui import QColor, QFont, QPainter, QPen, QPixmap
 from PyQt5.QtWidgets import (
     QFrame, QHBoxLayout, QLabel, QSizePolicy, QVBoxLayout, QWidget,
@@ -23,6 +23,21 @@ _DARK = "#1e293b"
 _GRAY = "#64748b"
 _GREEN = "#22c55e"
 _BLUE = "#3b82f6"
+
+
+class _DeviceStatusWorker(QThread):
+    status_ready = pyqtSignal(bool, bool)  # (is_paired, has_face)
+
+    def run(self):
+        if UI_TEST_MODE:
+            self.status_ready.emit(True, False)
+            return
+        try:
+            from api.client import fetch_device_status
+            s = fetch_device_status()
+            self.status_ready.emit(s["is_paired"], s["has_face"])
+        except Exception:
+            self.status_ready.emit(False, False)
 
 
 def _fmt_ampm(hour: int, minute: int) -> str:
@@ -64,16 +79,34 @@ def _next_medication() -> str:
 class _MenuButton(QWidget):
     """아이콘(PNG 또는 텍스트) + 텍스트 세로 배치 아웃라인 버튼."""
 
+    _STYLE_NORMAL = """
+        QWidget {
+            background-color: white;
+            border: 2px solid #d0d5dd;
+            border-radius: 14px;
+        }
+    """
+    _STYLE_PRESS = """
+        QWidget {
+            background-color: #f0f4ff;
+            border: 2px solid #aab0bb;
+            border-radius: 14px;
+        }
+    """
+    _STYLE_DISABLED = """
+        QWidget {
+            background-color: #f1f5f9;
+            border: 2px solid #e2e8f0;
+            border-radius: 14px;
+        }
+    """
+
     def __init__(self, png_name: str, fallback: str, text: str, callback, parent=None):
         super().__init__(parent)
+        self._callback = callback
+        self._enabled = True
         self.setCursor(Qt.PointingHandCursor)
-        self.setStyleSheet("""
-            QWidget {
-                background-color: white;
-                border: 2px solid #d0d5dd;
-                border-radius: 14px;
-            }
-        """)
+        self.setStyleSheet(self._STYLE_NORMAL)
 
         lay = QVBoxLayout(self)
         lay.setContentsMargins(16, 18, 16, 18)
@@ -90,33 +123,35 @@ class _MenuButton(QWidget):
             icon_lbl.setText(fallback)
             icon_lbl.setFont(QFont("Sans Serif", 22))
 
-        text_lbl = QLabel(text)
-        text_lbl.setFont(QFont("Sans Serif", 16))
-        text_lbl.setAlignment(Qt.AlignCenter)
-        text_lbl.setStyleSheet(f"background: transparent; border: none; color: {_DARK};")
+        self._text_lbl = QLabel(text)
+        self._text_lbl.setFont(QFont("Sans Serif", 16))
+        self._text_lbl.setAlignment(Qt.AlignCenter)
+        self._text_lbl.setStyleSheet(f"background: transparent; border: none; color: {_DARK};")
 
         lay.addWidget(icon_lbl)
-        lay.addWidget(text_lbl)
-        self._callback = callback
+        lay.addWidget(self._text_lbl)
+
+    def set_enabled(self, enabled: bool):
+        self._enabled = enabled
+        if enabled:
+            self.setStyleSheet(self._STYLE_NORMAL)
+            self._text_lbl.setStyleSheet(f"background: transparent; border: none; color: {_DARK};")
+            self.setCursor(Qt.PointingHandCursor)
+        else:
+            self.setStyleSheet(self._STYLE_DISABLED)
+            self._text_lbl.setStyleSheet("background: transparent; border: none; color: #94a3b8;")
+            self.setCursor(Qt.ArrowCursor)
 
     def mousePressEvent(self, event):
-        self.setStyleSheet("""
-            QWidget {
-                background-color: #f0f4ff;
-                border: 2px solid #aab0bb;
-                border-radius: 14px;
-            }
-        """)
+        if not self._enabled:
+            return
+        self.setStyleSheet(self._STYLE_PRESS)
         super().mousePressEvent(event)
 
     def mouseReleaseEvent(self, event):
-        self.setStyleSheet("""
-            QWidget {
-                background-color: white;
-                border: 2px solid #d0d5dd;
-                border-radius: 14px;
-            }
-        """)
+        if not self._enabled:
+            return
+        self.setStyleSheet(self._STYLE_NORMAL)
         self._callback()
         super().mouseReleaseEvent(event)
 
@@ -125,6 +160,7 @@ class HomeScreen(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self._app = parent
+        self._status_worker: _DeviceStatusWorker = None
         self._build_ui()
         self._start_timers()
 
@@ -206,15 +242,16 @@ class HomeScreen(QWidget):
         btn_row = QHBoxLayout()
         btn_row.setSpacing(14)
 
-        btn_register = _MenuButton("register.png", "등록", "사용자 등록", lambda: self._go("register"))
-        btn_register.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
-        btn_register.setMinimumHeight(96)
+        self._btn_register = _MenuButton("register.png", "등록", "사용자 등록", lambda: self._go("register"))
+        self._btn_register.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        self._btn_register.setMinimumHeight(96)
+        self._btn_register.hide()  # 기기 페어링 확인 전까지 숨김
 
         btn_settings = _MenuButton("settings.png", "설정", "설정", lambda: self._go("settings"))
         btn_settings.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         btn_settings.setMinimumHeight(96)
 
-        btn_row.addWidget(btn_register)
+        btn_row.addWidget(self._btn_register)
         btn_row.addWidget(btn_settings)
         root.addLayout(btn_row)
 
@@ -267,6 +304,27 @@ class HomeScreen(QWidget):
     def _update_badge(self):
         t = _next_medication()
         self._badge_lbl.setText(f"다음 복약   {t}")
+
+    def showEvent(self, event):
+        super().showEvent(event)
+        self._refresh_device_status()
+
+    def _refresh_device_status(self):
+        if self._status_worker and self._status_worker.isRunning():
+            return
+        self._status_worker = _DeviceStatusWorker()
+        self._status_worker.status_ready.connect(self._on_status_ready)
+        self._status_worker.start()
+
+    def _on_status_ready(self, is_paired: bool, has_face: bool):
+        if not is_paired:
+            self._btn_register.hide()
+        elif not has_face:
+            self._btn_register.show()
+            self._btn_register.set_enabled(True)
+        else:
+            self._btn_register.show()
+            self._btn_register.set_enabled(False)
 
     def _go(self, screen: str):
         if self._app:

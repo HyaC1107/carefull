@@ -7,6 +7,7 @@ from config.settings import UI_TEST_MODE
 MODE_AUTH = "auth"
 MODE_REGISTER = "register"
 
+AUTH_TIMEOUT_SEC = 7           # 얼굴 인증 최대 시도 시간 (초과 시 지문 폴백)
 _REGISTER_TARGET = 20
 _REGISTER_COOLDOWN_SEC = 0.5   # 캡처 간격 (블로킹 sleep 대신 타임스탬프로 관리)
 _DETECT_EVERY_N = 3            # N프레임마다 1번 AI 검출 (~30fps 기준 10fps 검출)
@@ -60,26 +61,25 @@ class FaceThread(QThread):
         from camera.camera import get_frame
         from face_detection.mediapipe_detector import detect_face
         from auth.authenticate import authenticate
-        retries = 0
-        while self._running and retries < self._max_retries:
+
+        deadline = time.time() + AUTH_TIMEOUT_SEC
+
+        while self._running and time.time() < deadline:
             frame = get_frame()
             if frame is None:
-                retries += 1
-                self.msleep(300)
+                self.msleep(200)
                 continue
 
             self.frame_ready.emit(frame.copy())
 
             faces = detect_face(frame)
             if not faces:
-                retries += 1
-                self.msleep(300)
+                self.msleep(200)
                 continue
 
             x, y, w, h = faces[0]
             face_img = frame[y: y + h, x: x + w]
             if face_img.size == 0:
-                retries += 1
                 continue
 
             user, score = authenticate(face_img)
@@ -88,8 +88,7 @@ class FaceThread(QThread):
                     self.auth_success.emit(user, float(score))
                 return
 
-            retries += 1
-            self.msleep(500)
+            self.msleep(300)
 
         if self._running:
             self.auth_failed.emit()

@@ -2,12 +2,12 @@ import json
 import os
 
 import numpy as np
-from PyQt5.QtCore import Qt
+from PyQt5.QtCore import Qt, QTimer
 from PyQt5.QtGui import QColor, QFont, QLinearGradient, QPainter
 from PyQt5.QtWidgets import QLabel, QWidget
 
 from ui.widgets.camera_card_widget import CameraCardWidget
-from ui.threads.face_thread import FaceThread, MODE_AUTH, MODE_REGISTER
+from ui.threads.face_thread import AUTH_TIMEOUT_SEC, FaceThread, MODE_AUTH, MODE_REGISTER
 
 _DB_PATH = os.path.normpath(
     os.path.join(os.path.dirname(__file__), "..", "..", "db", "user_db.json")
@@ -52,6 +52,8 @@ class CameraViewScreen(QWidget):
         self._app = parent
         self._mode = MODE_AUTH
         self._thread = None
+        self._countdown_timer = None
+        self._remaining = 0
         self._build_ui()
 
     def set_mode(self, mode: str, **kwargs):
@@ -121,6 +123,11 @@ class CameraViewScreen(QWidget):
         if self._mode == MODE_AUTH:
             self._thread.auth_success.connect(self._on_auth_success)
             self._thread.auth_failed.connect(self._on_auth_failed)
+            self._remaining = AUTH_TIMEOUT_SEC
+            self._sub_lbl.setText(f"카메라를 바라봐 주세요  ({self._remaining}초)")
+            self._countdown_timer = QTimer(self)
+            self._countdown_timer.timeout.connect(self._tick_countdown)
+            self._countdown_timer.start(1000)
         else:
             self._thread.capture_progress.connect(self._on_progress)
             self._thread.capture_done.connect(self._on_capture_done)
@@ -128,10 +135,20 @@ class CameraViewScreen(QWidget):
         self._thread.start()
 
     def _stop_thread(self):
+        if self._countdown_timer and self._countdown_timer.isActive():
+            self._countdown_timer.stop()
+        self._countdown_timer = None
         if self._thread and self._thread.isRunning():
             self._thread.stop()
             self._thread.wait(3000)
         self._thread = None
+
+    def _tick_countdown(self):
+        self._remaining -= 1
+        if self._remaining > 0:
+            self._sub_lbl.setText(f"카메라를 바라봐 주세요  ({self._remaining}초)")
+        else:
+            self._countdown_timer.stop()
 
     # ─────────────────────────────── 콜백: auth ──────────────────────────────
 
@@ -146,9 +163,8 @@ class CameraViewScreen(QWidget):
 
     def _on_auth_failed(self):
         self._stop_thread()
-        result = self._app.screens["auth_result"]
-        result.set_result(success=False)
-        self._app.show_screen("auth_result")
+        if self._app:
+            self._app.show_screen("fingerprint_auth")
 
     # ─────────────────────────────── 콜백: register ──────────────────────────
 
