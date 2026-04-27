@@ -51,7 +51,7 @@ class RegisterCompleteScreen(QWidget):
     def _build_ui(self):
         self.setStyleSheet(f"RegisterCompleteScreen {{ background-color: {_BG}; }}")
         root = QVBoxLayout(self)
-        root.setContentsMargins(40, 0, 40, 40)
+        root.setContentsMargins(24, 0, 24, 24)
         root.setSpacing(0)
         root.setAlignment(Qt.AlignCenter)
 
@@ -61,7 +61,7 @@ class RegisterCompleteScreen(QWidget):
         if os.path.exists(_check_path):
             check_lbl = QLabel()
             check_lbl.setAlignment(Qt.AlignCenter)
-            _pix = QPixmap(_check_path).scaled(120, 120, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+            _pix = QPixmap(_check_path).scaled(150, 150, Qt.KeepAspectRatio, Qt.SmoothTransformation)
             check_lbl.setPixmap(_pix)
             root.addWidget(check_lbl, alignment=Qt.AlignCenter)
         else:
@@ -70,7 +70,7 @@ class RegisterCompleteScreen(QWidget):
         root.addSpacing(24)
 
         title = QLabel("등록 완료")
-        title.setFont(QFont("Sans Serif", 38, QFont.Bold))
+        title.setFont(QFont("Sans Serif", 50, QFont.Bold))
         title.setAlignment(Qt.AlignCenter)
         title.setStyleSheet(f"color: {_DARK};")
         root.addWidget(title)
@@ -78,7 +78,7 @@ class RegisterCompleteScreen(QWidget):
         root.addSpacing(10)
 
         sub = QLabel("메인 화면으로 이동합니다")
-        sub.setFont(QFont("Sans Serif", 24))
+        sub.setFont(QFont("Sans Serif", 32))
         sub.setAlignment(Qt.AlignCenter)
         sub.setStyleSheet(f"color: {_GREEN};")
         root.addWidget(sub)
