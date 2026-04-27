@@ -35,13 +35,13 @@ class MedicationScreen(QWidget):
         self._gradient = _GradientOverlay(parent=self)
 
         self._title_lbl = QLabel("약을 복용해주세요", parent=self)
-        self._title_lbl.setFont(QFont("Sans Serif", 20, QFont.Bold))
+        self._title_lbl.setFont(QFont("Sans Serif", 22, QFont.Bold))
         self._title_lbl.setAlignment(Qt.AlignCenter)
         self._title_lbl.setStyleSheet("color: #ffffff; background: transparent;")
         self._title_lbl.setAttribute(Qt.WA_TransparentForMouseEvents)
 
         self._sub_lbl = QLabel("물과 함께 드세요", parent=self)
-        self._sub_lbl.setFont(QFont("Sans Serif", 15))
+        self._sub_lbl.setFont(QFont("Sans Serif", 17))
         self._sub_lbl.setAlignment(Qt.AlignCenter)
         self._sub_lbl.setStyleSheet("color: #93c5fd; background: transparent;")
         self._sub_lbl.setAttribute(Qt.WA_TransparentForMouseEvents)
@@ -50,10 +50,10 @@ class MedicationScreen(QWidget):
         super().resizeEvent(event)
         w, h = self.width(), self.height()
         self._camera_card.setGeometry(0, 0, w, h)
-        overlay_h = 130
+        overlay_h = int(h * 0.27)
         self._gradient.setGeometry(0, h - overlay_h, w, overlay_h)
-        self._title_lbl.setGeometry(0, h - 85, w, 38)
-        self._sub_lbl.setGeometry(0, h - 44, w, 30)
+        self._title_lbl.setGeometry(0, h - int(h * 0.175), w, 42)
+        self._sub_lbl.setGeometry(0, h - int(h * 0.092), w, 34)
 
     def showEvent(self, event):
         super().showEvent(event)

@@ -167,7 +167,7 @@ class HomeScreen(QWidget):
     def _build_ui(self):
         self.setStyleSheet(f"HomeScreen {{ background-color: {_BG}; }}")
         root = QVBoxLayout(self)
-        root.setContentsMargins(28, 28, 28, 28)
+        root.setContentsMargins(36, 32, 36, 32)
         root.setSpacing(0)
 
         root.addStretch(2)
@@ -193,7 +193,7 @@ class HomeScreen(QWidget):
         # 큰 시계
         self._clock_lbl = QLabel()
         self._clock_lbl.setAlignment(Qt.AlignCenter)
-        self._clock_lbl.setFont(QFont("Sans Serif", 52, QFont.Bold))
+        self._clock_lbl.setFont(QFont("Sans Serif", 60, QFont.Bold))
         self._clock_lbl.setStyleSheet(f"""
             color: {_DARK};
             background-color: {_BG};
@@ -244,12 +244,12 @@ class HomeScreen(QWidget):
 
         self._btn_register = _MenuButton("register.png", "등록", "사용자 등록", lambda: self._go("register"))
         self._btn_register.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
-        self._btn_register.setMinimumHeight(96)
+        self._btn_register.setMinimumHeight(114)
         self._btn_register.hide()  # 기기 페어링 확인 전까지 숨김
 
         btn_settings = _MenuButton("settings.png", "설정", "설정", lambda: self._go("settings"))
         btn_settings.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
-        btn_settings.setMinimumHeight(96)
+        btn_settings.setMinimumHeight(114)
 
         btn_row.addWidget(self._btn_register)
         btn_row.addWidget(btn_settings)
