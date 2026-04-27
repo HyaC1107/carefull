@@ -328,7 +328,7 @@ export default function AdminDashboardPage() {
             {tab === 'members' && (
               <div style={s.section}>
                 <Table
-                  headers={['닉네임', '이메일', '로그인 방식', '환자 수', '가입일']}
+                  headers={['닉네임', '이메일', '로그인 방식', '환자 수']}
                   rows={data}
                   renderRow={(r, i) => (
                     <tr key={r.mem_id} style={i % 2 === 0 ? s.trEven : {}}>
@@ -336,7 +336,6 @@ export default function AdminDashboardPage() {
                       <td style={s.td}>{r.email || '-'}</td>
                       <td style={s.td}><span style={s.providerBadge}>{r.provider}</span></td>
                       <td style={{ ...s.td, textAlign: 'center' }}>{r.patient_count}</td>
-                      <td style={s.td}>{fmt(r.created_at)}</td>
                     </tr>
                   )}
                 />
@@ -369,14 +368,13 @@ export default function AdminDashboardPage() {
             {tab === 'devices' && (
               <div style={s.section}>
                 <Table
-                  headers={['기기 UID', '기기명', '환자', '보호자', '마지막 핑', '상태', '등록일']}
+                  headers={['기기 UID', '환자', '보호자', '마지막 핑', '상태', '등록일']}
                   rows={data}
                   renderRow={(r, i) => {
                     const online = r.last_ping && (Date.now() - new Date(r.last_ping).getTime()) < 5 * 60 * 1000
                     return (
                       <tr key={r.device_id} style={i % 2 === 0 ? s.trEven : {}}>
                         <td style={s.td}><code style={s.code}>{r.device_uid}</code></td>
-                        <td style={s.td}>{r.device_name || '-'}</td>
                         <td style={s.td}>{r.patient_name || '-'}</td>
                         <td style={s.td}>{r.member_nick || '-'}</td>
                         <td style={s.td}>{fmt(r.last_ping)}</td>
@@ -386,7 +384,7 @@ export default function AdminDashboardPage() {
                             {online ? '온라인' : '오프라인'}
                           </span>
                         </td>
-                        <td style={s.td}>{fmt(r.created_at)}</td>
+                        <td style={s.td}>{fmt(r.registered_at)}</td>
                       </tr>
                     )
                   }}
@@ -398,7 +396,7 @@ export default function AdminDashboardPage() {
             {tab === 'schedules' && (
               <div style={s.section}>
                 <Table
-                  headers={['환자', '약 이름', '복약 시간', '시작일', '종료일', '1회 용량', '등록일']}
+                  headers={['환자', '약 이름', '복약 시간', '시작일', '종료일', '복약 간격', '상태']}
                   rows={data}
                   renderRow={(r, i) => (
                     <tr key={r.sche_id} style={i % 2 === 0 ? s.trEven : {}}>
@@ -407,8 +405,8 @@ export default function AdminDashboardPage() {
                       <td style={{ ...s.td, fontWeight: 600, color: '#3b82f6' }}>{r.time_to_take?.slice(0, 5) || '-'}</td>
                       <td style={s.td}>{r.start_date ? new Date(r.start_date).toLocaleDateString('ko-KR') : '-'}</td>
                       <td style={s.td}>{r.end_date ? new Date(r.end_date).toLocaleDateString('ko-KR') : '-'}</td>
-                      <td style={s.td}>{r.dose_quantity ?? '-'}</td>
-                      <td style={s.td}>{fmt(r.created_at)}</td>
+                      <td style={{ ...s.td, textAlign: 'center' }}>{r.dose_interval ?? '-'}일</td>
+                      <td style={s.td}><StatusBadge status={r.status} /></td>
                     </tr>
                   )}
                 />

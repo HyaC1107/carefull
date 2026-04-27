@@ -98,17 +98,16 @@ router.get('/members', verifyAdminToken, async (req, res) => {
                 m.nick,
                 m.email,
                 m.provider,
-                m.created_at,
                 COUNT(p.patient_id)::int AS patient_count
             FROM members m
             LEFT JOIN patients p ON p.mem_id = m.mem_id
-            GROUP BY m.mem_id
-            ORDER BY m.created_at DESC
+            GROUP BY m.mem_id, m.nick, m.email, m.provider
+            ORDER BY m.mem_id DESC
         `);
         return res.json({ success: true, members: rows });
     } catch (err) {
         console.error('[ADMIN MEMBERS]', err);
-        return res.status(500).json({ success: false, message: '서버 오류가 발생했습니다.' });
+        return res.status(500).json({ success: false, message: err.message });
     }
 });
 
@@ -180,9 +179,9 @@ router.get('/devices', verifyAdminToken, async (req, res) => {
             SELECT
                 d.device_id,
                 d.device_uid,
-                d.device_name,
+                d.device_status,
                 d.last_ping,
-                d.created_at,
+                d.registered_at,
                 p.patient_name,
                 m.nick AS member_nick
             FROM devices d
@@ -193,7 +192,7 @@ router.get('/devices', verifyAdminToken, async (req, res) => {
         return res.json({ success: true, devices: rows });
     } catch (err) {
         console.error('[ADMIN DEVICES]', err);
-        return res.status(500).json({ success: false, message: '서버 오류가 발생했습니다.' });
+        return res.status(500).json({ success: false, message: err.message });
     }
 });
 
@@ -206,20 +205,19 @@ router.get('/schedules', verifyAdminToken, async (req, res) => {
                 s.time_to_take,
                 s.start_date,
                 s.end_date,
-                s.dose_quantity,
                 s.dose_interval,
-                s.created_at,
+                s.status,
                 p.patient_name,
                 med.medi_name
             FROM schedules s
             LEFT JOIN patients    p   ON p.patient_id = s.patient_id
             LEFT JOIN medications med ON med.medi_id  = s.medi_id
-            ORDER BY s.created_at DESC
+            ORDER BY s.sche_id DESC
         `);
         return res.json({ success: true, schedules: rows });
     } catch (err) {
         console.error('[ADMIN SCHEDULES]', err);
-        return res.status(500).json({ success: false, message: '서버 오류가 발생했습니다.' });
+        return res.status(500).json({ success: false, message: err.message });
     }
 });
 
