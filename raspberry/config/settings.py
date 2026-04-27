@@ -26,3 +26,8 @@ FULLSCREEN    = os.getenv("CAREFULL_FULLSCREEN",   "1") == "1"
 API_BASE_URL = os.getenv("CAREFULL_API_BASE_URL", "http://localhost:3000")
 DEVICE_UID   = os.getenv("CAREFULL_DEVICE_UID", "")
 API_TIMEOUT  = int(os.getenv("CAREFULL_API_TIMEOUT", "10"))
+
+# Voice & TTS Settings
+VOICES_DIR = os.path.join(BASE_DIR, "voices")
+TTS_LANG = os.getenv("CAREFULL_TTS_LANG", "ko")
+TTS_FILE_PATH = os.path.join(VOICES_DIR, "default_alarm.mp3")
