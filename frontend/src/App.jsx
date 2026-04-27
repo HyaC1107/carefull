@@ -7,6 +7,7 @@ import StatsPage from './pages/StatsPage'
 import AlertsPage from './pages/AlertsPage'
 import PatientPage from './pages/PatientPage'
 import SettingsPage from './pages/SettingsPage'
+import { hasStoredToken } from './api'
 
 function App() {
   return (
@@ -19,28 +20,36 @@ function App() {
       <Route path="/login/callback/:provider" element={<SocialCallbackPage />} />
 
       {/* 대시보드 페이지 */}
-      <Route path="/dashboard" element={<DashboardPage />} />
+      <Route path="/dashboard" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
 
       {/* 복약일정 페이지 */}
-      <Route path="/schedule" element={<SchedulePage />} />
+      <Route path="/schedule" element={<ProtectedRoute><SchedulePage /></ProtectedRoute>} />
 
       {/* 통계 페이지 */}
-      <Route path="/stats" element={<StatsPage />} />
+      <Route path="/stats" element={<ProtectedRoute><StatsPage /></ProtectedRoute>} />
 
       {/* 알림 페이지 */}
-      <Route path="/alerts" element={<AlertsPage />} />
+      <Route path="/alerts" element={<ProtectedRoute><AlertsPage /></ProtectedRoute>} />
 
       {/* 환자정보 페이지 */}
-      <Route path="/patient" element={<PatientPage />} />
-      <Route path="/register-patient" element={<PatientPage />} />
+      <Route path="/patient" element={<ProtectedRoute><PatientPage /></ProtectedRoute>} />
+      <Route path="/register-patient" element={<ProtectedRoute><PatientPage /></ProtectedRoute>} />
 
       {/* 설정 페이지 */}
-      <Route path="/settings" element={<SettingsPage />} />
+      <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
 
       {/* 없는 주소로 들어오면 로그인 페이지로 보냄 */}
       <Route path="*" element={<Navigate to="/login" replace />} />
     </Routes>
   )
+}
+
+function ProtectedRoute({ children }) {
+  if (!hasStoredToken()) {
+    return <Navigate to="/login" replace />
+  }
+
+  return children
 }
 
 export default App
