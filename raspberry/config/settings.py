@@ -25,3 +25,10 @@ FULLSCREEN    = os.getenv("CAREFULL_FULLSCREEN",   "1") == "1"
 API_BASE_URL = os.getenv("CAREFULL_API_BASE_URL", "http://localhost:3000")
 DEVICE_UID   = os.getenv("CAREFULL_DEVICE_UID", "")
 API_TIMEOUT  = int(os.getenv("CAREFULL_API_TIMEOUT", "10"))
+
+# UI 폰트 크기 (pt) — 고령자 대상, 여기서만 수정하면 전체 반영
+FONT_TITLE  = 50   # 화면 메인 타이틀
+FONT_HEAD   = 42   # 섹션 헤딩 / 인증 타이틀
+FONT_BODY   = 30   # 본문 / 설명 텍스트
+FONT_SMALL  = 24   # 보조 텍스트, 카운터
+FONT_BUTTON = 28   # 버튼 텍스트
