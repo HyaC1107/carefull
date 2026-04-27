@@ -2,7 +2,7 @@ from PyQt5.QtCore import Qt, QThread, QTimer, pyqtSignal
 from PyQt5.QtGui import QColor, QFont, QPainter, QPen
 from PyQt5.QtWidgets import QLabel, QProgressBar, QVBoxLayout, QWidget
 
-_BG = "#eaebff"
+_BG = "#dde3f8"
 _INDIGO = "#4338ca"
 _DARK = "#1e1b5e"
 _TRANSITION_MS = 3500
@@ -60,7 +60,7 @@ class DispensingScreen(QWidget):
         self._build_ui()
 
     def _build_ui(self):
-        self.setStyleSheet(f"background-color: {_BG};")
+        self.setStyleSheet(f"DispensingScreen {{ background-color: {_BG}; }}")
         root = QVBoxLayout(self)
         root.setContentsMargins(40, 0, 40, 40)
         root.setSpacing(0)

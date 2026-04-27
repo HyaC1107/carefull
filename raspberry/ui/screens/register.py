@@ -1,8 +1,14 @@
+import os
+
 from PyQt5.QtCore import Qt
-from PyQt5.QtGui import QColor, QFont, QPainter, QPen
+from PyQt5.QtGui import QColor, QFont, QPainter, QPen, QPixmap
 from PyQt5.QtWidgets import (
     QFrame, QHBoxLayout, QLabel, QPushButton, QSizePolicy,
     QVBoxLayout, QWidget,
+)
+
+_ICONS_DIR = os.path.normpath(
+    os.path.join(os.path.dirname(__file__), "..", "..", "assets", "icons")
 )
 
 _BG = "#ede8ff"
@@ -44,7 +50,7 @@ class RegisterScreen(QWidget):
         self._build_ui()
 
     def _build_ui(self):
-        self.setStyleSheet(f"background-color: {_BG};")
+        self.setStyleSheet(f"RegisterScreen {{ background-color: {_BG}; }}")
         root = QVBoxLayout(self)
         root.setContentsMargins(24, 20, 24, 28)
         root.setSpacing(0)
@@ -69,11 +75,15 @@ class RegisterScreen(QWidget):
 
         root.addStretch(1)
 
-        # 아이콘
-        icon_lbl = QLabel("👤+")
-        icon_lbl.setFont(QFont("Segoe UI Emoji", 32))
+        icon_lbl = QLabel()
         icon_lbl.setAlignment(Qt.AlignCenter)
-        icon_lbl.setStyleSheet(f"color: {_PURPLE};")
+        _icon_path = os.path.join(_ICONS_DIR, "user_register.png")
+        if os.path.exists(_icon_path):
+            _pix = QPixmap(_icon_path).scaled(64, 64, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+            icon_lbl.setPixmap(_pix)
+        else:
+            icon_lbl.setText("👤")
+            icon_lbl.setFont(QFont("Sans Serif", 32))
         root.addWidget(icon_lbl)
 
         root.addSpacing(10)
@@ -113,7 +123,7 @@ class RegisterScreen(QWidget):
         root.addStretch(2)
 
         # 등록 시작 버튼
-        start_btn = QPushButton("📷  등록 시작")
+        start_btn = QPushButton("등록 시작")
         start_btn.setMinimumHeight(60)
         start_btn.setFont(QFont("Sans Serif", 18, QFont.Bold))
         start_btn.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)

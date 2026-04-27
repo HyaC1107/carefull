@@ -3,10 +3,10 @@ import socket
 import sys
 
 from PyQt5.QtCore import Qt
-from PyQt5.QtGui import QFont
+from PyQt5.QtGui import QFont, QPixmap
 from PyQt5.QtWidgets import (
     QApplication, QFrame, QHBoxLayout, QLabel, QPushButton, QScrollArea,
-    QSizePolicy, QSlider, QVBoxLayout, QWidget,
+    QScroller, QSizePolicy, QSlider, QVBoxLayout, QWidget,
 )
 
 _BG = "#f5f6fa"
@@ -16,6 +16,25 @@ _GRAY = "#64748b"
 _GREEN = "#16a34a"
 _BLUE = "#3b82f6"
 _ORANGE = "#f97316"
+
+_ICONS_DIR = os.path.normpath(
+    os.path.join(os.path.dirname(__file__), "..", "..", "assets", "icons")
+)
+
+
+def _icon_label(png_name: str, fallback: str, size: int = 32) -> QLabel:
+    """PNG 파일이 있으면 이미지로, 없으면 텍스트로 표시."""
+    lbl = QLabel()
+    lbl.setStyleSheet("background: transparent; border: none;")
+    path = os.path.join(_ICONS_DIR, png_name)
+    if os.path.exists(path):
+        pix = QPixmap(path).scaled(size, size, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+        lbl.setPixmap(pix)
+        lbl.setFixedSize(size, size)
+    else:
+        lbl.setText(fallback)
+        lbl.setFont(QFont("Sans Serif", 16))
+    return lbl
 
 
 def _check_network() -> bool:
@@ -28,22 +47,14 @@ def _check_network() -> bool:
 
 
 class _StatusCard(QFrame):
-    def __init__(self, icon: str, title: str, subtitle: str, ok: bool, parent=None):
+    def __init__(self, png_name: str, fallback_icon: str, title: str, subtitle: str, ok: bool, parent=None):
         super().__init__(parent)
-        self.setStyleSheet(f"""
-            QFrame {{
-                background-color: {_CARD};
-                border-radius: 12px;
-            }}
-        """)
+        self.setStyleSheet(f"QFrame {{ background-color: {_CARD}; border-radius: 12px; }}")
         lay = QHBoxLayout(self)
         lay.setContentsMargins(18, 14, 18, 14)
         lay.setSpacing(12)
 
-        icon_lbl = QLabel(icon)
-        icon_lbl.setFont(QFont("Segoe UI Emoji", 18))
-        icon_lbl.setStyleSheet("background: transparent; border: none;")
-        lay.addWidget(icon_lbl)
+        lay.addWidget(_icon_label(png_name, fallback_icon))
 
         text_lay = QVBoxLayout()
         text_lay.setSpacing(2)
@@ -83,9 +94,8 @@ class _VolumeCard(QFrame):
         lay.setSpacing(8)
 
         top = QHBoxLayout()
-        icon_lbl = QLabel("🔊")
-        icon_lbl.setFont(QFont("Segoe UI Emoji", 18))
-        icon_lbl.setStyleSheet("background: transparent; border: none;")
+        top.addWidget(_icon_label("volume.png", "♪"))
+        top.addSpacing(8)
 
         title_lbl = QLabel("알림 음량")
         title_lbl.setFont(QFont("Sans Serif", 15, QFont.Bold))
@@ -95,7 +105,6 @@ class _VolumeCard(QFrame):
         self._pct_lbl.setFont(QFont("Sans Serif", 15, QFont.Bold))
         self._pct_lbl.setStyleSheet(f"color: {_BLUE}; background: transparent; border: none;")
 
-        top.addWidget(icon_lbl)
         top.addWidget(title_lbl)
         top.addStretch()
         top.addWidget(self._pct_lbl)
@@ -122,9 +131,7 @@ class _VolumeCard(QFrame):
                 border-radius: 3px;
             }}
         """)
-        self._slider.valueChanged.connect(
-            lambda v: self._pct_lbl.setText(f"{v}%")
-        )
+        self._slider.valueChanged.connect(lambda v: self._pct_lbl.setText(f"{v}%"))
         lay.addWidget(self._slider)
 
 
@@ -137,15 +144,12 @@ class _ControlCard(QFrame):
         lay.setSpacing(10)
 
         top = QHBoxLayout()
-        icon_lbl = QLabel("🔄")
-        icon_lbl.setFont(QFont("Segoe UI Emoji", 18))
-        icon_lbl.setStyleSheet("background: transparent; border: none;")
+        top.addWidget(_icon_label("control.png", "⚙"))
+        top.addSpacing(8)
 
         title_lbl = QLabel("기기 제어")
         title_lbl.setFont(QFont("Sans Serif", 15, QFont.Bold))
         title_lbl.setStyleSheet(f"color: {_DARK}; background: transparent; border: none;")
-
-        top.addWidget(icon_lbl)
         top.addWidget(title_lbl)
         top.addStretch()
         lay.addLayout(top)
@@ -195,7 +199,7 @@ class SettingsScreen(QWidget):
         self._build_ui()
 
     def _build_ui(self):
-        self.setStyleSheet(f"background-color: {_BG};")
+        self.setStyleSheet(f"SettingsScreen {{ background-color: {_BG}; }}")
         root = QVBoxLayout(self)
         root.setContentsMargins(20, 18, 20, 20)
         root.setSpacing(0)
@@ -240,6 +244,11 @@ class SettingsScreen(QWidget):
         scroll.setWidgetResizable(True)
         scroll.setFrameShape(QFrame.NoFrame)
         scroll.setStyleSheet("background: transparent;")
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        scroll.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+
+        # 터치 드래그 스크롤 활성화
+        QScroller.grabGesture(scroll.viewport(), QScroller.LeftMouseButtonGesture)
 
         content = QWidget()
         content.setStyleSheet("background: transparent;")
@@ -248,8 +257,8 @@ class SettingsScreen(QWidget):
         c_lay.setContentsMargins(0, 0, 0, 0)
 
         wifi_ok = _check_network()
-        c_lay.addWidget(_StatusCard("📶", "WiFi 연결", "연결됨" if wifi_ok else "연결 안됨", wifi_ok))
-        c_lay.addWidget(_StatusCard("🖥", "서버 통신", "통신 가능", True))
+        c_lay.addWidget(_StatusCard("wifi.png", "WiFi", "WiFi 연결", "연결됨" if wifi_ok else "연결 안됨", wifi_ok))
+        c_lay.addWidget(_StatusCard("server.png", "서버", "서버 통신", "통신 가능", True))
         c_lay.addWidget(_VolumeCard())
         c_lay.addWidget(_ControlCard())
         c_lay.addStretch()
@@ -259,8 +268,7 @@ class SettingsScreen(QWidget):
 
         root.addSpacing(10)
 
-        # 하단 버전 정보
-        ver = QLabel("Smart Medication Dispenser v1.0\n해상도: 800×480")
+        ver = QLabel("Smart Medication Dispenser v1.0")
         ver.setFont(QFont("Sans Serif", 11))
         ver.setAlignment(Qt.AlignCenter)
         ver.setStyleSheet(f"color: {_GRAY};")

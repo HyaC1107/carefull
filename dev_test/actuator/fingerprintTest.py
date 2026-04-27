@@ -9,7 +9,7 @@ from pyfingerprint.pyfingerprint import PyFingerprint
 # 지문 등록
 # python3 ../dev_test/actuator/fingerprintTest.py enroll 1 (1번에)
 # 지문 확인
-# python3 python3 sensor/fingerprint.py search
+# python3 dev_test/actuator/fingerprintTest.py search
 
 def get_sensor():
     """센서 객체를 초기화해서 반환하는 내부 함수"""
@@ -24,18 +24,19 @@ def get_sensor():
         return None
 
 def fingerprint_search():
-    """지문 스캔 후 등록된 ID 반환"""
+    """지문 스캔 후 (ID, score) 튜플 반환. 미등록이면 (-1, 0)."""
     f = get_sensor()
-    if not f: return "연결 오류"
+    if not f: return None
 
     print("손가락을 올려주세요.")
     while not f.readImage(): pass
-    
+
     f.convertImage(0x01)
     result = f.searchTemplate()
     positionNumber = result[0]
-    
-    return positionNumber # 찾으면 ID, 못 찾으면 -1
+    accuracyScore = result[1]
+
+    return positionNumber, accuracyScore
 
 def fingerprint_enroll(position):
     """
