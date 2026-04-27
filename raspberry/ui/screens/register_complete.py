@@ -70,7 +70,7 @@ class RegisterCompleteScreen(QWidget):
         root.addSpacing(24)
 
         title = QLabel("등록 완료")
-        title.setFont(QFont("Sans Serif", 30, QFont.Bold))
+        title.setFont(QFont("Sans Serif", 38, QFont.Bold))
         title.setAlignment(Qt.AlignCenter)
         title.setStyleSheet(f"color: {_DARK};")
         root.addWidget(title)
@@ -78,7 +78,7 @@ class RegisterCompleteScreen(QWidget):
         root.addSpacing(10)
 
         sub = QLabel("메인 화면으로 이동합니다")
-        sub.setFont(QFont("Sans Serif", 18))
+        sub.setFont(QFont("Sans Serif", 24))
         sub.setAlignment(Qt.AlignCenter)
         sub.setStyleSheet(f"color: {_GREEN};")
         root.addWidget(sub)

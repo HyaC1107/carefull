@@ -70,7 +70,7 @@ class DispensingScreen(QWidget):
         root.addSpacing(20)
 
         title = QLabel("약이 나옵니다")
-        title.setFont(QFont("Sans Serif", 28, QFont.Bold))
+        title.setFont(QFont("Sans Serif", 36, QFont.Bold))
         title.setAlignment(Qt.AlignCenter)
         title.setStyleSheet(f"color: {_DARK};")
         root.addWidget(title)
@@ -98,7 +98,7 @@ class DispensingScreen(QWidget):
         root.addSpacing(14)
 
         sub = QLabel("잠시만 기다려주세요")
-        sub.setFont(QFont("Sans Serif", 16))
+        sub.setFont(QFont("Sans Serif", 22))
         sub.setAlignment(Qt.AlignCenter)
         sub.setStyleSheet(f"color: {_INDIGO};")
         root.addWidget(sub)
