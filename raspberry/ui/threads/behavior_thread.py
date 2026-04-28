@@ -1,12 +1,17 @@
-import cv2
-import mediapipe as mp
-import numpy as np
 from PyQt5.QtCore import QThread, pyqtSignal
 
-from camera.camera import get_frame
+from config.settings import UI_TEST_MODE, MODELS_DIR
+import os
 
-_DIST_THRESHOLD = 0.10
-_SUCCESS_FRAMES = 5
+_DIST_THRESHOLD  = 0.13
+_SUCCESS_FRAMES  = 5
+_YOLO_MODEL_PATH = os.path.join(MODELS_DIR, "yolo26n-pose_ncnn_model")
+_YOLO_IMGSZ      = 640
+_YOLO_CONF       = 0.3
+
+_KP_L_WRIST = 9
+_KP_R_WRIST = 10
+_KP_MOUTH   = 13  # FaceMesh landmark
 
 
 class BehaviorThread(QThread):
@@ -20,16 +25,25 @@ class BehaviorThread(QThread):
 
     def run(self):
         self._running = True
+        if UI_TEST_MODE:
+            for i in range(1, _SUCCESS_FRAMES + 1):
+                if not self._running:
+                    return
+                self.progress_updated.emit(i, _SUCCESS_FRAMES)
+                self.msleep(400)
+            if self._running:
+                self.intake_detected.emit()
+            return
 
-        mp_hands_mod = mp.solutions.hands
+        import cv2
+        import mediapipe as mp
+        import numpy as np
+        from ultralytics import YOLO
+        from camera.camera import get_frame
+
+        yolo = YOLO(_YOLO_MODEL_PATH)
+
         mp_face_mesh_mod = mp.solutions.face_mesh
-
-        hands = mp_hands_mod.Hands(
-            static_image_mode=False,
-            max_num_hands=1,
-            min_detection_confidence=0.1,
-            min_tracking_confidence=0.1,
-        )
         face_mesh = mp_face_mesh_mod.FaceMesh(
             max_num_faces=1,
             refine_landmarks=True,
@@ -50,15 +64,38 @@ class BehaviorThread(QThread):
 
                 rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
                 rgb = cv2.flip(rgb, 1)
+                h, w = rgb.shape[:2]
 
-                hand_res = hands.process(rgb)
                 face_res = face_mesh.process(rgb)
+                mouth = None
+                if face_res.multi_face_landmarks:
+                    lm = face_res.multi_face_landmarks[0].landmark[_KP_MOUTH]
+                    mouth = (lm.x, lm.y)
 
-                if face_res.multi_face_landmarks and hand_res.multi_hand_landmarks:
-                    mouth = face_res.multi_face_landmarks[0].landmark[13]
-                    finger = hand_res.multi_hand_landmarks[0].landmark[8]
-                    dist = np.hypot(finger.x - mouth.x, finger.y - mouth.y)
+                wrist = None
+                bgr = cv2.cvtColor(rgb, cv2.COLOR_RGB2BGR)
+                results = yolo(bgr, imgsz=_YOLO_IMGSZ, verbose=False)
+                for r in results:
+                    if r.keypoints is None or len(r.keypoints.data) == 0:
+                        break
+                    kps = r.keypoints.data[0]
+                    l_kp = kps[_KP_L_WRIST]
+                    r_kp = kps[_KP_R_WRIST]
 
+                    dist_l = dist_r = float("inf")
+                    if mouth:
+                        if l_kp[2] >= _YOLO_CONF:
+                            dist_l = float(np.hypot(l_kp[0] / w - mouth[0], l_kp[1] / h - mouth[1]))
+                        if r_kp[2] >= _YOLO_CONF:
+                            dist_r = float(np.hypot(r_kp[0] / w - mouth[0], r_kp[1] / h - mouth[1]))
+
+                    closer = l_kp if dist_l <= dist_r else r_kp
+                    if closer[2] >= _YOLO_CONF:
+                        wrist = (closer[0].item() / w, closer[1].item() / h)
+                    break
+
+                if mouth and wrist:
+                    dist = np.hypot(wrist[0] - mouth[0], wrist[1] - mouth[1])
                     if dist < _DIST_THRESHOLD:
                         counter += 1
                     else:
@@ -73,7 +110,6 @@ class BehaviorThread(QThread):
                         self.intake_detected.emit()
                     return
         finally:
-            hands.close()
             face_mesh.close()
 
     def stop(self):

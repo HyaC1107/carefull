@@ -19,7 +19,7 @@ function ScheduleList({ schedules, selectedDate, onToggle }) {
         <ScheduleItemCard
           key={item.id}
           item={item}
-          onToggle={() => onToggle(selectedDate, item.id)}
+          onToggle={() => onToggle(selectedDate, item)}
         />
       ))}
     </section>

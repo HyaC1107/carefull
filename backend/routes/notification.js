@@ -6,116 +6,117 @@ const { verifyToken } = require('../middleware/auth');
 const { sendSuccess, sendError } = require('../utils/response');
 const { parseNumericValue } = require('../utils/validators');
 
-/**
- * GET /
- * 로그인한 사용자의 memberId 기준으로 알림 목록을 조회합니다.
- */
+const to_notification_response = (row) => ({
+    noti_id: row.noti_id,
+    mem_id: row.mem_id,
+    activity_id: row.activity_id,
+    noti_title: row.noti_title,
+    noti_msg: row.noti_msg,
+    is_received: row.is_received,
+    noti_type: row.noti_type,
+    created_at: row.created_at
+});
+
 router.get('/', verifyToken, async (req, res) => {
-    const memberId = req.user.memberId;
+    const mem_id = req.user.mem_id;
 
     try {
         const query = `
             SELECT
-                notification_id,
-                member_id,
-                log_id,
-                title,
-                message,
-                is_read,
-                type,
+                noti_id,
+                mem_id,
+                activity_id,
+                noti_title,
+                noti_msg,
+                is_received,
+                noti_type,
                 created_at
             FROM notifications
-            WHERE member_id = $1
-            ORDER BY created_at DESC, notification_id DESC
+            WHERE mem_id = $1
+            ORDER BY created_at DESC, noti_id DESC
         `;
 
-        const { rows } = await pool.query(query, [memberId]);
+        const { rows } = await pool.query(query, [mem_id]);
 
         return sendSuccess(res, 200, {
-            notifications: rows
+            notifications: rows.map(to_notification_response)
         });
     } catch (error) {
-        console.error('알림 목록 조회 중 오류가 발생했습니다:', error);
-        return sendError(res, 500, '알림 목록 조회 중 서버 오류가 발생했습니다.');
+        console.error('Notification fetch error:', error);
+        return sendError(res, 500, 'Server error while fetching notifications.');
     }
 });
 
-/**
- * PATCH /read-all
- * 로그인한 사용자의 전체 알림을 읽음 처리합니다.
- */
 router.patch('/read-all', verifyToken, async (req, res) => {
-    const memberId = req.user.memberId;
+    const mem_id = req.user.mem_id;
 
     try {
-        const updateQuery = `
+        const update_query = `
             UPDATE notifications
             SET
-                is_read = TRUE
-            WHERE member_id = $1
-              AND is_read = FALSE
+                is_received = TRUE,
+                received_time = CURRENT_TIMESTAMP
+            WHERE mem_id = $1
+              AND is_received = FALSE
             RETURNING
-                notification_id
+                noti_id
         `;
 
-        const { rows } = await pool.query(updateQuery, [memberId]);
+        const { rows } = await pool.query(update_query, [mem_id]);
 
         return sendSuccess(res, 200, {
-            message: '전체 알림이 읽음 처리되었습니다.',
+            message: 'All notifications marked as received.',
             count: rows.length
         });
     } catch (error) {
-        console.error('전체 알림 읽음 처리 중 오류가 발생했습니다:', error);
-        return sendError(res, 500, '전체 알림 읽음 처리 중 서버 오류가 발생했습니다.');
+        console.error('Notification read-all error:', error);
+        return sendError(res, 500, 'Server error while updating notifications.');
     }
 });
 
-/**
- * PATCH /:id/read
- * 로그인한 사용자의 알림 1건을 읽음 처리합니다.
- */
 router.patch('/:id/read', verifyToken, async (req, res) => {
-    const memberId = req.user.memberId;
-    const parsedNotificationId = parseNumericValue(req.params.id);
+    const mem_id = req.user.mem_id;
+    const parsed_noti_id = parseNumericValue(req.params.id);
 
-    if (parsedNotificationId === null) {
-        return sendError(res, 400, '유효하지 않은 notification id입니다.');
+    if (parsed_noti_id === null) {
+        return sendError(res, 400, 'Invalid notification id.');
     }
 
     try {
-        const updateQuery = `
+        const update_query = `
             UPDATE notifications
             SET
-                is_read = TRUE
-            WHERE notification_id = $1
-              AND member_id = $2
+                is_received = TRUE,
+                received_time = CURRENT_TIMESTAMP
+            WHERE noti_id = $1
+              AND mem_id = $2
             RETURNING
-                notification_id,
-                member_id,
-                log_id,
-                title,
-                message,
-                is_read,
-                type,
+                noti_id,
+                mem_id,
+                activity_id,
+                noti_title,
+                noti_msg,
+                is_received,
+                noti_type,
                 created_at
         `;
 
-        const { rows } = await pool.query(updateQuery, [
-            parsedNotificationId,
-            memberId
+        const { rows } = await pool.query(update_query, [
+            parsed_noti_id,
+            mem_id
         ]);
 
         if (rows.length === 0) {
-            return sendError(res, 404, '해당 알림이 없거나 접근 권한이 없습니다.');
+            return sendError(res, 404, 'Notification not found or access denied.');
         }
 
         return sendSuccess(res, 200, {
-            message: '알림이 읽음 처리되었습니다.',
-            notification: rows[0]
+            message: 'Notification marked as received.',
+            notification: to_notification_response(rows[0])
         });
     } catch (error) {
-        console.error('알림 읽음 처리 중 오류가 발생했습니다:', error);
-        return sendError(res, 500, '알림 읽음 처리 중 서버 오류가 발생했습니다.');
+        console.error('Notification read error:', error);
+        return sendError(res, 500, 'Server error while updating notification.');
     }
 });
 

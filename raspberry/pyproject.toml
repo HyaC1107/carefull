@@ -1,0 +1,28 @@
+[project]
+name = "carefull-raspberry"
+version = "1.0.0"
+description = "carefull 스마트 복약 관리 - 라즈베리파이 엣지 디바이스"
+requires-python = "==3.11.*"
+
+dependencies = [
+    "numpy",
+    "mediapipe",
+    "tflite-runtime",
+    "opencv-python",
+    "pygame",
+    "pyserial",
+    "requests",
+    "schedule",
+    "python-dotenv",
+    "RPi.GPIO",
+    "RpiMotorLib",
+    "psutil",
+]
+
+# picamera2, PyQt5는 apt로 설치 후 --system-site-packages로 접근
+# sudo apt install -y python3-picamera2 python3-pyqt5
+
+[tool.uv]
+# 라즈베리파이 aarch64 환경 기준
+# tflite-runtime 공식 PyPI 지원 안 될 경우 아래 주석 해제
+# find-links = ["https://github.com/google-coral/pycoral/releases/"]
