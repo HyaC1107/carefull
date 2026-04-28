@@ -150,6 +150,7 @@ function SettingsPage() {
       setIsGuardianModalOpen(true)
     } else if (id === 'logout') {
       localStorage.removeItem(TOKEN_STORAGE_KEY)
+      sessionStorage.removeItem('carefull_fcm_registered')
       window.location.href = '/'
     }
   }

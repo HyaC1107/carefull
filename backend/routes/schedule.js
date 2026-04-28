@@ -6,6 +6,7 @@ const { verifyToken } = require('../middleware/auth');
 const { find_patient_id_by_mem_id } = require('../utils/auth-user');
 const { parseNumericFields, parseNumericValue, validateRequiredFields } = require('../utils/validators');
 const { sendSuccess, sendError } = require('../utils/response');
+const { send_schedule_created_push_safe } = require('../services/push.service');
 
 const validate_schedule_payload = (body) => {
     const required_fields = [
@@ -206,6 +207,7 @@ router.post('/', verifyToken, async (req, res) => {
             }
 
             await client.query('COMMIT');
+            await send_schedule_created_push_safe(mem_id);
 
             return sendSuccess(res, 201, {
                 message: 'Schedule created successfully.',

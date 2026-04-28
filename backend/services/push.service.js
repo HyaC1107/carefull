@@ -138,6 +138,31 @@ const send_test_push = async (mem_id) => {
     });
 };
 
+const send_schedule_created_push = async (mem_id) => {
+    const tokens = await get_active_push_tokens_by_mem_id(mem_id);
+
+    if (tokens.length === 0) {
+        return {
+            sent: false,
+            reason: 'active push token not found'
+        };
+    }
+
+    const result = await send_to_tokens({
+        tokens,
+        title: '복약 스케줄 등록 완료',
+        body: '새 복약 스케줄이 등록되었습니다.',
+        data: {
+            type: 'SCHEDULE_CREATED'
+        }
+    });
+
+    return {
+        sent: result.success_count > 0,
+        ...result
+    };
+};
+
 const send_medication_activity_push = async (activity_id) => {
     const query = `
         SELECT
@@ -218,8 +243,21 @@ const send_medication_activity_push_safe = async (activity_id) => {
     }
 };
 
+const send_schedule_created_push_safe = async (mem_id) => {
+    try {
+        return await send_schedule_created_push(mem_id);
+    } catch (error) {
+        console.warn('[PUSH] failed to send schedule created push:', error);
+        return {
+            sent: false,
+            error
+        };
+    }
+};
+
 module.exports = {
     register_push_token,
     send_test_push,
+    send_schedule_created_push_safe,
     send_medication_activity_push_safe
 };

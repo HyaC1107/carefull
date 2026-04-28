@@ -47,8 +47,8 @@ function PatientPage() {
       try {
         const [patientResponse, deviceResponse, scheduleResponse] =
           await Promise.all([
-            requestJson('/api/patient/me', { auth: true }).catch(() => null),
-            requestJson('/api/device/me', { auth: true }).catch(() => null),
+            requestOptionalJson('/api/patient/me'),
+            requestOptionalJson('/api/device/me'),
             requestJson('/api/schedule', { auth: true }).catch(() => null),
           ])
 
@@ -62,10 +62,9 @@ function PatientPage() {
         setPatientData(mapPatientProfile(patient, nickname))
         setDeviceData(mapDeviceDetail(device))
         setMedications(mapPatientMedications(scheduleResponse?.schedules))
+        setIsRegistrationCheckLoading(false)
       } catch (error) {
         console.error('patient page fetch error:', error)
-      } finally {
-        setIsRegistrationCheckLoading(false)
       }
     }
 
@@ -295,6 +294,18 @@ function hasRegisteredPatient(patient) {
 
 function hasRegisteredDevice(device) {
   return Boolean(device?.device_id || device?.device_uid)
+}
+
+async function requestOptionalJson(path) {
+  try {
+    return await requestJson(path, { auth: true })
+  } catch (error) {
+    if (error.status === 404) {
+      return null
+    }
+
+    throw error
+  }
 }
 
 function buildDeviceStatusList(deviceData) {
