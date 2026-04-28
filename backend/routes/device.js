@@ -72,6 +72,51 @@ router.post('/ping', async (req, res) => {
     }
 });
 
+// POST /api/device/fingerprint  — JWT 불필요, device_uid 로 인증
+router.post('/fingerprint', async (req, res) => {
+    const { device_uid, fingerprint_id } = req.body;
+
+    if (!device_uid || !String(device_uid).trim()) {
+        return sendError(res, 400, 'device_uid is required.');
+    }
+
+    if (fingerprint_id === undefined || fingerprint_id === null) {
+        return sendError(res, 400, 'fingerprint_id is required.');
+    }
+
+    const parsed_id = parseInt(fingerprint_id, 10);
+    if (isNaN(parsed_id) || parsed_id < 0) {
+        return sendError(res, 400, 'fingerprint_id must be a non-negative integer.');
+    }
+
+    try {
+        const { rows } = await pool.query(`
+            UPDATE patients
+            SET fingerprint_id = $1
+            WHERE patient_id = (
+                SELECT patient_id FROM devices
+                WHERE device_uid = $2
+                  AND patient_id IS NOT NULL
+                LIMIT 1
+            )
+            RETURNING patient_id, fingerprint_id
+        `, [parsed_id, String(device_uid).trim()]);
+
+        if (rows.length === 0) {
+            return sendError(res, 404, 'Device not found or not assigned to a patient.');
+        }
+
+        return sendSuccess(res, 200, {
+            message: 'Fingerprint ID saved successfully.',
+            patient_id: rows[0].patient_id,
+            fingerprint_id: rows[0].fingerprint_id
+        });
+    } catch (error) {
+        console.error('Fingerprint update error:', error);
+        return sendError(res, 500, 'Server error while saving fingerprint ID.');
+    }
+});
+
 router.post('/register', verifyToken, async (req, res) => {
     const mem_id = req.user.mem_id;
     const { device_uid, deviceName, device_name } = req.body;
