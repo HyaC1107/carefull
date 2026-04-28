@@ -19,11 +19,13 @@ except ImportError:
 
 from scheduler.schedule import check_schedule, sync_schedules
 from hardware.alarm import play_alarm, stop_alarm
+from hardware.motor import dispense_medicine
+from camera.camera import check_camera_health, release_camera
 from config.settings import VOICES_DIR
 
-logger = logging.getLogger("SystemController")
+logger = logging.getLogger("Controller")
 
-class SystemController(threading.Thread):
+class Controller(threading.Thread):
     """
     하드웨어 관리와 백그라운드 스케줄 감시를 통합한 메인 컨트롤러
     """
@@ -45,13 +47,14 @@ class SystemController(threading.Thread):
             GPIO.setmode(GPIO.BCM)
             GPIO.setwarnings(False)
             
-            # 디스펜서 핀 초기화 (12, 16, 20, 21)
-            dispenser_pins = [12, 16, 20, 21]
-            for pin in dispenser_pins:
+            # 모터 및 배출 관련 핀 초기화 (12, 16, 20, 21)
+            # motor.py의 STEP_PINS와 동일하게 설정
+            motor_pins = [12, 16, 20, 21]
+            for pin in motor_pins:
                 GPIO.setup(pin, GPIO.OUT)
                 GPIO.output(pin, False)
                 
-            logger.info("GPIO and Dispenser pins initialized.")
+            logger.info("GPIO and Motor pins initialized.")
             return True
         except Exception as e:
             logger.error(f"Hardware initialization failed: {e}")
@@ -64,6 +67,7 @@ class SystemController(threading.Thread):
         try:
             stop_alarm()
             GPIO.cleanup()
+            release_camera()
             logger.info("Hardware cleanup successful.")
         except Exception as e:
             logger.error(f"Error during hardware cleanup: {e}")
@@ -75,7 +79,7 @@ class SystemController(threading.Thread):
         results = {
             "gpio": True,
             "motor": "ready",
-            "fingerprint_sensor": "pending",
+            "camera": check_camera_health(),
             "alarm_speaker": "ready"
         }
         return results
@@ -86,16 +90,17 @@ class SystemController(threading.Thread):
         logger.warning("EMERGENCY STOP CALLED!")
         try:
             stop_alarm()
-            dispenser_pins = [12, 16, 20, 21]
-            for pin in dispenser_pins:
+            motor_pins = [12, 16, 20, 21]
+            for pin in motor_pins:
                 GPIO.output(pin, False)
+            release_camera()
         except Exception as e:
             logger.error(f"Emergency stop failed: {e}")
 
     # --- 백그라운드 스케줄링 로직 ---
 
     def run(self):
-        logger.info("SystemController Background Thread started.")
+        logger.info("Controller Background Thread started.")
         
         # 시작 시 스케줄 동기화
         sync_schedules()
@@ -109,18 +114,44 @@ class SystemController(threading.Thread):
                     for s in due_schedules:
                         sche_id = s.get("sche_id")
                         medi_name = s.get("medi_name", "약")
-                        logger.info(f"Schedule Triggered: {medi_name} (ID: {sche_id})")
+                        logger.info(f"--- Medication Process Start: {medi_name} (ID: {sche_id}) ---")
                         
-                        # 결제 여부에 따른 알람 파일 결정
+                        # 1. 스케줄 확인 및 알람 (hardware.md #1)
                         custom_voice = f"voice_{sche_id}.mp3"
                         play_alarm(custom_voice)
                         
-                        # 여기에 디스펜서 동작 등 추가 하드웨어 제어 로직을 넣을 수 있습니다.
+                        # 2. 카메라 준비 (hardware.md #2)
+                        # UI에서 사용할 수 있도록 카메라 상태 점검 및 활성화 유도
+                        if check_camera_health():
+                            logger.info("Camera is ready for authentication.")
+                        else:
+                            logger.warning("Camera preparation failed!")
+
+                        # 3. 사용자 인증 (hardware.md #3) - [TODO: 구현 예정]
+                        # face_recognition 또는 fingerprint 모듈을 통한 인증 로직이 여기에 들어갑니다.
+                        logger.info("[PENDING] Waiting for user authentication...")
+                        is_authenticated = True # 테스트를 위해 임시로 True 설정
+                        
+                        if is_authenticated:
+                            # 4. 약제 배출 (hardware.md #4)
+                            logger.info("Authentication success. Starting motor control...")
+                            if dispense_medicine(user=f"user_{sche_id}"):
+                                logger.info("Medicine dispensed successfully.")
+                                
+                                # 5. 복약 행위 검증 (hardware.md #5) - [TODO: 구현 예정]
+                                # 카메라와 AI 모델을 사용하여 실제 복용 여부를 확인하는 로직이 들어갑니다.
+                                logger.info("[PENDING] Verifying medication intake...")
+                            else:
+                                logger.error("Medicine dispensing failed.")
+                        else:
+                            logger.warning("Authentication failed or timeout.")
+
+                        logger.info(f"--- Medication Process End: {medi_name} ---")
                         
                 time.sleep(30)
                 
             except Exception as e:
-                logger.error(f"Error in SystemController loop: {e}")
+                logger.error(f"Error in Controller loop: {e}")
                 time.sleep(10)
 
     def stop(self):
