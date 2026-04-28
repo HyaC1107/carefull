@@ -13,7 +13,7 @@ class _DispenseThread(QThread):
 
     def run(self):
         try:
-            from hardware.dispenser import dispense_medicine
+            from hardware.motor import dispense_medicine
             dispense_medicine()
         except Exception as e:
             print(f"[DISPENSE ERROR] {e}")
