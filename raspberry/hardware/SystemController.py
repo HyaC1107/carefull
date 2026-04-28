@@ -74,7 +74,7 @@ class SystemController(threading.Thread):
         logger.info("Running hardware self-test...")
         results = {
             "gpio": True,
-            "dispenser_motor": "ready",
+            "motor": "ready",
             "fingerprint_sensor": "pending",
             "alarm_speaker": "ready"
         }

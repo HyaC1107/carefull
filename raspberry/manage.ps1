@@ -1,4 +1,6 @@
 # CareFull Raspberry Pi - Management & Session Recovery Script
+# cli 재실행 시 종전 작업 확인 및 세션 복구
+# raspberry/manage.ps1 로 실행
 
 function Show-Header {
     Clear-Host
@@ -8,8 +10,6 @@ function Show-Header {
     Write-Host "라즈베리파이 전용 세션 복구 및 진행 상황 확인 스크립트입니다."
     Write-Host ""
 }
-
-## raspberry/manage.ps1 로 실행
 
 function Show-LatestLog {
     $logPath = "md/result.md"

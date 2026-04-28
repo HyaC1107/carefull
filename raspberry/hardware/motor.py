@@ -2,7 +2,7 @@ import RPi.GPIO as GPIO
 import time
 import logging
 
-logger = logging.getLogger("Dispenser")
+logger = logging.getLogger("Motor")
 
 # --- 설정 (GPIO 핀 번호) ---
 STEP_PINS = [12, 16, 20, 21]
