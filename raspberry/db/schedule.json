@@ -1,35 +1,13 @@
 [
   {
-    "sche_id": 101,
-    "patient_id": 1,
-    "medi_id": 1,
-    "medi_name": "아침 약 (혈압약)",
-    "start_date": "2024-04-20",
-    "end_date": "2024-12-31",
-    "time_to_take": "08:00:00",
+    "sche_id": 44,
+    "patient_id": 18,
+    "medi_id": 5838,
+    "time_to_take": "09:40:00",
+    "start_date": "2026-04-28T00:00:00.000Z",
+    "end_date": null,
     "dose_interval": 1,
-    "status": "ACTIVE"
-  },
-  {
-    "sche_id": 102,
-    "patient_id": 1,
-    "medi_id": 2,
-    "medi_name": "점심 약 (영양제)",
-    "start_date": "2024-04-20",
-    "end_date": "2024-12-31",
-    "time_to_take": "13:00:00",
-    "dose_interval": 1,
-    "status": "ACTIVE"
-  },
-  {
-    "sche_id": 103,
-    "patient_id": 1,
-    "medi_id": 3,
-    "medi_name": "저녁 약 (소화제)",
-    "start_date": "2024-04-20",
-    "end_date": "2024-12-31",
-    "time_to_take": "19:00:00",
-    "dose_interval": 1,
-    "status": "ACTIVE"
+    "status": "ACTIVE",
+    "medi_name": "캠블정"
   }
 ]
