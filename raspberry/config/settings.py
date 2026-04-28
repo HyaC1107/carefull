@@ -7,6 +7,7 @@ load_dotenv(os.path.join(BASE_DIR, '.env'))
 
 DB_DIR = os.path.join(BASE_DIR, "db")
 MODELS_DIR = os.path.join(BASE_DIR, "models")
+ENV_DIR = os.path.join(BASE_DIR, ".env")
 
 MODEL_PATH = os.path.join(MODELS_DIR, "mobilefacenet.tflite")
 CAMERA_WIDTH = int(os.getenv("CAREFULL_CAMERA_WIDTH", "640"))
@@ -29,6 +30,10 @@ API_BASE_URL = os.getenv("CAREFULL_API_BASE_URL", "http://localhost:3000")
 DEVICE_UID   = get_device_uid()
 API_TIMEOUT  = int(os.getenv("CAREFULL_API_TIMEOUT", "10"))
 
+# Voice & TTS Settings
+VOICES_DIR = os.path.join(BASE_DIR, "voices")
+TTS_LANG = os.getenv("CAREFULL_TTS_LANG", "ko")
+TTS_FILE_PATH = os.path.join(VOICES_DIR, "default_alarm.mp3")
 # UI 폰트 크기 (pt) — 고령자 대상, 여기서만 수정하면 전체 반영
 FONT_TITLE  = 50   # 화면 메인 타이틀
 FONT_HEAD   = 42   # 섹션 헤딩 / 인증 타이틀
