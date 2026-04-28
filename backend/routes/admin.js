@@ -221,4 +221,117 @@ router.get('/schedules', verifyAdminToken, async (req, res) => {
     }
 });
 
+// ── GET /api/admin/medications ────────────────────────────────────────────
+router.get('/medications', verifyAdminToken, async (req, res) => {
+    try {
+        const { rows } = await pool.query(
+            'SELECT medi_id, medi_name FROM medications ORDER BY medi_name LIMIT 300'
+        );
+        return res.json({ success: true, medications: rows });
+    } catch (err) {
+        console.error('[ADMIN MEDICATIONS]', err);
+        return res.status(500).json({ success: false, message: err.message });
+    }
+});
+
+// ── POST /api/admin/test/device ───────────────────────────────────────────
+router.post('/test/device', verifyAdminToken, async (req, res) => {
+    const { device_uid, patient_id } = req.body;
+    if (!device_uid?.trim()) return res.status(400).json({ success: false, message: 'device_uid 필수' });
+    if (!patient_id)          return res.status(400).json({ success: false, message: 'patient_id 필수' });
+
+    try {
+        const { rows: ex } = await pool.query(
+            'SELECT device_id FROM devices WHERE device_uid = $1', [device_uid.trim()]
+        );
+        let rows;
+        if (ex.length > 0) {
+            ({ rows } = await pool.query(`
+                UPDATE devices
+                SET patient_id = $1, device_status = 'REGISTERED',
+                    registered_at = NOW(), last_ping = NOW()
+                WHERE device_uid = $2
+                RETURNING device_id, device_uid, patient_id, device_status, registered_at
+            `, [patient_id, device_uid.trim()]));
+        } else {
+            ({ rows } = await pool.query(`
+                INSERT INTO devices (device_uid, patient_id, device_status, registered_at, last_ping, device_name)
+                VALUES ($1, $2, 'REGISTERED', NOW(), NOW(), 'TEST_DEVICE')
+                RETURNING device_id, device_uid, patient_id, device_status, registered_at
+            `, [device_uid.trim(), patient_id]));
+        }
+        return res.json({ success: true, message: '기기 등록 완료', device: rows[0] });
+    } catch (err) {
+        console.error('[ADMIN TEST DEVICE]', err);
+        return res.status(500).json({ success: false, message: err.message });
+    }
+});
+
+// ── DELETE /api/admin/test/device/:device_uid ─────────────────────────────
+router.delete('/test/device/:device_uid', verifyAdminToken, async (req, res) => {
+    try {
+        const { rows } = await pool.query(`
+            UPDATE devices SET patient_id = NULL, device_status = 'UNREGISTERED'
+            WHERE device_uid = $1
+            RETURNING device_id, device_uid
+        `, [req.params.device_uid]);
+        if (rows.length === 0) return res.status(404).json({ success: false, message: '기기를 찾을 수 없습니다.' });
+        return res.json({ success: true, message: '기기 해제 완료' });
+    } catch (err) {
+        console.error('[ADMIN TEST DEVICE DELETE]', err);
+        return res.status(500).json({ success: false, message: err.message });
+    }
+});
+
+// ── POST /api/admin/test/schedule ─────────────────────────────────────────
+router.post('/test/schedule', verifyAdminToken, async (req, res) => {
+    const { patient_id, medi_id, time_to_take, start_date, end_date, dose_interval } = req.body;
+    if (!patient_id || !medi_id || !time_to_take || !start_date)
+        return res.status(400).json({ success: false, message: 'patient_id, medi_id, time_to_take, start_date 필수' });
+
+    try {
+        const { rows } = await pool.query(`
+            INSERT INTO schedules (patient_id, medi_id, time_to_take, start_date, end_date, dose_interval, status)
+            VALUES ($1, $2, $3, $4, $5, $6, 'ACTIVE')
+            RETURNING sche_id, patient_id, medi_id, time_to_take, start_date, end_date, dose_interval, status
+        `, [patient_id, medi_id, time_to_take, start_date, end_date || null, dose_interval || null]);
+        return res.json({ success: true, message: '스케줄 등록 완료', schedule: rows[0] });
+    } catch (err) {
+        console.error('[ADMIN TEST SCHEDULE]', err);
+        return res.status(500).json({ success: false, message: err.message });
+    }
+});
+
+// ── DELETE /api/admin/test/schedule/:sche_id ──────────────────────────────
+router.delete('/test/schedule/:sche_id', verifyAdminToken, async (req, res) => {
+    const id = parseInt(req.params.sche_id, 10);
+    if (isNaN(id)) return res.status(400).json({ success: false, message: '유효하지 않은 sche_id' });
+    try {
+        const { rows } = await pool.query(
+            'DELETE FROM schedules WHERE sche_id = $1 RETURNING sche_id', [id]
+        );
+        if (rows.length === 0) return res.status(404).json({ success: false, message: '스케줄을 찾을 수 없습니다.' });
+        return res.json({ success: true, message: '스케줄 삭제 완료' });
+    } catch (err) {
+        console.error('[ADMIN TEST SCHEDULE DELETE]', err);
+        return res.status(500).json({ success: false, message: err.message });
+    }
+});
+
+// ── DELETE /api/admin/test/patient/:patient_id ────────────────────────────
+router.delete('/test/patient/:patient_id', verifyAdminToken, async (req, res) => {
+    const id = parseInt(req.params.patient_id, 10);
+    if (isNaN(id)) return res.status(400).json({ success: false, message: '유효하지 않은 patient_id' });
+    try {
+        const { rows } = await pool.query(
+            'DELETE FROM patients WHERE patient_id = $1 RETURNING patient_id, patient_name', [id]
+        );
+        if (rows.length === 0) return res.status(404).json({ success: false, message: '환자를 찾을 수 없습니다.' });
+        return res.json({ success: true, message: `"${rows[0].patient_name}" 삭제 완료` });
+    } catch (err) {
+        console.error('[ADMIN TEST PATIENT DELETE]', err);
+        return res.status(500).json({ success: false, message: err.message });
+    }
+});
+
 module.exports = router;
