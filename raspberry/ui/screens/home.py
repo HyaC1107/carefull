@@ -281,7 +281,7 @@ class HomeScreen(QWidget):
 
         root.addSpacing(10)
 
-        # ── 테스트 단축 버튼 (2줄: 복약행위검증 / 지문인증) ────────────────
+        # ── 테스트 단축 버튼 (2줄: 복약행위검증 / 지문등록 / 지문인증테스트) ──
         test_row2 = QHBoxLayout()
         test_row2.setSpacing(10)
 
@@ -292,7 +292,14 @@ class HomeScreen(QWidget):
             QWidget { background-color: #f0fdf4; border: 2px solid #86efac; border-radius: 14px; }
         """)
 
-        btn_fp_test = _MenuButton("fingerprint.png", "지문", "지문 인증", lambda: self._go("fingerprint_auth"))
+        btn_fp_reg = _MenuButton("fingerprint.png", "지문", "지문 등록", lambda: self._go("fingerprint_register"))
+        btn_fp_reg.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        btn_fp_reg.setMinimumHeight(96)
+        btn_fp_reg.setStyleSheet("""
+            QWidget { background-color: #fdf4ff; border: 2px solid #e9d5ff; border-radius: 14px; }
+        """)
+
+        btn_fp_test = _MenuButton("fingerprint.png", "지문", "지문 인증 테스트", lambda: self._go_fp_test())
         btn_fp_test.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         btn_fp_test.setMinimumHeight(96)
         btn_fp_test.setStyleSheet("""
@@ -300,6 +307,7 @@ class HomeScreen(QWidget):
         """)
 
         test_row2.addWidget(btn_med_test)
+        test_row2.addWidget(btn_fp_reg)
         test_row2.addWidget(btn_fp_test)
         root.addLayout(test_row2)
 
@@ -366,3 +374,8 @@ class HomeScreen(QWidget):
         if self._app:
             self._app.screens["camera_view"].set_mode("auth")
             self._app.show_screen("camera_view")
+
+    def _go_fp_test(self):
+        if self._app:
+            self._app.current_session["fp_test_mode"] = True
+            self._app.show_screen("fingerprint_auth")

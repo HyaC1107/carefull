@@ -25,6 +25,7 @@ def _new_session() -> dict:
         "dispensed": False,
         "action_verified": False,
         "similarity_score": 0.0,
+        "fp_test_mode": False,
     }
 
 
