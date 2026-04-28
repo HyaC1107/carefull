@@ -8,7 +8,7 @@ from PyQt5.QtWidgets import (
     QFrame, QHBoxLayout, QLabel, QSizePolicy, QVBoxLayout, QWidget,
 )
 
-from config.settings import UI_TEST_MODE
+from config.settings import UI_TEST_MODE, DEVICE_UID
 
 _ICONS_DIR = os.path.normpath(
     os.path.join(os.path.dirname(__file__), "..", "..", "assets", "icons")
@@ -302,6 +302,21 @@ class HomeScreen(QWidget):
         test_row2.addWidget(btn_med_test)
         test_row2.addWidget(btn_fp_test)
         root.addLayout(test_row2)
+
+        root.addSpacing(10)
+
+        # ── 기기 UID 표시 (보호자가 웹 대시보드 기기 등록 시 입력) ──────────
+        uid_text = DEVICE_UID or "(UID 미생성)"
+        uid_lbl = QLabel(f"기기 UID:  {uid_text}")
+        uid_lbl.setFont(QFont("Monospace", 15))
+        uid_lbl.setAlignment(Qt.AlignCenter)
+        uid_lbl.setStyleSheet("""
+            color: #64748b;
+            background-color: #e2e8f0;
+            border-radius: 8px;
+            padding: 5px 16px;
+        """)
+        root.addWidget(uid_lbl)
 
     def _start_timers(self):
         self._update_clock()
