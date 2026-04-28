@@ -10,7 +10,8 @@
       "Bash(rm intake_detector.py intake_tasks.py intake_yolo.py face_test.py test_behavior.py)",
       "WebSearch",
       "Bash(grep -E \"\\\\.\\(js|jsx|ts|tsx|env|json\\)$\")",
-      "Skill(schedule)"
+      "Skill(schedule)",
+      "Bash(git fetch *)"
     ]
   }
 }

@@ -19,6 +19,7 @@ const face_data_router = require('./routes/face-data');
 const notification_router = require('./routes/notification');
 const activity_router = require('./routes/activity');
 const admin_router    = require('./routes/admin');
+const voice_router    = require('./routes/voice');
 
 const { startMissedLogJob } = require('./jobs/missed-activity-job');
 
@@ -69,6 +70,7 @@ app.use('/api/face-data',    face_data_router);
 app.use('/api/notification', notification_router);
 app.use('/api/log',          activity_router);
 app.use('/api/admin',        admin_router);
+app.use('/api/voice',        voice_router);
 
 // ─────────────────────────── Server ──────────────────────────────────────────
 // SSL 종료는 nginx 또는 ALB 에서 처리 → Node.js 는 HTTP 로만 실행
