@@ -524,6 +524,7 @@
   max-width: 390px;
   background: #ffffff;
   border-radius: 16px;
+  overflow: hidden;
   box-shadow: 0 18px 44px rgba(15, 23, 42, 0.2);
 }
 
@@ -535,7 +536,6 @@
   align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
-  border-radius: 16px 16px 0 0;
 }
 
 .schedule-modal__title {
@@ -683,84 +683,6 @@
   padding: 10px 12px;
   font-size: 0.72rem;
   color: #6b7280;
-}
-
-/* 약 검색 자동완성 */
-.schedule-modal__search-wrapper {
-  position: relative;
-}
-
-.schedule-modal__search-dropdown {
-  position: absolute;
-  top: calc(100% + 4px);
-  left: 0;
-  right: 0;
-  background: #ffffff;
-  border: 1px solid #d1d5db;
-  border-radius: 8px;
-  box-shadow: 0 6px 16px rgba(15, 23, 42, 0.12);
-  z-index: 200;
-  max-height: 200px;
-  overflow-y: auto;
-}
-
-.schedule-modal__search-item {
-  padding: 10px 12px;
-  font-size: 0.82rem;
-  color: #111827;
-  cursor: pointer;
-  border-bottom: 1px solid #f3f4f6;
-  line-height: 1.4;
-}
-
-.schedule-modal__search-item:last-child {
-  border-bottom: none;
-}
-
-.schedule-modal__search-item:hover,
-.schedule-modal__search-item:focus {
-  background: #eff6ff;
-  color: #1d4ed8;
-}
-
-.schedule-modal__search-empty {
-  padding: 14px 12px;
-  font-size: 0.8rem;
-  color: #9ca3af;
-  text-align: center;
-}
-
-.schedule-modal__search-hint {
-  font-size: 0.72rem;
-  color: #9ca3af;
-  padding: 2px 2px 0;
-}
-
-.schedule-modal__selected-meds {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  padding-top: 6px;
-}
-
-.schedule-modal__selected-med {
-  border-radius: 999px;
-  background: #eaf2ff;
-  color: #1d4ed8;
-  font-size: 0.72rem;
-  font-weight: 700;
-  line-height: 1;
-  padding: 6px 8px;
-}
-
-.schedule-modal__selected-med-remove {
-  border: none;
-  background: transparent;
-  color: inherit;
-  cursor: pointer;
-  font: inherit;
-  margin-left: 6px;
-  padding: 0;
 }
 
 .schedule-modal__repeat-buttons {
