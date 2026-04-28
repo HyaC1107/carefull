@@ -1,19 +1,19 @@
 import { useState } from 'react'
 
 function DeviceRegisterModal({ onClose, onSuccess }) {
-  const [serialNumber, setSerialNumber] = useState('')
+  const [device_uid, setDeviceUid] = useState('')
   const [deviceName, setDeviceName] = useState('')
 
   const handleSubmit = (event) => {
     event.preventDefault()
 
-    if (!serialNumber.trim() || !deviceName.trim()) {
+    if (!device_uid.trim() || !deviceName.trim()) {
       alert('시리얼 번호와 기기 이름을 입력해주세요.')
       return
     }
 
     onSuccess({
-      serialNumber,
+      device_uid,
       deviceName,
     })
   }
@@ -46,8 +46,8 @@ function DeviceRegisterModal({ onClose, onSuccess }) {
             <span className="patient-form-field__label">시리얼 번호 *</span>
             <input
               className="patient-form-field__input"
-              value={serialNumber}
-              onChange={(event) => setSerialNumber(event.target.value)}
+              value={device_uid}
+              onChange={(event) => setDeviceUid(event.target.value)}
               placeholder="예: SM-2024-A1234"
             />
             <span className="patient-form-field__hint">
