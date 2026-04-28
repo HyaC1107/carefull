@@ -1,10 +1,23 @@
 import os
 
-from PyQt5.QtCore import Qt, QTimer, QRectF
+from PyQt5.QtCore import Qt, QThread, QTimer, QRectF
 from PyQt5.QtGui import QColor, QFont, QPainter, QPen, QPixmap
 from PyQt5.QtWidgets import (
     QLabel, QProgressBar, QSizePolicy, QVBoxLayout, QWidget,
 )
+
+
+class _UploadWorker(QThread):
+    def __init__(self, fp_id: int, parent=None):
+        super().__init__(parent)
+        self._fp_id = fp_id
+
+    def run(self):
+        try:
+            from api.client import upload_fingerprint_id
+            upload_fingerprint_id(self._fp_id)
+        except Exception as e:
+            print(f"[FP UPLOAD ERROR] {e}")
 
 _ICONS_DIR = os.path.normpath(
     os.path.join(os.path.dirname(__file__), "..", "..", "assets", "icons")
@@ -74,7 +87,13 @@ class FingerprintRegisterScreen(QWidget):
         super().__init__(parent)
         self._app = parent
         self._progress = 0
+        self._fp_id = None       # R307 등록 완료 후 set_result(fp_id) 로 설정
+        self._upload_worker = None
         self._build_ui()
+
+    def set_result(self, fp_id: int):
+        """R307 스레드에서 등록 완료 시 호출 — fingerprint slot ID를 받아 백엔드에 업로드."""
+        self._fp_id = fp_id
 
     def _build_ui(self):
         self.setStyleSheet(f"FingerprintRegisterScreen {{ background-color: {_BG}; }}")
@@ -168,5 +187,8 @@ class FingerprintRegisterScreen(QWidget):
             QTimer.singleShot(600, self._go_complete)
 
     def _go_complete(self):
+        if self._fp_id is not None:
+            self._upload_worker = _UploadWorker(self._fp_id, parent=self)
+            self._upload_worker.start()
         if self._app:
             self._app.show_screen("register_complete")
