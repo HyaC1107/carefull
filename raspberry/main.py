@@ -21,7 +21,7 @@ try:
 except ImportError:
     pass
 
-from hardware.SystemController import SystemController
+from hardware.Controller import Controller
 from camera.camera import check_camera_health, release_camera
 
 if __name__ == "__main__":
@@ -30,7 +30,7 @@ if __name__ == "__main__":
         logger.info("Starting Carefull Raspberry Pi Application")
 
         # 1. 하드웨어 및 시스템 컨트롤러 인스턴스 생성
-        controller = SystemController()
+        controller = Controller()
 
         # 2. 하드웨어 초기화 (GPIO 설정 등)
         if not controller.initialize_hardware():
@@ -42,7 +42,7 @@ if __name__ == "__main__":
             logger.info("Camera health check passed.")
         else:
             logger.warning("Camera health check failed! Please check the camera connection.")
-        
+
         # 점검 후 카메라 리소스 해제 (UI에서 필요할 때 다시 켬)
         release_camera()
 
@@ -63,7 +63,7 @@ if __name__ == "__main__":
         # 7. 리소스 정리
         if controller:
             controller.stop()
-        
-        SystemController.cleanup_hardware()
+
+        Controller.cleanup_hardware()
         release_camera() # 종료 시 카메라 확실히 해제
         logger.info("Application resources cleaned up and exited.")
