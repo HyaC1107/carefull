@@ -1,135 +1,32 @@
-import { useEffect, useRef, useState } from 'react'
-import { requestJson } from '../../api'
-
-const DOSE_INTERVAL_OPTIONS = [1, 2, 3, 4, 5]
+import { useState } from 'react'
 
 function ScheduleAddModal({ selectedDateLabel, onClose, onSubmit }) {
   const [repeatType, setRepeatType] = useState('none')
-  const [doseInterval, setDoseInterval] = useState('')
   const [form, setForm] = useState({
+    medicationName: '',
     dose: '1',
-    time_to_take: '',
-    start_date: '',
-    end_date: '',
+    time: '',
+    startDate: '',
+    endDate: '',
   })
 
-  const [searchQuery, setSearchQuery] = useState('')
-  const [searchResults, setSearchResults] = useState([])
-  const [isSearching, setIsSearching] = useState(false)
-  const [showDropdown, setShowDropdown] = useState(false)
-  const [selectedMed, setSelectedMed] = useState(null)
-  const [selectedMeds, setSelectedMeds] = useState([])
-  const [selectedTimes, setSelectedTimes] = useState([])
-
-  const debounceRef = useRef(null)
-
-  useEffect(() => {
-    const query = searchQuery.trim()
-
-    if (!query) {
-      setSearchResults([])
-      setShowDropdown(false)
-      return
-    }
-
-    if (selectedMed && searchQuery === selectedMed.medi_name) {
-      return
-    }
-
-    clearTimeout(debounceRef.current)
-    debounceRef.current = setTimeout(async () => {
-      setIsSearching(true)
-      try {
-        const data = await requestJson(
-          `/api/medication/search?keyword=${encodeURIComponent(query)}`,
-        )
-        setSearchResults(data?.data || [])
-        setShowDropdown(true)
-      } catch {
-        setSearchResults([])
-      } finally {
-        setIsSearching(false)
-      }
-    }, 300)
-
-    return () => clearTimeout(debounceRef.current)
-  }, [searchQuery])
-
-  const handleSearchChange = (e) => {
-    const value = e.target.value
-    setSearchQuery(value)
-    if (selectedMed && value !== selectedMed.medi_name) {
-      setSelectedMed(null)
-    }
-  }
-
-  const handleSelectMed = (med) => {
-    setSelectedMed(med)
-    setSelectedMeds((prev) =>
-      prev.some((item) => item.medi_id === med.medi_id) ? prev : [...prev, med],
-    )
-    setSearchQuery('')
-    setShowDropdown(false)
-    setSearchResults([])
-  }
-
-  const handleSearchBlur = () => {
-    setTimeout(() => setShowDropdown(false), 150)
-  }
-
   const handleChange = (field, value) => {
-    setForm((prev) => ({ ...prev, [field]: value }))
-  }
-
-  const handleAddTime = () => {
-    const nextTime = form.time_to_take.trim()
-
-    if (!nextTime) {
-      alert('복용 시간을 입력해주세요.')
-      return
-    }
-
-    setSelectedTimes((prev) =>
-      prev.includes(nextTime) ? prev : [...prev, nextTime].sort(),
-    )
-    handleChange('time_to_take', '')
-  }
-
-  const handleRemoveTime = (timeToRemove) => {
-    setSelectedTimes((prev) => prev.filter((time) => time !== timeToRemove))
+    setForm((prev) => ({
+      ...prev,
+      [field]: value,
+    }))
   }
 
   const handleSubmit = (event) => {
     event.preventDefault()
-    const timeToTakeList =
-      selectedTimes.length > 0
-        ? selectedTimes
-        : form.time_to_take.trim()
-          ? [form.time_to_take.trim()]
-          : []
 
-    if (selectedMeds.length === 0) {
-      alert('약을 목록에서 선택해주세요.')
-      return
-    }
-
-    if (!form.dose.trim() || timeToTakeList.length === 0) {
-      alert('수량과 복용 시간은 필수입니다.')
+    if (!form.medicationName.trim() || !form.dose.trim() || !form.time.trim()) {
+      alert('약 이름, 수량, 복용 시간은 필수입니다.')
       return
     }
 
     onSubmit({
       ...form,
-      time_to_take: timeToTakeList[0],
-      time_to_take_list: timeToTakeList,
-      medi_id: selectedMeds[0].medi_id,
-      medi_name: selectedMeds.map((med) => med.medi_name).join(', '),
-      medications: selectedMeds.map((med) => ({
-        medi_id: med.medi_id,
-        medi_name: med.medi_name,
-      })),
-      dose_interval:
-        repeatType === 'interval' && doseInterval ? Number(doseInterval) : null,
       repeatType,
     })
   }
@@ -166,118 +63,64 @@ function ScheduleAddModal({ selectedDateLabel, onClose, onSubmit }) {
           </div>
 
           <section className="schedule-modal__section">
-            <div className="schedule-modal__section-header">
-              <div className="schedule-modal__section-title-row">
-                <span className="schedule-modal__section-icon" aria-hidden="true">
-                  🕒
-                </span>
-                <h4 className="schedule-modal__section-title">복용 시간</h4>
-              </div>
-              <button
-                type="button"
-                className="schedule-modal__mini-button"
-                onClick={handleAddTime}
-              >
-                추가
-              </button>
+            <div className="schedule-modal__section-title-row">
+              <span className="schedule-modal__section-icon" aria-hidden="true">
+                🕒
+              </span>
+              <h4 className="schedule-modal__section-title">복용 시간</h4>
             </div>
 
             <input
               type="time"
               className="schedule-modal__input"
-              value={form.time_to_take}
-              onChange={(e) => handleChange('time_to_take', e.target.value)}
+              value={form.time}
+              onChange={(e) => handleChange('time', e.target.value)}
             />
-            {selectedTimes.length > 0 ? (
-              <div className="schedule-modal__selected-meds">
-                {selectedTimes.map((time) => (
-                  <span key={time} className="schedule-modal__selected-med">
-                    {time}
-                    <button
-                      type="button"
-                      className="schedule-modal__selected-med-remove"
-                      onClick={() => handleRemoveTime(time)}
-                      aria-label={`${time} 삭제`}
-                    >
-                      ×
-                    </button>
-                  </span>
-                ))}
-              </div>
-            ) : null}
           </section>
 
           <section className="schedule-modal__section schedule-modal__section--highlight">
-            <div className="schedule-modal__section-title-row">
-              <span
-                className="schedule-modal__section-icon schedule-modal__section-icon--pill"
-                aria-hidden="true"
+            <div className="schedule-modal__section-header">
+              <div className="schedule-modal__section-title-row">
+                <span
+                  className="schedule-modal__section-icon schedule-modal__section-icon--pill"
+                  aria-hidden="true"
+                >
+                  💊
+                </span>
+                <h4 className="schedule-modal__section-title">약 정보</h4>
+              </div>
+
+              <button
+                type="button"
+                className="schedule-modal__mini-button"
+                onClick={() => alert('약 추가 기능은 나중에 연결 예정')}
               >
-                💊
-              </span>
-              <h4 className="schedule-modal__section-title">약 정보</h4>
+                + 약 추가
+              </button>
             </div>
 
             <label className="schedule-modal__field">
               <span className="schedule-modal__label">약 이름 *</span>
-              <div className="schedule-modal__search-wrapper">
-                <input
-                  className="schedule-modal__input"
-                  value={searchQuery}
-                  onChange={handleSearchChange}
-                  onBlur={handleSearchBlur}
-                  onFocus={() => {
-                    if (searchResults.length > 0) setShowDropdown(true)
-                  }}
-                  placeholder="약 이름을 입력하세요 (예: 졸피뎀)"
-                  autoComplete="off"
-                />
-
-                {showDropdown && (
-                  <div className="schedule-modal__search-dropdown">
-                    {isSearching ? (
-                      <p className="schedule-modal__search-empty">검색 중...</p>
-                    ) : searchResults.length > 0 ? (
-                      searchResults.map((med) => (
-                        <div
-                          key={med.medi_id}
-                          className="schedule-modal__search-item"
-                          onMouseDown={() => handleSelectMed(med)}
-                        >
-                          {med.medi_name}
-                        </div>
-                      ))
-                    ) : (
-                      <p className="schedule-modal__search-empty">
-                        검색 결과가 없습니다
-                      </p>
-                    )}
-                  </div>
-                )}
-              </div>
-              {selectedMed ? (
-                <span className="schedule-modal__search-hint">
-                  ✓ {selectedMed.medi_name} 선택됨
-                </span>
-              ) : searchQuery.trim() && !isSearching ? (
-                <span className="schedule-modal__search-hint">
-                  목록에서 약을 선택해주세요
-                </span>
-              ) : null}
-              {selectedMeds.length > 0 ? (
-                <div className="schedule-modal__selected-meds">
-                  {selectedMeds.map((med) => (
-                    <span
-                      key={med.medi_id}
-                      className="schedule-modal__selected-med"
-                    >
-                      {med.medi_name}
-                    </span>
-                  ))}
-                </div>
-              ) : null}
+              <input
+                className="schedule-modal__input"
+                value={form.medicationName}
+                onChange={(e) => handleChange('medicationName', e.target.value)}
+                placeholder="약 이름을 검색하세요..."
+              />
             </label>
 
+            <label className="schedule-modal__field">
+              <span className="schedule-modal__label">수량 (정/캡) *</span>
+              <input
+                className="schedule-modal__input"
+                value={form.dose}
+                onChange={(e) => handleChange('dose', e.target.value)}
+              />
+            </label>
+
+            <div className="schedule-modal__hint-box">
+              💡 약 이름을 입력하면 자동으로 목록에 표시됩니다
+            </div>
           </section>
 
           <section className="schedule-modal__section">
@@ -294,8 +137,8 @@ function ScheduleAddModal({ selectedDateLabel, onClose, onSubmit }) {
                 <input
                   type="date"
                   className="schedule-modal__input"
-                  value={form.start_date}
-                  onChange={(e) => handleChange('start_date', e.target.value)}
+                  value={form.startDate}
+                  onChange={(e) => handleChange('startDate', e.target.value)}
                 />
               </label>
 
@@ -304,8 +147,8 @@ function ScheduleAddModal({ selectedDateLabel, onClose, onSubmit }) {
                 <input
                   type="date"
                   className="schedule-modal__input"
-                  value={form.end_date}
-                  onChange={(e) => handleChange('end_date', e.target.value)}
+                  value={form.endDate}
+                  onChange={(e) => handleChange('endDate', e.target.value)}
                 />
               </label>
             </div>
@@ -327,10 +170,7 @@ function ScheduleAddModal({ selectedDateLabel, onClose, onSubmit }) {
                     ? 'schedule-modal__repeat-button--active'
                     : ''
                 }`}
-                onClick={() => {
-                  setRepeatType('none')
-                  setDoseInterval('')
-                }}
+                onClick={() => setRepeatType('none')}
               >
                 반복 안 함
               </button>
@@ -342,8 +182,7 @@ function ScheduleAddModal({ selectedDateLabel, onClose, onSubmit }) {
                     ? 'schedule-modal__repeat-button--active'
                     : ''
                 }`}
-                disabled
-                hidden
+                onClick={() => setRepeatType('weekly')}
               >
                 요일 선택
               </button>
@@ -355,33 +194,11 @@ function ScheduleAddModal({ selectedDateLabel, onClose, onSubmit }) {
                     ? 'schedule-modal__repeat-button--active'
                     : ''
                 }`}
-                onClick={() => {
-                  setRepeatType('interval')
-                  setDoseInterval((prev) => prev || '1')
-                }}
+                onClick={() => setRepeatType('interval')}
               >
                 일수 간격
               </button>
             </div>
-
-            {repeatType === 'interval' ? (
-              <div className="schedule-modal__repeat-buttons">
-                {DOSE_INTERVAL_OPTIONS.map((interval) => (
-                  <button
-                    key={interval}
-                    type="button"
-                    className={`schedule-modal__repeat-button ${
-                      Number(doseInterval) === interval
-                        ? 'schedule-modal__repeat-button--active'
-                        : ''
-                    }`}
-                    onClick={() => setDoseInterval(String(interval))}
-                  >
-                    {interval}일 간격
-                  </button>
-                ))}
-              </div>
-            ) : null}
 
             <div className="schedule-modal__repeat-hint">
               1회성 복약으로 설정됩니다.

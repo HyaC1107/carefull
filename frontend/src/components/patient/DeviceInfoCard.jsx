@@ -31,8 +31,8 @@ function DeviceInfoCard({ statusList, detail }) {
 
       <div className="patient-device-card__detail-grid">
         <DeviceDetailItem label="모델명" value={detail.modelName} />
-        <DeviceDetailItem label="시리얼 번호" value={detail.device_uid} />
-        <DeviceDetailItem label="설치일" value={detail.registered_at} />
+        <DeviceDetailItem label="시리얼 번호" value={detail.serialNumber} />
+        <DeviceDetailItem label="설치일" value={detail.installedAt} />
         <DeviceDetailItem label="펌웨어 버전" value={detail.firmwareVersion} />
       </div>
     </section>
