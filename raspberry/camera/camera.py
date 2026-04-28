@@ -69,6 +69,32 @@ def _get_frame_webcam() -> "cv2.ndarray | None":
 
 # ──────────────────────────────── 공개 API ───────────────────────────────────
 
+def release_camera():
+    """사용 중인 카메라 리소스 해제"""
+    global _picam2, _webcam
+    try:
+        if _picam2 is not None:
+            _picam2.stop()
+            _picam2 = None
+            print("[CAMERA] Picamera2 stopped.")
+        
+        if _webcam is not None:
+            _webcam.release()
+            _webcam = None
+            print("[CAMERA] Webcam released.")
+    except Exception as e:
+        print(f"[CAMERA RELEASE ERROR] {e}")
+
+def check_camera_health():
+    """카메라가 정상적으로 프레임을 가져오는지 확인"""
+    try:
+        frame = get_frame()
+        if frame is not None and frame.size > 0:
+            return True
+        return False
+    except Exception:
+        return False
+
 def get_frame():
     """RPi: Picamera2 / PC: cv2.VideoCapture(0) 자동 전환."""
     if _USE_WEBCAM:
