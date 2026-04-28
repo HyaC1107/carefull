@@ -60,6 +60,19 @@ class FingerprintManager:
             logger.error(f"Error during fingerprint search: {e}")
             return -1, 0
 
+    def delete_template(self, position: int) -> bool:
+        """센서의 특정 슬롯에서 지문 템플릿 삭제."""
+        if not self.sensor:
+            logger.error("Sensor not initialized.")
+            return False
+        try:
+            self.sensor.deleteTemplate(position)
+            logger.info(f"Deleted fingerprint template at slot #{position}")
+            return True
+        except Exception as e:
+            logger.error(f"Error deleting fingerprint template: {e}")
+            return False
+
     def enroll(self, position):
         """
         새로운 지문을 특정 위치(ID)에 등록

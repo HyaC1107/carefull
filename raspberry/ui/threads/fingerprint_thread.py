@@ -3,6 +3,23 @@ from PyQt5.QtCore import QThread, pyqtSignal
 from config.settings import UI_TEST_MODE
 
 
+class FingerprintPrepareThread(QThread):
+    """서버에서 기존 지문 슬롯 조회 후 다음 사용 가능한 슬롯 번호를 시그널로 전달."""
+    ready = pyqtSignal(int)
+
+    def run(self):
+        next_slot = 1
+        try:
+            from api.client import fetch_fingerprints
+            fps = fetch_fingerprints()
+            used = {fp["slot_id"] for fp in fps}
+            while next_slot in used:
+                next_slot += 1
+        except Exception:
+            pass
+        self.ready.emit(next_slot)
+
+
 class FingerprintEnrollThread(QThread):
     """R307 지문 등록 스레드.
 

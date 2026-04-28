@@ -72,6 +72,93 @@ router.post('/ping', async (req, res) => {
     }
 });
 
+// GET /api/device/fingerprints?device_uid=...  — 등록된 지문 목록 조회
+router.get('/fingerprints', async (req, res) => {
+    const { device_uid } = req.query;
+    if (!device_uid || !String(device_uid).trim()) {
+        return sendError(res, 400, 'device_uid is required.');
+    }
+    try {
+        const { rows } = await pool.query(`
+            SELECT f.fp_id, f.slot_id, f.label, f.registered_at
+            FROM fingerprints f
+            JOIN devices d ON d.patient_id = f.patient_id
+            WHERE d.device_uid = $1
+            ORDER BY f.registered_at ASC
+        `, [String(device_uid).trim()]);
+        return sendSuccess(res, 200, { fingerprints: rows });
+    } catch (err) {
+        console.error('Fingerprint list error:', err);
+        return sendError(res, 500, 'Server error while listing fingerprints.');
+    }
+});
+
+// POST /api/device/fingerprints  — 새 지문 슬롯 등록
+router.post('/fingerprints', async (req, res) => {
+    const { device_uid, slot_id, label } = req.body;
+    if (!device_uid || !String(device_uid).trim()) {
+        return sendError(res, 400, 'device_uid is required.');
+    }
+    if (slot_id === undefined || slot_id === null) {
+        return sendError(res, 400, 'slot_id is required.');
+    }
+    const parsed_slot = parseInt(slot_id, 10);
+    if (isNaN(parsed_slot) || parsed_slot < 0) {
+        return sendError(res, 400, 'slot_id must be a non-negative integer.');
+    }
+    try {
+        const { rows: dev_rows } = await pool.query(
+            'SELECT patient_id FROM devices WHERE device_uid = $1 AND patient_id IS NOT NULL LIMIT 1',
+            [String(device_uid).trim()]
+        );
+        if (!dev_rows.length) {
+            return sendError(res, 404, 'Device not found or not assigned to a patient.');
+        }
+        const patient_id = dev_rows[0].patient_id;
+        const { rows } = await pool.query(`
+            INSERT INTO fingerprints (patient_id, slot_id, label)
+            VALUES ($1, $2, $3)
+            ON CONFLICT (patient_id, slot_id)
+            DO UPDATE SET label = EXCLUDED.label, registered_at = CURRENT_TIMESTAMP
+            RETURNING fp_id, slot_id, label, registered_at
+        `, [patient_id, parsed_slot, label || '지문']);
+        return sendSuccess(res, 201, { fingerprint: rows[0] });
+    } catch (err) {
+        console.error('Fingerprint register error:', err);
+        return sendError(res, 500, 'Server error while registering fingerprint.');
+    }
+});
+
+// DELETE /api/device/fingerprints/:slot_id?device_uid=...  — 특정 슬롯 삭제
+router.delete('/fingerprints/:slot_id', async (req, res) => {
+    const { device_uid } = req.query;
+    const parsed_slot = parseInt(req.params.slot_id, 10);
+    if (!device_uid || !String(device_uid).trim()) {
+        return sendError(res, 400, 'device_uid is required.');
+    }
+    if (isNaN(parsed_slot)) {
+        return sendError(res, 400, 'slot_id must be an integer.');
+    }
+    try {
+        const { rows } = await pool.query(`
+            DELETE FROM fingerprints
+            WHERE slot_id = $1
+              AND patient_id = (
+                SELECT patient_id FROM devices
+                WHERE device_uid = $2 AND patient_id IS NOT NULL LIMIT 1
+              )
+            RETURNING fp_id, slot_id
+        `, [parsed_slot, String(device_uid).trim()]);
+        if (!rows.length) {
+            return sendError(res, 404, 'Fingerprint not found.');
+        }
+        return sendSuccess(res, 200, { message: 'Fingerprint deleted.', fp_id: rows[0].fp_id });
+    } catch (err) {
+        console.error('Fingerprint delete error:', err);
+        return sendError(res, 500, 'Server error while deleting fingerprint.');
+    }
+});
+
 // POST /api/device/fingerprint  — JWT 불필요, device_uid 로 인증
 router.post('/fingerprint', async (req, res) => {
     const { device_uid, fingerprint_id } = req.body;

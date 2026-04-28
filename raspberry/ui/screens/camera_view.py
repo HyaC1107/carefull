@@ -13,6 +13,14 @@ _DB_PATH = os.path.normpath(
     os.path.join(os.path.dirname(__file__), "..", "..", "db", "user_db.json")
 )
 
+# 얼굴 인증 가이드 메시지 순환 (2초마다 교체)
+_AUTH_GUIDES = [
+    "정면을 바라봐 주세요",
+    "좌우로 천천히 움직여 주세요",
+    "카메라와 눈높이를 맞춰 주세요",
+    "밝은 곳에서 시도해 주세요",
+]
+
 _THEMES = {
     MODE_REGISTER: {
         "dash":        "#7c3aed",
@@ -29,6 +37,9 @@ _THEMES = {
         "sub_color":   "#93c5fd",
     },
 }
+
+# 카메라가 완전히 준비될 때까지 대기 (프레임 수 기준)
+_CAMERA_READY_FRAMES = 5
 
 
 class _GradientOverlay(QWidget):
@@ -49,11 +60,15 @@ class _GradientOverlay(QWidget):
 class CameraViewScreen(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
-        self._app = parent
-        self._mode = MODE_AUTH
-        self._thread = None
+        self._app             = parent
+        self._mode            = MODE_AUTH
+        self._thread          = None
         self._countdown_timer = None
-        self._remaining = 0
+        self._guide_timer     = None
+        self._remaining       = 0
+        self._guide_index     = 0
+        self._frame_count     = 0   # 카메라 준비 판단용
+        self._auth_started    = False
         self._build_ui()
 
     def set_mode(self, mode: str, **kwargs):
@@ -63,13 +78,9 @@ class CameraViewScreen(QWidget):
     # ─────────────────────────────── UI ──────────────────────────────────────
 
     def _build_ui(self):
-        # 카메라 — 전체 화면
         self._camera_card = CameraCardWidget(parent=self)
+        self._gradient    = _GradientOverlay(parent=self)
 
-        # 하단 그라데이션 오버레이
-        self._gradient = _GradientOverlay(parent=self)
-
-        # 텍스트 레이블 — 카메라 위에 오버레이
         self._title_lbl = QLabel(parent=self)
         self._title_lbl.setFont(QFont("Sans Serif", 36, QFont.Bold))
         self._title_lbl.setAlignment(Qt.AlignCenter)
@@ -79,6 +90,15 @@ class CameraViewScreen(QWidget):
         self._sub_lbl.setFont(QFont("Sans Serif", 28))
         self._sub_lbl.setAlignment(Qt.AlignCenter)
         self._sub_lbl.setAttribute(Qt.WA_TransparentForMouseEvents)
+
+        # 카메라 준비 중 오버레이
+        self._loading_lbl = QLabel("카메라 준비 중...", parent=self)
+        self._loading_lbl.setFont(QFont("Sans Serif", 32, QFont.Bold))
+        self._loading_lbl.setAlignment(Qt.AlignCenter)
+        self._loading_lbl.setStyleSheet(
+            "color: white; background: rgba(0,0,0,160); border-radius: 12px; padding: 12px 24px;"
+        )
+        self._loading_lbl.adjustSize()
 
         self._apply_theme()
 
@@ -93,6 +113,10 @@ class CameraViewScreen(QWidget):
 
         self._title_lbl.setGeometry(0, h - int(h * 0.20), w, 58)
         self._sub_lbl.setGeometry(0, h - int(h * 0.10), w, 46)
+
+        # 로딩 레이블 중앙
+        lw, lh = self._loading_lbl.sizeHint().width() + 48, 56
+        self._loading_lbl.setGeometry((w - lw) // 2, (h - lh) // 2, lw, lh)
 
     def _apply_theme(self):
         t = _THEMES.get(self._mode, _THEMES[MODE_AUTH])
@@ -117,17 +141,19 @@ class CameraViewScreen(QWidget):
 
     def _start_thread(self):
         self._stop_thread()
+        self._frame_count  = 0
+        self._auth_started = False
+        self._guide_index  = 0
+
+        self._loading_lbl.show()
+        self._loading_lbl.raise_()
+
         self._thread = FaceThread(mode=self._mode)
-        self._thread.frame_ready.connect(self._camera_card.update_frame)
+        self._thread.frame_ready.connect(self._on_frame_ready)
 
         if self._mode == MODE_AUTH:
             self._thread.auth_success.connect(self._on_auth_success)
             self._thread.auth_failed.connect(self._on_auth_failed)
-            self._remaining = AUTH_TIMEOUT_SEC
-            self._sub_lbl.setText(f"카메라를 바라봐 주세요  ({self._remaining}초)")
-            self._countdown_timer = QTimer(self)
-            self._countdown_timer.timeout.connect(self._tick_countdown)
-            self._countdown_timer.start(1000)
         else:
             self._thread.capture_progress.connect(self._on_progress)
             self._thread.capture_done.connect(self._on_capture_done)
@@ -137,25 +163,61 @@ class CameraViewScreen(QWidget):
     def _stop_thread(self):
         if self._countdown_timer and self._countdown_timer.isActive():
             self._countdown_timer.stop()
+        if self._guide_timer and self._guide_timer.isActive():
+            self._guide_timer.stop()
         self._countdown_timer = None
+        self._guide_timer     = None
         if self._thread and self._thread.isRunning():
             self._thread.stop()
             self._thread.wait(3000)
         self._thread = None
 
+    # ─────────────────────────────── 프레임 수신 ─────────────────────────────
+
+    def _on_frame_ready(self, frame):
+        self._camera_card.update_frame(frame)
+        self._frame_count += 1
+
+        # 카메라가 준비됐다고 판단되면 인증 타이머 시작
+        if not self._auth_started and self._frame_count >= _CAMERA_READY_FRAMES:
+            self._auth_started = True
+            self._loading_lbl.hide()
+            if self._mode == MODE_AUTH:
+                self._begin_auth_countdown()
+
+    def _begin_auth_countdown(self):
+        """카메라 준비 완료 후 인증 카운트다운 + 가이드 텍스트 시작."""
+        self._remaining = AUTH_TIMEOUT_SEC
+        self._update_sub_with_guide()
+
+        self._countdown_timer = QTimer(self)
+        self._countdown_timer.timeout.connect(self._tick_countdown)
+        self._countdown_timer.start(1000)
+
+        self._guide_timer = QTimer(self)
+        self._guide_timer.timeout.connect(self._rotate_guide)
+        self._guide_timer.start(2000)
+
     def _tick_countdown(self):
         self._remaining -= 1
-        if self._remaining > 0:
-            self._sub_lbl.setText(f"카메라를 바라봐 주세요  ({self._remaining}초)")
-        else:
+        self._update_sub_with_guide()
+        if self._remaining <= 0:
             self._countdown_timer.stop()
+
+    def _rotate_guide(self):
+        self._guide_index = (self._guide_index + 1) % len(_AUTH_GUIDES)
+        self._update_sub_with_guide()
+
+    def _update_sub_with_guide(self):
+        guide = _AUTH_GUIDES[self._guide_index]
+        self._sub_lbl.setText(f"{guide}  ({self._remaining}초)")
 
     # ─────────────────────────────── 콜백: auth ──────────────────────────────
 
     def _on_auth_success(self, user: str, score: float):
         self._stop_thread()
         if self._app:
-            self._app.current_session["face_verified"] = True
+            self._app.current_session["face_verified"]    = True
             self._app.current_session["similarity_score"] = score
         result = self._app.screens["auth_result"]
         result.set_result(success=True, user=user)

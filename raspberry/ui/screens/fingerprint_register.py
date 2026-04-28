@@ -14,8 +14,8 @@ class _UploadWorker(QThread):
 
     def run(self):
         try:
-            from api.client import upload_fingerprint_id
-            upload_fingerprint_id(self._fp_id)
+            from api.client import upload_fingerprint
+            upload_fingerprint(self._fp_id)
         except Exception as e:
             print(f"[FP UPLOAD ERROR] {e}")
 
@@ -87,12 +87,9 @@ class FingerprintRegisterScreen(QWidget):
         self._progress = 0
         self._fp_id = None
         self._thread = None
+        self._prepare_thread = None
         self._upload_worker = None
         self._build_ui()
-
-    def set_result(self, fp_id: int):
-        """R307 스레드에서 등록 완료 시 호출 — fingerprint slot ID를 받아 백엔드에 업로드."""
-        self._fp_id = fp_id
 
     def _build_ui(self):
         self.setStyleSheet(f"FingerprintRegisterScreen {{ background-color: {_BG}; }}")
@@ -160,7 +157,7 @@ class FingerprintRegisterScreen(QWidget):
     def showEvent(self, event):
         super().showEvent(event)
         self._reset()
-        self._start_enroll()
+        self._prepare_slot()
 
     def hideEvent(self, event):
         super().hideEvent(event)
@@ -172,12 +169,23 @@ class FingerprintRegisterScreen(QWidget):
         if hasattr(self._fp_widget, "set_progress"):
             self._fp_widget.set_progress(0)
         self._pct_lbl.setText("0%")
-        self._title_lbl.setText("첫 번째 지문을 올려주세요")
+        self._title_lbl.setText("준비 중...")
 
-    def _start_enroll(self):
+    def _prepare_slot(self):
+        """서버에서 기존 슬롯 조회 후 다음 빈 슬롯 번호 확정."""
+        from ui.threads.fingerprint_thread import FingerprintPrepareThread
+        self._prepare_thread = FingerprintPrepareThread(parent=self)
+        self._prepare_thread.ready.connect(self._on_slot_ready)
+        self._prepare_thread.start()
+
+    def _on_slot_ready(self, next_slot: int):
+        self._title_lbl.setText("첫 번째 지문을 올려주세요")
+        self._start_enroll(next_slot)
+
+    def _start_enroll(self, position: int = 1):
         self._stop_thread()
         from ui.threads.fingerprint_thread import FingerprintEnrollThread
-        self._thread = FingerprintEnrollThread(position=1, parent=self)
+        self._thread = FingerprintEnrollThread(position=position, parent=self)
         self._thread.stage_changed.connect(self._on_stage)
         self._thread.progress.connect(self._on_progress)
         self._thread.enrolled.connect(self._on_enrolled)
