@@ -1,81 +1,95 @@
-import { defineConfig } from 'vite'
+import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 
-export default defineConfig({
-  plugins: [
-    react(),
-    VitePWA({
-      registerType: 'autoUpdate',
-      devOptions: {
-        enabled: true,
-      },
-      includeAssets: [
-        'favicon.ico',
-        'apple-touch-icon.png',
-        'pwa-192x192.png',
-        'pwa-512x512.png',
-      ],
-      manifest: {
-        name: 'Care-full',
-        short_name: 'Care-full',
-        description: '약쏙 - 스마트 복약 관리 서비스',
-        theme_color: '#1f3b73',
-        background_color: '#ffffff',
-        display: 'standalone',
-        start_url: '/login',
-        scope: '/',
-        icons: [
-          {
-            src: 'pwa-192x192.png',
-            sizes: '192x192',
-            type: 'image/png',
-            purpose: 'any maskable',
-          },
-          {
-            src: 'pwa-512x512.png',
-            sizes: '512x512',
-            type: 'image/png',
-            purpose: 'any maskable',
-          },
+export default defineConfig(({ mode }) => {
+  const env = loadEnv(mode, process.cwd(), '')
+
+  const devServerPort = env.VITE_DEV_PORT
+    ? Number(env.VITE_DEV_PORT)
+    : undefined
+
+  return {
+    plugins: [
+      react(),
+      VitePWA({
+        registerType: 'autoUpdate',
+        devOptions: {
+          enabled: true,
+        },
+        includeAssets: [
+          'favicon.ico',
+          'apple-touch-icon.png',
+          'pwa-192x192.png',
+          'pwa-512x512.png',
         ],
-      },
-      workbox: {
-        globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
-        navigateFallback: 'index.html',
-        runtimeCaching: [
-          {
-            urlPattern: ({ request }) => request.destination === 'document',
-            handler: 'NetworkFirst',
-            options: {
-              cacheName: 'pages-cache',
-              expiration: {
-                maxEntries: 10,
-                maxAgeSeconds: 60 * 60 * 24,
+        manifest: {
+          id: '/',
+          name: 'Care-full',
+          short_name: 'Care-full',
+          description: '약쏙 - 스마트 복약 관리 서비스',
+          theme_color: '#1f3b73',
+          background_color: '#ffffff',
+          display: 'standalone',
+          start_url: '/login',
+          scope: '/',
+          icons: [
+            {
+              src: 'pwa-192x192.png',
+              sizes: '192x192',
+              type: 'image/png',
+              purpose: 'any',
+            },
+            {
+              src: 'pwa-512x512.png',
+              sizes: '512x512',
+              type: 'image/png',
+              purpose: 'any',
+            },
+          ],
+        },
+        workbox: {
+          globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
+          navigateFallback: 'index.html',
+          runtimeCaching: [
+            {
+              urlPattern: ({ request }) => request.destination === 'document',
+              handler: 'NetworkFirst',
+              options: {
+                cacheName: 'pages-cache',
+                expiration: {
+                  maxEntries: 10,
+                  maxAgeSeconds: 60 * 60 * 24,
+                },
               },
             },
-          },
-          {
-            urlPattern: ({ request }) =>
-              ['style', 'script', 'worker'].includes(request.destination),
-            handler: 'StaleWhileRevalidate',
-            options: {
-              cacheName: 'assets-cache',
-            },
-          },
-          {
-            urlPattern: ({ request }) => request.destination === 'image',
-            handler: 'StaleWhileRevalidate',
-            options: {
-              cacheName: 'image-cache',
-              expiration: {
-                maxEntries: 50,
-                maxAgeSeconds: 60 * 60 * 24 * 30,
+            {
+              urlPattern: ({ request }) =>
+                ['style', 'script', 'worker'].includes(request.destination),
+              handler: 'StaleWhileRevalidate',
+              options: {
+                cacheName: 'assets-cache',
               },
             },
-          },
-        ],
-      },
-    }),
-  ],
+            {
+              urlPattern: ({ request }) => request.destination === 'image',
+              handler: 'StaleWhileRevalidate',
+              options: {
+                cacheName: 'image-cache',
+                expiration: {
+                  maxEntries: 50,
+                  maxAgeSeconds: 60 * 60 * 24 * 30,
+                },
+              },
+            },
+          ],
+        },
+      }),
+    ],
+    server: {
+      host: env.VITE_DEV_HOST || undefined,
+      port: devServerPort,
+      strictPort: Boolean(devServerPort),
+    },
+  }
 })

@@ -69,16 +69,23 @@ datasets/
 # 🔥 OLED 테스트 이미지 (선택)
 assets/tmp/
 
-# 🔥 Node.js / React (Frontend & Backend)
-**/node_modules/       # 모든 폴더 내의 node_modules 제외
-**/dist/               # 빌드 결과물 (React 빌드 등)
-**/build/              # React 빌드 폴더
+# Node.js / React (Frontend & Backend)
+**/node_modules/
+frontend/dev-dist/
+**/dist/
+**/build/
+frontend/.vite/
+.vite/
 .npm
 *.log
-package-lock.json      # 팀 협업 방식에 따라 다르지만, 보통은 올리기도 해요! (선택)
-yarn.lock              # yarn 사용 시
 
-# 🔥 API Keys (백엔드 env)
+# lock 파일
+# package-lock.json은 보통 커밋하는 편이라 ignore 비추천
+# yarn.lock도 팀 규칙 없으면 보통 커밋
+# package-lock.json
+# yarn.lock
+
+# API Keys (백엔드 env)
 backend/.env
 backend/.env.local
 
