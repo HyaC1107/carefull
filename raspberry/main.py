@@ -1,7 +1,7 @@
 import os
 import sys
 import logging
-from raspberry.config.settings import BASE_DIR, ENV_DIR
+from config.settings import BASE_DIR, ENV_DIR
 from ui.app import run
 
 # 로깅 설정

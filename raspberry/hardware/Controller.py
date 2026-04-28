@@ -21,7 +21,7 @@ from scheduler.schedule import check_schedule, sync_schedules
 from hardware.alarm import play_alarm, stop_alarm
 from hardware.motor import dispense_medicine
 from camera.camera import check_camera_health, release_camera
-from config.settings import VOICES_DIR
+from config.settings import VOICES_DIR, STEP_PINS
 
 logger = logging.getLogger("Controller")
 
@@ -46,11 +46,8 @@ class Controller(threading.Thread):
             
             GPIO.setmode(GPIO.BCM)
             GPIO.setwarnings(False)
-            
-            # 모터 및 배출 관련 핀 초기화 (12, 16, 20, 21)
-            # motor.py의 STEP_PINS와 동일하게 설정
-            motor_pins = [12, 16, 20, 21]
-            for pin in motor_pins:
+
+            for pin in STEP_PINS:
                 GPIO.setup(pin, GPIO.OUT)
                 GPIO.output(pin, False)
                 
@@ -90,8 +87,7 @@ class Controller(threading.Thread):
         logger.warning("EMERGENCY STOP CALLED!")
         try:
             stop_alarm()
-            motor_pins = [12, 16, 20, 21]
-            for pin in motor_pins:
+            for pin in STEP_PINS:
                 GPIO.output(pin, False)
             release_camera()
         except Exception as e:
