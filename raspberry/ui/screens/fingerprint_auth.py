@@ -6,8 +6,6 @@ from PyQt5.QtWidgets import (
     QLabel, QProgressBar, QVBoxLayout, QWidget,
 )
 
-from config.settings import UI_TEST_MODE
-
 _ICONS_DIR = os.path.normpath(
     os.path.join(os.path.dirname(__file__), "..", "..", "assets", "icons")
 )
@@ -16,8 +14,7 @@ _BG = "#e8f0fe"
 _BLUE = "#3b82f6"
 _DARK = "#1e3a5f"
 
-_MOCK_AUTH_MS = 3000    # 모의 인증 소요 시간 (TODO: R307 연동 시 제거)
-_AUTH_TIMEOUT_MS = 30_000  # 지문 인식 대기 최대 시간
+_AUTH_TIMEOUT_MS = 30_000
 
 
 class _FingerprintWidget(QWidget):
@@ -70,7 +67,7 @@ class FingerprintAuthScreen(QWidget):
         super().__init__(parent)
         self._app = parent
         self._progress = 0
-        self._tick_timer = None
+        self._thread = None
         self._timeout_timer = None
         self._build_ui()
 
@@ -152,39 +149,52 @@ class FingerprintAuthScreen(QWidget):
         if hasattr(self._fp_widget, "set_progress"):
             self._fp_widget.set_progress(0)
         self._pct_lbl.setText("0%")
-        self._title_lbl.setText("지문을 인증하는 중...")
+        self._title_lbl.setText("센서에 손가락을 올려주세요")
 
     def _start_auth(self):
-        # TODO: 실제 R307 UART 인증 스레드로 교체 (/dev/ttyAMA0, baudrate=57600)
-        #       성공 시 self._on_auth_success(), 실패 시 self._on_auth_failure() 호출
-        duration_ms = 2000 if UI_TEST_MODE else _MOCK_AUTH_MS
-        step_ms = duration_ms // 100
+        self._stop_thread()
 
-        self._tick_timer = QTimer(self)
-        self._tick_timer.timeout.connect(self._tick)
-        self._tick_timer.start(step_ms)
+        from ui.threads.fingerprint_thread import FingerprintSearchThread
+        self._thread = FingerprintSearchThread(parent=self)
+        self._thread.found.connect(self._on_found)
+        self._thread.not_found.connect(self._on_not_found)
+        self._thread.failed.connect(self._on_failed)
+        self._thread.start()
 
         self._timeout_timer = QTimer(self)
         self._timeout_timer.setSingleShot(True)
         self._timeout_timer.timeout.connect(self._on_auth_failure)
         self._timeout_timer.start(_AUTH_TIMEOUT_MS)
 
+    def _stop_thread(self):
+        if self._thread and self._thread.isRunning():
+            self._thread.stop()
+            self._thread.wait(2000)
+        self._thread = None
+
     def _stop_timers(self):
-        if self._tick_timer and self._tick_timer.isActive():
-            self._tick_timer.stop()
         if self._timeout_timer and self._timeout_timer.isActive():
             self._timeout_timer.stop()
+        self._stop_thread()
 
-    def _tick(self):
-        self._progress += 1
-        self._progress_bar.setValue(self._progress)
+    def _on_found(self, position: int, score: int):
+        self._stop_timers()
+        self._title_lbl.setText("인증 완료!")
+        self._progress_bar.setValue(100)
         if hasattr(self._fp_widget, "set_progress"):
-            self._fp_widget.set_progress(self._progress)
-        self._pct_lbl.setText(f"{self._progress}%")
-        if self._progress >= 100:
-            self._stop_timers()
-            self._title_lbl.setText("인증 완료!")
-            QTimer.singleShot(400, self._on_auth_success)
+            self._fp_widget.set_progress(100)
+        self._pct_lbl.setText("100%")
+        QTimer.singleShot(400, self._on_auth_success)
+
+    def _on_not_found(self):
+        self._stop_timers()
+        self._title_lbl.setText("등록되지 않은 지문입니다")
+        QTimer.singleShot(1500, self._on_auth_failure)
+
+    def _on_failed(self, msg: str):
+        self._stop_timers()
+        self._title_lbl.setText(f"오류: {msg}")
+        QTimer.singleShot(1500, self._on_auth_failure)
 
     def _on_auth_success(self):
         if not self._app:
