@@ -28,7 +28,7 @@ function DeviceStatusSection({ deviceStatus }) {
           </div>
           <p className="dashboard-device__label">연결 상태</p>
           <p className="dashboard-device__value dashboard-device__value--green">
-            {deviceStatus.connection_status}
+            {deviceStatus.connectionStatus}
           </p>
         </div>
 
@@ -54,7 +54,7 @@ function DeviceStatusSection({ deviceStatus }) {
           </div>
           <p className="dashboard-device__label">남은 복용 횟수</p>
           <p className="dashboard-device__value dashboard-device__value--blue">
-            {deviceStatus.medication_level}
+            {deviceStatus.remainingDoses}
           </p>
         </div>
       </div>
@@ -62,12 +62,12 @@ function DeviceStatusSection({ deviceStatus }) {
       <div className="dashboard-device__meta">
         <div>
           <p className="dashboard-device__meta-label">마지막 동기화</p>
-          <p className="dashboard-device__meta-value">{deviceStatus.last_sync_time}</p>
+          <p className="dashboard-device__meta-value">{deviceStatus.lastSynced}</p>
         </div>
 
         <div>
           <p className="dashboard-device__meta-label">다음 복약 시간</p>
-          <p className="dashboard-device__meta-value">{deviceStatus.next_schedule_time}</p>
+          <p className="dashboard-device__meta-value">{deviceStatus.nextDoseTime}</p>
         </div>
       </div>
     </section>

@@ -9,12 +9,12 @@ function ScheduleItemCard({ item, onToggle }) {
           <span className="schedule-item-card__clock" aria-hidden="true">
             🕒
           </span>
-          <span className="schedule-item-card__time">{item.time_to_take}</span>
+          <span className="schedule-item-card__time">{item.time}</span>
         </div>
 
         <div className="schedule-item-card__info">
           <div className="schedule-item-card__title-row">
-            <h4 className="schedule-item-card__medicine-name">{item.medi_name}</h4>
+            <h4 className="schedule-item-card__medicine-name">{item.medicineName}</h4>
             <span
               className={`schedule-item-card__status-badge ${
                 isDone

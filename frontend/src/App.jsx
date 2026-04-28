@@ -1,16 +1,11 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
 import LoginPage from './pages/LoginPage'
-import SocialCallbackPage from './pages/SocialCallbackPage'
 import DashboardPage from './pages/DashboardPage'
 import SchedulePage from './pages/SchedulePage'
 import StatsPage from './pages/StatsPage'
 import AlertsPage from './pages/AlertsPage'
 import PatientPage from './pages/PatientPage'
 import SettingsPage from './pages/SettingsPage'
-import AdminLoginPage from './pages/AdminLoginPage'
-import AdminDashboardPage from './pages/AdminDashboardPage'
-import { hasStoredToken } from './api'
-import { hasAdminToken } from './adminApi'
 
 function App() {
   return (
@@ -20,49 +15,29 @@ function App() {
 
       {/* 로그인 페이지 */}
       <Route path="/login" element={<LoginPage />} />
-      <Route path="/login/callback/:provider" element={<SocialCallbackPage />} />
 
       {/* 대시보드 페이지 */}
-      <Route path="/dashboard" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
+      <Route path="/dashboard" element={<DashboardPage />} />
 
       {/* 복약일정 페이지 */}
-      <Route path="/schedule" element={<ProtectedRoute><SchedulePage /></ProtectedRoute>} />
+      <Route path="/schedule" element={<SchedulePage />} />
 
       {/* 통계 페이지 */}
-      <Route path="/stats" element={<ProtectedRoute><StatsPage /></ProtectedRoute>} />
+      <Route path="/stats" element={<StatsPage />} />
 
       {/* 알림 페이지 */}
-      <Route path="/alerts" element={<ProtectedRoute><AlertsPage /></ProtectedRoute>} />
+      <Route path="/alerts" element={<AlertsPage />} />
 
       {/* 환자정보 페이지 */}
-      <Route path="/patient" element={<ProtectedRoute><PatientPage /></ProtectedRoute>} />
-      <Route path="/register-patient" element={<ProtectedRoute><PatientPage /></ProtectedRoute>} />
+      <Route path="/patient" element={<PatientPage />} />
 
       {/* 설정 페이지 */}
-      <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
-
-      {/* 관리자 페이지 */}
-      <Route path="/admin" element={<AdminLoginPage />} />
-      <Route path="/admin/dashboard" element={<AdminProtectedRoute><AdminDashboardPage /></AdminProtectedRoute>} />
+      <Route path="/settings" element={<SettingsPage />} />
 
       {/* 없는 주소로 들어오면 로그인 페이지로 보냄 */}
       <Route path="*" element={<Navigate to="/login" replace />} />
     </Routes>
   )
-}
-
-function ProtectedRoute({ children }) {
-  if (!hasStoredToken()) {
-    return <Navigate to="/login" replace />
-  }
-  return children
-}
-
-function AdminProtectedRoute({ children }) {
-  if (!hasAdminToken()) {
-    return <Navigate to="/admin" replace />
-  }
-  return children
 }
 
 export default App

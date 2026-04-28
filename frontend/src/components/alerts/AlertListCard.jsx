@@ -1,6 +1,6 @@
 import AlertListItem from './AlertListItem'
 
-function AlertListCard({ alerts, totalCount, hasUnread, onMarkAllRead }) {
+function AlertListCard({ alerts, totalCount, onMarkAllRead }) {
   return (
     <section className="alert-list-card">
       <div className="alert-list-card__header">
@@ -10,9 +10,8 @@ function AlertListCard({ alerts, totalCount, hasUnread, onMarkAllRead }) {
           type="button"
           className="alert-list-card__mark-read-button"
           onClick={onMarkAllRead}
-          disabled={!hasUnread}
         >
-          {hasUnread ? '모두 읽음 처리' : '✔'}
+          모두 읽음 처리
         </button>
       </div>
 
