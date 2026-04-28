@@ -1,7 +1,10 @@
 import os
-
+from dotenv import load_dotenv
+from utils.device_id import get_device_uid
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+load_dotenv(os.path.join(BASE_DIR, '.env'))
+
 DB_DIR = os.path.join(BASE_DIR, "db")
 MODELS_DIR = os.path.join(BASE_DIR, "models")
 
@@ -23,7 +26,7 @@ FULLSCREEN    = os.getenv("CAREFULL_FULLSCREEN",   "1") == "1"
 
 # API
 API_BASE_URL = os.getenv("CAREFULL_API_BASE_URL", "http://localhost:3000")
-DEVICE_UID   = os.getenv("CAREFULL_DEVICE_UID", "")
+DEVICE_UID   = get_device_uid()
 API_TIMEOUT  = int(os.getenv("CAREFULL_API_TIMEOUT", "10"))
 
 # UI 폰트 크기 (pt) — 고령자 대상, 여기서만 수정하면 전체 반영

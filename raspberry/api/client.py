@@ -135,6 +135,23 @@ def fetch_face_embeddings(device_uid: str = DEVICE_UID) -> list:
         return []
 
 
+def upload_fingerprint_id(fingerprint_id: int, device_uid: str = DEVICE_UID) -> bool:
+    if not device_uid:
+        logger.error("upload_fingerprint_id: DEVICE_UID not set")
+        return False
+    try:
+        r = requests.post(
+            _url("/api/device/fingerprint"),
+            json={"device_uid": device_uid, "fingerprint_id": fingerprint_id},
+            timeout=API_TIMEOUT,
+        )
+        r.raise_for_status()
+        return True
+    except Exception as e:
+        logger.error("upload_fingerprint_id failed: %s", e)
+        return False
+
+
 def upload_face_embedding(face_vector: list, device_uid: str = DEVICE_UID) -> bool:
     if not device_uid:
         logger.error("upload_face_embedding: CAREFULL_DEVICE_UID not set")
