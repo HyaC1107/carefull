@@ -3,16 +3,16 @@ import { useState } from 'react'
 function PatientRegisterModal({ onClose, onSuccess }) {
   const [photoCaptured, setPhotoCaptured] = useState(false)
   const [form, setForm] = useState({
-    patient_name: '',
-    birthdate: '',
+    name: '',
+    birthDate: '',
     gender: '',
-    bloodtype: '',
+    bloodType: '',
     height: '',
     weight: '',
     phone: '',
     address: '',
-    guardian_name: '',
-    guardian_phone: '',
+    guardianName: '',
+    guardianPhone: '',
   })
 
   const handleChange = (field, value) => {
@@ -25,14 +25,19 @@ function PatientRegisterModal({ onClose, onSuccess }) {
   const handleSubmit = (event) => {
     event.preventDefault()
 
-    if (!form.patient_name.trim() || !form.phone.trim()) {
+    if (!photoCaptured) {
+      alert('환자 사진 등록을 먼저 완료해주세요.')
+      return
+    }
+
+    if (!form.name.trim() || !form.phone.trim()) {
       alert('이름과 연락처는 필수입니다.')
       return
     }
 
     onSuccess({
       ...form,
-      photoCaptured,
+      photoCaptured: true,
     })
   }
 
@@ -60,15 +65,47 @@ function PatientRegisterModal({ onClose, onSuccess }) {
         </div>
 
         <form className="patient-modal__body" onSubmit={handleSubmit}>
-          
+          <div className="patient-photo-box">
+            <p className="patient-form-field__label">환자 사진 등록 *</p>
+
+            <div className="patient-photo-box__area">
+              <div className="patient-photo-box__icon" aria-hidden="true">
+                <svg
+                  viewBox="0 0 24 24"
+                  width="28"
+                  height="28"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M4 7h3l2-2h6l2 2h3v11H4z" />
+                  <circle cx="12" cy="13" r="4" />
+                </svg>
+              </div>
+
+              <p className="patient-photo-box__description">
+                버튼을 누르면 자동으로 5장의 사진이 촬영됩니다
+              </p>
+
+              <button
+                type="button"
+                className="patient-photo-box__button"
+                onClick={() => setPhotoCaptured(true)}
+              >
+                사진 촬영 시작
+              </button>
+            </div>
+          </div>
 
           <div className="patient-form-grid patient-form-grid--one">
             <label className="patient-form-field">
               <span className="patient-form-field__label">이름 *</span>
               <input
                 className="patient-form-field__input"
-                value={form.patient_name}
-                onChange={(e) => handleChange('patient_name', e.target.value)}
+                value={form.name}
+                onChange={(e) => handleChange('name', e.target.value)}
                 placeholder="환자 이름을 입력하세요"
               />
             </label>
@@ -79,8 +116,8 @@ function PatientRegisterModal({ onClose, onSuccess }) {
               <span className="patient-form-field__label">생년월일</span>
               <input
                 className="patient-form-field__input"
-                value={form.birthdate}
-                onChange={(e) => handleChange('birthdate', e.target.value)}
+                value={form.birthDate}
+                onChange={(e) => handleChange('birthDate', e.target.value)}
               />
             </label>
 
@@ -99,8 +136,8 @@ function PatientRegisterModal({ onClose, onSuccess }) {
               <span className="patient-form-field__label">혈액형</span>
               <input
                 className="patient-form-field__input"
-                value={form.bloodtype}
-                onChange={(e) => handleChange('bloodtype', e.target.value)}
+                value={form.bloodType}
+                onChange={(e) => handleChange('bloodType', e.target.value)}
               />
             </label>
 
@@ -156,8 +193,8 @@ function PatientRegisterModal({ onClose, onSuccess }) {
               <span className="patient-form-field__label">보호자 이름</span>
               <input
                 className="patient-form-field__input"
-                value={form.guardian_name}
-                onChange={(e) => handleChange('guardian_name', e.target.value)}
+                value={form.guardianName}
+                onChange={(e) => handleChange('guardianName', e.target.value)}
                 placeholder="보호자 이름을 입력하세요"
               />
             </label>
@@ -166,14 +203,16 @@ function PatientRegisterModal({ onClose, onSuccess }) {
               <span className="patient-form-field__label">보호자 연락처</span>
               <input
                 className="patient-form-field__input"
-                value={form.guardian_phone}
-                onChange={(e) => handleChange('guardian_phone', e.target.value)}
+                value={form.guardianPhone}
+                onChange={(e) => handleChange('guardianPhone', e.target.value)}
                 placeholder="010-1234-5678"
               />
             </label>
           </div>
 
-       
+          <div className="patient-form-message patient-form-message--warning">
+            사진 등록을 완료해야 등록할 수 있습니다
+          </div>
 
           <div className="patient-modal__actions">
             <button

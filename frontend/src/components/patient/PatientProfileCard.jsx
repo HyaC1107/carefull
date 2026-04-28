@@ -19,7 +19,7 @@ function PatientProfileCard({ profile }) {
         </div>
 
         <div>
-          <h3 className="patient-profile-card__name">{profile.patient_name}</h3>
+          <h3 className="patient-profile-card__name">{profile.name}</h3>
           <p className="patient-profile-card__summary">{profile.ageGenderBlood}</p>
         </div>
       </div>
@@ -33,7 +33,7 @@ function PatientProfileCard({ profile }) {
         <InfoItem
           icon={renderGuardianIcon()}
           label="보호자"
-          value={profile.guardian_name}
+          value={profile.guardianName}
         />
         <InfoItem
           icon={renderLocationIcon()}
@@ -43,12 +43,12 @@ function PatientProfileCard({ profile }) {
         <InfoItem
           icon={renderPhoneIcon()}
           label="보호자 연락처"
-          value={profile.guardian_phone}
+          value={profile.guardianPhone}
         />
         <InfoItem
           icon={renderCalendarIcon()}
           label="서비스 등록일"
-          value={profile.created_at}
+          value={profile.registeredAt}
         />
         <InfoItem
           icon={renderPulseIcon()}
