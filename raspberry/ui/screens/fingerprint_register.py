@@ -27,8 +27,6 @@ _BG = "#ede8ff"
 _PURPLE = "#7c3aed"
 _DARK = "#1e1b4b"
 
-_MOCK_DURATION_MS = 4000   # 실제 R307 연동 전 임시 모의 시간
-
 
 class _FingerprintWidget(QWidget):
     """지문 아이콘 (동심 호 + 어두운 배경 카드)."""
@@ -87,7 +85,8 @@ class FingerprintRegisterScreen(QWidget):
         super().__init__(parent)
         self._app = parent
         self._progress = 0
-        self._fp_id = None       # R307 등록 완료 후 set_result(fp_id) 로 설정
+        self._fp_id = None
+        self._thread = None
         self._upload_worker = None
         self._build_ui()
 
@@ -160,31 +159,54 @@ class FingerprintRegisterScreen(QWidget):
 
     def showEvent(self, event):
         super().showEvent(event)
+        self._reset()
+        self._start_enroll()
+
+    def hideEvent(self, event):
+        super().hideEvent(event)
+        self._stop_thread()
+
+    def _reset(self):
         self._progress = 0
         self._progress_bar.setValue(0)
         if hasattr(self._fp_widget, "set_progress"):
             self._fp_widget.set_progress(0)
         self._pct_lbl.setText("0%")
-        self._title_lbl.setText("지문을 스캔하는 중...")
-        self._start_mock()
+        self._title_lbl.setText("첫 번째 지문을 올려주세요")
 
-    def _start_mock(self):
-        # TODO: 실제 R307 스레드로 교체
-        step_ms = _MOCK_DURATION_MS // 100
-        self._tick_timer = QTimer(self)
-        self._tick_timer.timeout.connect(self._tick)
-        self._tick_timer.start(step_ms)
+    def _start_enroll(self):
+        self._stop_thread()
+        from ui.threads.fingerprint_thread import FingerprintEnrollThread
+        self._thread = FingerprintEnrollThread(position=1, parent=self)
+        self._thread.stage_changed.connect(self._on_stage)
+        self._thread.progress.connect(self._on_progress)
+        self._thread.enrolled.connect(self._on_enrolled)
+        self._thread.failed.connect(self._on_failed)
+        self._thread.start()
 
-    def _tick(self):
-        self._progress += 1
-        self._progress_bar.setValue(self._progress)
+    def _stop_thread(self):
+        if self._thread and self._thread.isRunning():
+            self._thread.stop()
+            self._thread.wait(2000)
+        self._thread = None
+
+    def _on_stage(self, msg: str):
+        self._title_lbl.setText(msg)
+
+    def _on_progress(self, value: int):
+        self._progress_bar.setValue(value)
         if hasattr(self._fp_widget, "set_progress"):
-            self._fp_widget.set_progress(self._progress)
-        self._pct_lbl.setText(f"{self._progress}%")
-        if self._progress >= 100:
-            self._tick_timer.stop()
-            self._title_lbl.setText("등록 완료!")
-            QTimer.singleShot(600, self._go_complete)
+            self._fp_widget.set_progress(value)
+        self._pct_lbl.setText(f"{value}%")
+
+    def _on_enrolled(self, fp_id: int):
+        self._fp_id = fp_id
+        self._title_lbl.setText("등록 완료!")
+        self._on_progress(100)
+        QTimer.singleShot(600, self._go_complete)
+
+    def _on_failed(self, msg: str):
+        self._title_lbl.setText(f"등록 실패: {msg}")
 
     def _go_complete(self):
         if self._fp_id is not None:
