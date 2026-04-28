@@ -187,15 +187,25 @@ class FingerprintAuthScreen(QWidget):
             QTimer.singleShot(400, self._on_auth_success)
 
     def _on_auth_success(self):
-        if self._app:
-            # 얼굴 인증 없이 지문으로 통과 — face_verified는 False 유지
-            result = self._app.screens["auth_result"]
-            result.set_result(success=True, fingerprint=True)
-            self._app.show_screen("auth_result")
+        if not self._app:
+            return
+        if self._app.current_session.get("fp_test_mode"):
+            self._app.current_session["fp_test_mode"] = False
+            self._app.show_screen("home")
+            return
+        # 얼굴 인증 없이 지문으로 통과 — face_verified는 False 유지
+        result = self._app.screens["auth_result"]
+        result.set_result(success=True, fingerprint=True)
+        self._app.show_screen("auth_result")
 
     def _on_auth_failure(self):
         self._stop_timers()
-        if self._app:
-            result = self._app.screens["auth_result"]
-            result.set_result(success=False)
-            self._app.show_screen("auth_result")
+        if not self._app:
+            return
+        if self._app.current_session.get("fp_test_mode"):
+            self._app.current_session["fp_test_mode"] = False
+            self._app.show_screen("home")
+            return
+        result = self._app.screens["auth_result"]
+        result.set_result(success=False)
+        self._app.show_screen("auth_result")
