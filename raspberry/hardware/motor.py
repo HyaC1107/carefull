@@ -1,12 +1,22 @@
-import RPi.GPIO as GPIO
 import time
 import logging
 
-logger = logging.getLogger("Motor")
+try:
+    import RPi.GPIO as GPIO
+except ImportError:
+    class MockGPIO:
+        BCM = "BCM"
+        OUT = "OUT"
+        def setmode(self, mode): pass
+        def setwarnings(self, flag): pass
+        def setup(self, pin, mode): pass
+        def output(self, pin, state): pass
+        def cleanup(self): pass
+    GPIO = MockGPIO()
 
-# --- 설정 (GPIO 핀 번호) ---
-STEP_PINS = [12, 16, 20, 21]
-PUMP_PIN = 26 # 예시 핀
+from config.settings import STEP_PINS, PUMP_PIN
+
+logger = logging.getLogger("Motor")
 
 # 스텝 모터 시퀀스 (8단계)
 STEP_SEQ = [

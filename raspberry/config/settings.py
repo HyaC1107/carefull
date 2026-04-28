@@ -34,6 +34,17 @@ API_TIMEOUT  = int(os.getenv("CAREFULL_API_TIMEOUT", "10"))
 VOICES_DIR = os.path.join(BASE_DIR, "voices")
 TTS_LANG = os.getenv("CAREFULL_TTS_LANG", "ko")
 TTS_FILE_PATH = os.path.join(VOICES_DIR, "default_alarm.mp3")
+# ── GPIO 핀 번호 (BCM 기준) ── 여기서만 수정하면 전체 반영
+STEP_PINS  = [
+    int(os.getenv("CAREFULL_STEP_PIN1", "12")),
+    int(os.getenv("CAREFULL_STEP_PIN2", "16")),
+    int(os.getenv("CAREFULL_STEP_PIN3", "20")),
+    int(os.getenv("CAREFULL_STEP_PIN4", "21")),
+]
+PUMP_PIN   = int(os.getenv("CAREFULL_PUMP_PIN",   "26"))
+LED_PIN_1  = int(os.getenv("CAREFULL_LED_PIN1",    "5"))
+LED_PIN_2  = int(os.getenv("CAREFULL_LED_PIN2",    "6"))
+
 # UI 폰트 크기 (pt) — 고령자 대상, 여기서만 수정하면 전체 반영
 FONT_TITLE  = 50   # 화면 메인 타이틀
 FONT_HEAD   = 42   # 섹션 헤딩 / 인증 타이틀
