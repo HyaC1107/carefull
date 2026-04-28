@@ -17,6 +17,26 @@ const to_notification_response = (row) => ({
     created_at: row.created_at
 });
 
+router.post('/fcm-token', verifyToken, async (req, res) => {
+    const mem_id = req.user.mem_id;
+    const { fcm_token } = req.body;
+
+    if (!fcm_token || !String(fcm_token).trim()) {
+        return sendError(res, 400, 'fcm_token is required.');
+    }
+
+    try {
+        await pool.query(
+            'UPDATE members SET fcm_token = $1 WHERE mem_id = $2',
+            [String(fcm_token).trim(), mem_id]
+        );
+        return sendSuccess(res, 200, { message: 'FCM token updated.' });
+    } catch (err) {
+        console.error('FCM token update error:', err);
+        return sendError(res, 500, 'Server error while updating FCM token.');
+    }
+});
+
 router.get('/', verifyToken, async (req, res) => {
     const mem_id = req.user.mem_id;
 

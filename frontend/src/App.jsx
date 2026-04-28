@@ -6,8 +6,11 @@ import StatsPage from './pages/StatsPage'
 import AlertsPage from './pages/AlertsPage'
 import PatientPage from './pages/PatientPage'
 import SettingsPage from './pages/SettingsPage'
+import { useFCM } from './hooks/useFCM'
 
 function App() {
+  useFCM()
+
   return (
     <Routes>
       {/* 기본 주소로 들어오면 로그인 페이지로 보냄 */}
