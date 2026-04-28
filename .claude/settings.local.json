@@ -9,7 +9,8 @@
       "Bash(mv test.jpg test2.jpg test3.jpg test4.jpg test5.jpg test_images/)",
       "Bash(rm intake_detector.py intake_tasks.py intake_yolo.py face_test.py test_behavior.py)",
       "WebSearch",
-      "Bash(grep -E \"\\\\.\\(js|jsx|ts|tsx|env|json\\)$\")"
+      "Bash(grep -E \"\\\\.\\(js|jsx|ts|tsx|env|json\\)$\")",
+      "Skill(schedule)"
     ]
   }
 }
