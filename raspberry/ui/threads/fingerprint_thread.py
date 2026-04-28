@@ -61,52 +61,56 @@ class FingerprintEnrollThread(QThread):
 
             sensor = mgr.sensor
 
-            # ── 1단계: 첫 번째 지문 스캔 ─────────────────────────────────
-            self.stage_changed.emit("첫 번째 지문을 올려주세요")
-            self.progress.emit(10)
-
             while self._running:
-                if sensor.readImage():
-                    break
-                self.msleep(100)
-            if not self._running:
-                return
+                # ── 1단계: 첫 번째 지문 스캔 ─────────────────────────────
+                self.stage_changed.emit("손가락을 올려주세요")
+                self.progress.emit(10)
 
-            sensor.convertImage(0x01)
-            self.progress.emit(40)
-
-            # ── 잠시 대기 ──────────────────────────────────────────────────
-            self.stage_changed.emit("손가락을 떼고 다시 올려주세요")
-            self.progress.emit(50)
-
-            # 손 뗄 시간: 센서에서 손가락이 없어질 때까지 대기 (최대 3초)
-            for _ in range(30):
+                while self._running:
+                    if sensor.readImage():
+                        break
+                    self.msleep(100)
                 if not self._running:
                     return
-                self.msleep(100)
 
-            # ── 2단계: 두 번째 지문 스캔 ─────────────────────────────────
-            self.stage_changed.emit("같은 손가락을 다시 올려주세요")
-            self.progress.emit(60)
+                sensor.convertImage(0x01)
+                self.progress.emit(40)
 
-            while self._running:
-                if sensor.readImage():
-                    break
-                self.msleep(100)
-            if not self._running:
+                # ── 잠시 대기 ────────────────────────────────────────────
+                self.stage_changed.emit("손가락을 떼고 다시 올려주세요")
+                self.progress.emit(50)
+
+                for _ in range(30):
+                    if not self._running:
+                        return
+                    self.msleep(100)
+
+                # ── 2단계: 두 번째 지문 스캔 ─────────────────────────────
+                self.stage_changed.emit("같은 손가락을 다시 올려주세요")
+                self.progress.emit(60)
+
+                while self._running:
+                    if sensor.readImage():
+                        break
+                    self.msleep(100)
+                if not self._running:
+                    return
+
+                sensor.convertImage(0x02)
+                self.progress.emit(80)
+
+                # ── 3단계: 템플릿 생성 및 저장 ───────────────────────────
+                if not sensor.createTemplate():
+                    # 불일치 → 처음부터 재시도
+                    self.stage_changed.emit("인식이 달라요. 다시 손가락을 올려주세요")
+                    self.progress.emit(0)
+                    self.msleep(1500)
+                    continue
+
+                sensor.storeTemplate(self._position)
+                self.progress.emit(100)
+                self.enrolled.emit(self._position)
                 return
-
-            sensor.convertImage(0x02)
-            self.progress.emit(80)
-
-            # ── 3단계: 템플릿 생성 및 저장 ───────────────────────────────
-            if not sensor.createTemplate():
-                self.failed.emit("두 지문이 일치하지 않습니다")
-                return
-
-            sensor.storeTemplate(self._position)
-            self.progress.emit(100)
-            self.enrolled.emit(self._position)
 
         except Exception as e:
             self.failed.emit(str(e))

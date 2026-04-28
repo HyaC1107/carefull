@@ -8,6 +8,7 @@ import SettingToggleRow from '../components/settings/SettingToggleRow'
 import SettingActionRow from '../components/settings/SettingActionRow'
 import GuardianEditModal from '../components/settings/GuardianEditModal'
 import PatientEditModal from '../components/settings/PatientEditModal'
+import VoiceUploadTab from '../components/settings/VoiceUploadTab'
 import { hasStoredToken, requestJson, TOKEN_STORAGE_KEY } from '../api'
 import '../styles/SettingsPage.css'
 import '../styles/MobileBottomNav.css'
@@ -79,7 +80,13 @@ function loadNotifPrefs() {
   return { ...DEFAULT_NOTIF_PREFS }
 }
 
+const TABS = [
+  { key: 'general', label: '일반 설정' },
+  { key: 'voice', label: '보호자 목소리' },
+]
+
 function SettingsPage() {
+  const [activeTab, setActiveTab] = useState('general')
   const [notifPrefs, setNotifPrefs] = useState(loadNotifPrefs)
   const [patientData, setPatientData] = useState(null)
   const [isPatientModalOpen, setIsPatientModalOpen] = useState(false)
@@ -165,29 +172,51 @@ function SettingsPage() {
           <main className="settings-content">
             <SettingsHeader />
 
-            <SettingsSectionCard title="알림 수신 설정">
-              {NOTIF_TOGGLE_ITEMS.map((item) => (
-                <SettingToggleRow
-                  key={item.key}
-                  title={item.title}
-                  description={item.description}
-                  checked={notifPrefs[item.key]}
-                  onChange={() => handleToggleNotif(item.key)}
-                />
+            <nav className="settings-tabs">
+              {TABS.map((tab) => (
+                <button
+                  key={tab.key}
+                  className={`settings-tab-btn${activeTab === tab.key ? ' settings-tab-btn--active' : ''}`}
+                  onClick={() => setActiveTab(tab.key)}
+                >
+                  {tab.label}
+                </button>
               ))}
-            </SettingsSectionCard>
+            </nav>
 
-            <SettingsSectionCard title="계정 설정">
-              {ACCOUNT_ACTION_ITEMS.map((item) => (
-                <SettingActionRow
-                  key={item.id}
-                  title={item.title}
-                  description={item.description}
-                  buttonLabel={item.buttonLabel}
-                  onClick={() => handleAccountAction(item.id)}
-                />
-              ))}
-            </SettingsSectionCard>
+            {activeTab === 'general' && (
+              <>
+                <SettingsSectionCard title="알림 수신 설정">
+                  {NOTIF_TOGGLE_ITEMS.map((item) => (
+                    <SettingToggleRow
+                      key={item.key}
+                      title={item.title}
+                      description={item.description}
+                      checked={notifPrefs[item.key]}
+                      onChange={() => handleToggleNotif(item.key)}
+                    />
+                  ))}
+                </SettingsSectionCard>
+
+                <SettingsSectionCard title="계정 설정">
+                  {ACCOUNT_ACTION_ITEMS.map((item) => (
+                    <SettingActionRow
+                      key={item.id}
+                      title={item.title}
+                      description={item.description}
+                      buttonLabel={item.buttonLabel}
+                      onClick={() => handleAccountAction(item.id)}
+                    />
+                  ))}
+                </SettingsSectionCard>
+              </>
+            )}
+
+            {activeTab === 'voice' && (
+              <SettingsSectionCard title="보호자 목소리 등록">
+                <VoiceUploadTab />
+              </SettingsSectionCard>
+            )}
           </main>
         </div>
       </div>
