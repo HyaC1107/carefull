@@ -73,13 +73,20 @@ function Table({ headers, rows, empty = '데이터 없음', renderRow }) {
 }
 
 /* ─── 등록 관리 탭 ───────────────────────────────────────────────────────── */
+const INNER_TABS = [
+  { key: 'device',   label: '기기 등록 / 해제' },
+  { key: 'schedule', label: '스케줄 관리' },
+  { key: 'patient',  label: '환자 삭제' },
+]
+
 function TestManagement({ onRefreshStats }) {
-  const [patients,     setPatients]     = useState([])
-  const [devices,      setDevices]      = useState([])
-  const [schedules,    setSchedules]    = useState([])
-  const [medications,  setMedications]  = useState([])
-  const [loading,      setLoading]      = useState(false)
-  const [msg,          setMsg]          = useState(null)
+  const [innerTab,    setInnerTab]    = useState('device')
+  const [patients,    setPatients]    = useState([])
+  const [devices,     setDevices]     = useState([])
+  const [schedules,   setSchedules]   = useState([])
+  const [medications, setMedications] = useState([])
+  const [loading,     setLoading]     = useState(false)
+  const [msg,         setMsg]         = useState(null)
 
   const [devForm,  setDevForm]  = useState({ device_uid: '', patient_id: '' })
   const [scheForm, setScheForm] = useState({
@@ -91,27 +98,24 @@ function TestManagement({ onRefreshStats }) {
 
   const loadAll = async () => {
     setLoading(true)
-    try {
-      const [p, d, sc, m] = await Promise.all([
-        adminRequest('/api/admin/patients'),
-        adminRequest('/api/admin/devices'),
-        adminRequest('/api/admin/schedules'),
-        adminRequest('/api/admin/medications'),
-      ])
-      setPatients(p.patients   || [])
-      setDevices(d.devices     || [])
-      setSchedules(sc.schedules || [])
-      setMedications(m.medications || [])
-    } catch (err) {
-      flash(false, err.message)
-    } finally {
-      setLoading(false)
-    }
+    // 각 요청 개별 처리 — 하나 실패해도 나머지는 표시
+    const safe = (p) => p.catch(() => ({}))
+    const [p, d, sc, m] = await Promise.all([
+      safe(adminRequest('/api/admin/patients')),
+      safe(adminRequest('/api/admin/devices')),
+      safe(adminRequest('/api/admin/schedules')),
+      safe(adminRequest('/api/admin/medications')),
+    ])
+    setPatients(p.patients     || [])
+    setDevices(d.devices       || [])
+    setSchedules(sc.schedules  || [])
+    setMedications(m.medications || [])
+    setLoading(false)
   }
 
   const flash = (ok, text) => {
     setMsg({ ok, text })
-    setTimeout(() => setMsg(null), 4000)
+    setTimeout(() => setMsg(null), 5000)
   }
 
   const registerDevice = async (e) => {
@@ -125,7 +129,7 @@ function TestManagement({ onRefreshStats }) {
   }
 
   const deregisterDevice = async (device_uid) => {
-    if (!window.confirm(`기기 ${device_uid} 를 해제하시겠습니까?`)) return
+    if (!window.confirm(`기기 "${device_uid}" 를 해제하시겠습니까?`)) return
     try {
       const d = await adminRequest(`/api/admin/test/device/${encodeURIComponent(device_uid)}`, { method: 'DELETE' })
       flash(true, d.message || '기기 해제 완료')
@@ -137,7 +141,7 @@ function TestManagement({ onRefreshStats }) {
     e.preventDefault()
     try {
       const d = await adminRequest('/api/admin/test/schedule', { method: 'POST', body: scheForm })
-      flash(true, `${d.message} (sche_id: ${d.schedule?.sche_id})`)
+      flash(true, `${d.message || '스케줄 추가 완료'} (sche_id: ${d.schedule?.sche_id})`)
       setScheForm(p => ({ ...p, time_to_take: '', end_date: '' }))
       loadAll()
     } catch (err) { flash(false, err.message) }
@@ -162,163 +166,181 @@ function TestManagement({ onRefreshStats }) {
     } catch (err) { flash(false, err.message) }
   }
 
-  if (loading) return <div style={s.loadingWrap}>불러오는 중...</div>
-
   return (
     <div>
+      {/* 알림 */}
       {msg && (
-        <div style={{ ...s.resultBox, borderColor: msg.ok ? '#86efac' : '#fca5a5', background: msg.ok ? '#f0fdf4' : '#fef2f2', marginBottom: 20 }}>
+        <div style={{ ...s.resultBox, borderColor: msg.ok ? '#86efac' : '#fca5a5', background: msg.ok ? '#f0fdf4' : '#fef2f2', marginBottom: 16 }}>
           <p style={{ margin: 0, fontWeight: 600, color: msg.ok ? '#16a34a' : '#dc2626' }}>
             {msg.ok ? '✓ ' : '✗ '}{msg.text}
           </p>
         </div>
       )}
 
+      {/* 내부 탭 바 */}
+      <div style={s.innerTabBar}>
+        {INNER_TABS.map(t => (
+          <button key={t.key}
+            style={{ ...s.innerTabBtn, ...(innerTab === t.key ? s.innerTabActive : {}) }}
+            onClick={() => setInnerTab(t.key)}>
+            {t.label}
+          </button>
+        ))}
+        <button style={{ ...s.refreshBtn, marginLeft: 'auto' }} onClick={loadAll}>새로고침</button>
+      </div>
+
+      {loading && <div style={{ padding: '20px 0', color: '#64748b', fontSize: 14 }}>불러오는 중...</div>}
+
       {/* ── 기기 등록 / 해제 ── */}
-      <div style={s.section}>
-        <h2 style={s.sectionTitle}>기기 등록 / 해제</h2>
-        <form onSubmit={registerDevice} style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end', marginBottom: 20 }}>
-          <div style={s.testField}>
-            <label style={s.testLabel}>기기 UID *</label>
-            <input style={{ ...s.testInput, width: 320 }}
-              placeholder="라즈베리파이 홈 화면 하단의 기기 UID"
-              value={devForm.device_uid}
-              onChange={e => setDevForm(p => ({ ...p, device_uid: e.target.value }))} required />
-          </div>
-          <div style={s.testField}>
-            <label style={s.testLabel}>환자 *</label>
-            <select style={{ ...s.testInput, width: 200 }}
-              value={devForm.patient_id}
-              onChange={e => setDevForm(p => ({ ...p, patient_id: e.target.value }))} required>
-              <option value="">-- 환자 선택 --</option>
-              {patients.map(p => (
-                <option key={p.patient_id} value={p.patient_id}>
-                  {p.patient_name} ({p.member_nick || '?'})
-                </option>
-              ))}
-            </select>
-          </div>
-          <button style={s.testBtn} type="submit">기기 등록</button>
-          <button type="button" style={{ ...s.refreshBtn, alignSelf: 'flex-end' }} onClick={loadAll}>새로고침</button>
-        </form>
+      {innerTab === 'device' && (
+        <div style={s.section}>
+          <form onSubmit={registerDevice} style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end', marginBottom: 24 }}>
+            <div style={s.testField}>
+              <label style={s.testLabel}>기기 UID *</label>
+              <input style={{ ...s.testInput, width: 300 }}
+                placeholder="라즈베리파이 홈 화면 하단의 기기 UID"
+                value={devForm.device_uid}
+                onChange={e => setDevForm(p => ({ ...p, device_uid: e.target.value }))} required />
+            </div>
+            <div style={s.testField}>
+              <label style={s.testLabel}>연결할 환자 *</label>
+              <select style={{ ...s.testInput, width: 220 }}
+                value={devForm.patient_id}
+                onChange={e => setDevForm(p => ({ ...p, patient_id: e.target.value }))} required>
+                <option value="">-- 환자 선택 --</option>
+                {patients.map(p => (
+                  <option key={p.patient_id} value={p.patient_id}>
+                    {p.patient_name} ({p.member_nick || '?'})
+                  </option>
+                ))}
+              </select>
+            </div>
+            <button style={s.testBtn} type="submit">기기 등록</button>
+          </form>
 
-        <Table
-          headers={['기기 UID', '환자', '보호자', '상태', '마지막 핑', '등록일', '해제']}
-          rows={devices}
-          renderRow={(r, i) => (
-            <tr key={r.device_id} style={i % 2 === 0 ? s.trEven : {}}>
-              <td style={s.td}><code style={s.code}>{r.device_uid}</code></td>
-              <td style={s.td}>{r.patient_name || <span style={{ color: '#94a3b8' }}>미연결</span>}</td>
-              <td style={s.td}>{r.member_nick || '-'}</td>
-              <td style={s.td}>{r.device_status}</td>
-              <td style={s.td}>{fmt(r.last_ping)}</td>
-              <td style={s.td}>{fmt(r.registered_at)}</td>
-              <td style={s.td}>
-                {r.patient_name && (
-                  <button style={s.dangerBtn} onClick={() => deregisterDevice(r.device_uid)}>해제</button>
-                )}
-              </td>
-            </tr>
-          )}
-        />
-      </div>
+          <Table
+            headers={['기기 UID', '환자', '보호자', '상태', '마지막 핑', '등록일', '해제']}
+            rows={devices}
+            renderRow={(r, i) => (
+              <tr key={r.device_id} style={i % 2 === 0 ? s.trEven : {}}>
+                <td style={s.td}><code style={s.code}>{r.device_uid}</code></td>
+                <td style={s.td}>{r.patient_name || <span style={{ color: '#94a3b8' }}>미연결</span>}</td>
+                <td style={s.td}>{r.member_nick || '-'}</td>
+                <td style={s.td}>{r.device_status}</td>
+                <td style={s.td}>{fmt(r.last_ping)}</td>
+                <td style={s.td}>{fmt(r.registered_at)}</td>
+                <td style={s.td}>
+                  {r.patient_name && (
+                    <button style={s.dangerBtn} onClick={() => deregisterDevice(r.device_uid)}>해제</button>
+                  )}
+                </td>
+              </tr>
+            )}
+          />
+        </div>
+      )}
 
-      {/* ── 복약 스케줄 추가 / 삭제 ── */}
-      <div style={s.section}>
-        <h2 style={s.sectionTitle}>복약 스케줄 추가 / 삭제</h2>
-        <p style={{ fontSize: 12, color: '#64748b', marginTop: -8, marginBottom: 14 }}>
-          추가 즉시 라즈베리파이가 30초 내 폴링해서 해당 시간에 알림을 울립니다.
-        </p>
-        <form onSubmit={addSchedule} style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end', marginBottom: 20 }}>
-          <div style={s.testField}>
-            <label style={s.testLabel}>환자 *</label>
-            <select style={s.testInput} value={scheForm.patient_id}
-              onChange={e => setScheForm(p => ({ ...p, patient_id: e.target.value }))} required>
-              <option value="">-- 환자 선택 --</option>
-              {patients.map(p => <option key={p.patient_id} value={p.patient_id}>{p.patient_name}</option>)}
-            </select>
-          </div>
-          <div style={s.testField}>
-            <label style={s.testLabel}>약 *</label>
-            <select style={{ ...s.testInput, width: 180 }} value={scheForm.medi_id}
-              onChange={e => setScheForm(p => ({ ...p, medi_id: e.target.value }))} required>
-              <option value="">-- 약 선택 --</option>
-              {medications.map(m => <option key={m.medi_id} value={m.medi_id}>{m.medi_name}</option>)}
-            </select>
-          </div>
-          <div style={s.testField}>
-            <label style={s.testLabel}>복약 시간 *</label>
-            <input style={s.testInput} type="time" value={scheForm.time_to_take}
-              onChange={e => setScheForm(p => ({ ...p, time_to_take: e.target.value }))} required />
-          </div>
-          <div style={s.testField}>
-            <label style={s.testLabel}>시작일 *</label>
-            <input style={s.testInput} type="date" value={scheForm.start_date}
-              onChange={e => setScheForm(p => ({ ...p, start_date: e.target.value }))} required />
-          </div>
-          <div style={s.testField}>
-            <label style={s.testLabel}>종료일</label>
-            <input style={s.testInput} type="date" value={scheForm.end_date}
-              onChange={e => setScheForm(p => ({ ...p, end_date: e.target.value }))} />
-          </div>
-          <div style={s.testField}>
-            <label style={s.testLabel}>복약 간격(일)</label>
-            <select style={{ ...s.testInput, width: 90 }} value={scheForm.dose_interval}
-              onChange={e => setScheForm(p => ({ ...p, dose_interval: e.target.value }))}>
-              {[1,2,3,4,5].map(n => <option key={n} value={n}>{n}일</option>)}
-            </select>
-          </div>
-          <button style={s.testBtn} type="submit">스케줄 추가</button>
-        </form>
+      {/* ── 스케줄 관리 ── */}
+      {innerTab === 'schedule' && (
+        <div style={s.section}>
+          <p style={{ fontSize: 12, color: '#64748b', marginTop: 0, marginBottom: 16 }}>
+            추가 즉시 라즈베리파이가 30초 내 폴링해서 해당 시간에 알림을 울립니다.
+          </p>
+          <form onSubmit={addSchedule} style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end', marginBottom: 24 }}>
+            <div style={s.testField}>
+              <label style={s.testLabel}>환자 *</label>
+              <select style={s.testInput} value={scheForm.patient_id}
+                onChange={e => setScheForm(p => ({ ...p, patient_id: e.target.value }))} required>
+                <option value="">-- 환자 선택 --</option>
+                {patients.map(p => <option key={p.patient_id} value={p.patient_id}>{p.patient_name}</option>)}
+              </select>
+            </div>
+            <div style={s.testField}>
+              <label style={s.testLabel}>약 *</label>
+              <select style={{ ...s.testInput, width: 200 }} value={scheForm.medi_id}
+                onChange={e => setScheForm(p => ({ ...p, medi_id: e.target.value }))} required>
+                <option value="">-- 약 선택 --</option>
+                {medications.length === 0
+                  ? <option disabled>약 목록 로드 실패 (medi_id 직접 입력 필요)</option>
+                  : medications.map(m => <option key={m.medi_id} value={m.medi_id}>{m.medi_name}</option>)
+                }
+              </select>
+            </div>
+            <div style={s.testField}>
+              <label style={s.testLabel}>복약 시간 *</label>
+              <input style={s.testInput} type="time" value={scheForm.time_to_take}
+                onChange={e => setScheForm(p => ({ ...p, time_to_take: e.target.value }))} required />
+            </div>
+            <div style={s.testField}>
+              <label style={s.testLabel}>시작일 *</label>
+              <input style={s.testInput} type="date" value={scheForm.start_date}
+                onChange={e => setScheForm(p => ({ ...p, start_date: e.target.value }))} required />
+            </div>
+            <div style={s.testField}>
+              <label style={s.testLabel}>종료일</label>
+              <input style={s.testInput} type="date" value={scheForm.end_date}
+                onChange={e => setScheForm(p => ({ ...p, end_date: e.target.value }))} />
+            </div>
+            <div style={s.testField}>
+              <label style={s.testLabel}>복약 간격(일)</label>
+              <select style={{ ...s.testInput, width: 90 }} value={scheForm.dose_interval}
+                onChange={e => setScheForm(p => ({ ...p, dose_interval: e.target.value }))}>
+                {[1,2,3,4,5].map(n => <option key={n} value={n}>{n}일</option>)}
+              </select>
+            </div>
+            <button style={s.testBtn} type="submit">스케줄 추가</button>
+          </form>
 
-        <Table
-          headers={['sche_id', '환자', '약 이름', '복약 시간', '시작일', '종료일', '간격', '상태', '삭제']}
-          rows={schedules}
-          renderRow={(r, i) => (
-            <tr key={r.sche_id} style={i % 2 === 0 ? s.trEven : {}}>
-              <td style={{ ...s.td, color: '#94a3b8', fontSize: 12 }}>{r.sche_id}</td>
-              <td style={s.td}>{r.patient_name || '-'}</td>
-              <td style={s.td}>{r.medi_name || '-'}</td>
-              <td style={{ ...s.td, fontWeight: 700, color: '#3b82f6', fontSize: 15 }}>{r.time_to_take?.slice(0, 5) || '-'}</td>
-              <td style={s.td}>{r.start_date ? new Date(r.start_date).toLocaleDateString('ko-KR') : '-'}</td>
-              <td style={s.td}>{r.end_date ? new Date(r.end_date).toLocaleDateString('ko-KR') : '-'}</td>
-              <td style={{ ...s.td, textAlign: 'center' }}>{r.dose_interval ?? '-'}일</td>
-              <td style={s.td}><StatusBadge status={r.status} /></td>
-              <td style={s.td}>
-                <button style={s.dangerBtn}
-                  onClick={() => deleteSchedule(r.sche_id, `${r.patient_name} ${r.time_to_take?.slice(0,5)}`)}>
-                  삭제
-                </button>
-              </td>
-            </tr>
-          )}
-        />
-      </div>
+          <Table
+            headers={['sche_id', '환자', '약 이름', '복약 시간', '시작일', '종료일', '간격', '상태', '삭제']}
+            rows={schedules}
+            renderRow={(r, i) => (
+              <tr key={r.sche_id} style={i % 2 === 0 ? s.trEven : {}}>
+                <td style={{ ...s.td, color: '#94a3b8', fontSize: 12 }}>{r.sche_id}</td>
+                <td style={s.td}>{r.patient_name || '-'}</td>
+                <td style={s.td}>{r.medi_name || '-'}</td>
+                <td style={{ ...s.td, fontWeight: 700, color: '#3b82f6', fontSize: 15 }}>{r.time_to_take?.slice(0, 5) || '-'}</td>
+                <td style={s.td}>{r.start_date ? new Date(r.start_date).toLocaleDateString('ko-KR') : '-'}</td>
+                <td style={s.td}>{r.end_date ? new Date(r.end_date).toLocaleDateString('ko-KR') : '-'}</td>
+                <td style={{ ...s.td, textAlign: 'center' }}>{r.dose_interval ?? '-'}일</td>
+                <td style={s.td}><StatusBadge status={r.status} /></td>
+                <td style={s.td}>
+                  <button style={s.dangerBtn}
+                    onClick={() => deleteSchedule(r.sche_id, `${r.patient_name} ${r.time_to_take?.slice(0,5)}`)}>
+                    삭제
+                  </button>
+                </td>
+              </tr>
+            )}
+          />
+        </div>
+      )}
 
       {/* ── 환자 삭제 ── */}
-      <div style={s.section}>
-        <h2 style={s.sectionTitle}>환자 삭제</h2>
-        <p style={{ fontSize: 12, color: '#ef4444', marginTop: -8, marginBottom: 14 }}>
-          ⚠️ 삭제 시 스케줄·복약 기록·얼굴 데이터·기기 연결이 모두 삭제됩니다.
-        </p>
-        <Table
-          headers={['patient_id', '환자명', '보호자', '기기 UID', '지문 ID', '등록일', '삭제']}
-          rows={patients}
-          renderRow={(r, i) => (
-            <tr key={r.patient_id} style={i % 2 === 0 ? s.trEven : {}}>
-              <td style={{ ...s.td, color: '#94a3b8', fontSize: 12 }}>{r.patient_id}</td>
-              <td style={s.td}>{r.patient_name}</td>
-              <td style={s.td}>{r.member_nick || '-'}</td>
-              <td style={s.td}><code style={s.code}>{r.device_uid || '-'}</code></td>
-              <td style={{ ...s.td, textAlign: 'center' }}>{r.fingerprint_id ?? '-'}</td>
-              <td style={s.td}>{fmt(r.created_at)}</td>
-              <td style={s.td}>
-                <button style={s.dangerBtn} onClick={() => deletePatient(r.patient_id, r.patient_name)}>삭제</button>
-              </td>
-            </tr>
-          )}
-        />
-      </div>
+      {innerTab === 'patient' && (
+        <div style={s.section}>
+          <p style={{ fontSize: 12, color: '#ef4444', marginTop: 0, marginBottom: 16 }}>
+            ⚠️ 삭제 시 스케줄·복약 기록·얼굴 데이터·기기 연결이 모두 삭제됩니다.
+          </p>
+          <Table
+            headers={['patient_id', '환자명', '보호자', '기기 UID', '지문 ID', '등록일', '삭제']}
+            rows={patients}
+            renderRow={(r, i) => (
+              <tr key={r.patient_id} style={i % 2 === 0 ? s.trEven : {}}>
+                <td style={{ ...s.td, color: '#94a3b8', fontSize: 12 }}>{r.patient_id}</td>
+                <td style={s.td}>{r.patient_name}</td>
+                <td style={s.td}>{r.member_nick || '-'}</td>
+                <td style={s.td}><code style={s.code}>{r.device_uid || '-'}</code></td>
+                <td style={{ ...s.td, textAlign: 'center' }}>{r.fingerprint_id ?? '-'}</td>
+                <td style={s.td}>{fmt(r.created_at)}</td>
+                <td style={s.td}>
+                  <button style={s.dangerBtn} onClick={() => deletePatient(r.patient_id, r.patient_name)}>삭제</button>
+                </td>
+              </tr>
+            )}
+          />
+        </div>
+      )}
     </div>
   )
 }
@@ -764,4 +786,8 @@ const s = {
   pre: { margin: 0, fontSize: 12, fontFamily: 'monospace', overflowX: 'auto', color: '#374151', whiteSpace: 'pre-wrap' },
   scenarioBtn: { padding: '7px 14px', background: '#f8fafc', border: '1.5px solid #e2e8f0', borderRadius: 8, fontSize: 13, cursor: 'pointer', color: '#374151' },
   dangerBtn: { padding: '4px 12px', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 6, fontSize: 12, color: '#dc2626', cursor: 'pointer', fontWeight: 600 },
+
+  innerTabBar: { display: 'flex', alignItems: 'center', gap: 4, marginBottom: 16, borderBottom: '2px solid #e2e8f0', paddingBottom: 0 },
+  innerTabBtn: { padding: '8px 18px', border: 'none', background: 'transparent', fontSize: 14, fontWeight: 500, color: '#64748b', cursor: 'pointer', borderBottom: '2px solid transparent', marginBottom: -2 },
+  innerTabActive: { color: '#3b82f6', fontWeight: 700, borderBottom: '2px solid #3b82f6' },
 }
