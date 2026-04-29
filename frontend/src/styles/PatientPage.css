@@ -374,6 +374,7 @@
 }
 
 .patient-register-card {
+  position: relative;
   background: #ffffff;
   border: 1px solid #e5e7eb;
   border-radius: 16px;
@@ -411,6 +412,15 @@
   font-size: 1.35rem;
   font-weight: 800;
   color: #111827;
+}
+
+.patient-register-card__check {
+  position: absolute;
+  top: 18px;
+  right: 18px;
+  color: #16a34a;
+  font-size: 1.25rem;
+  line-height: 1;
 }
 
 .patient-register-card__subtitle {

@@ -11,7 +11,19 @@
       "WebSearch",
       "Bash(grep -E \"\\\\.\\(js|jsx|ts|tsx|env|json\\)$\")",
       "Skill(schedule)",
-      "Bash(git fetch *)"
+      "Bash(git fetch *)",
+      "Bash(git ls-tree *)",
+      "Bash(node --input-type=module)",
+      "Bash(npx --yes acorn --ecma2020 --module frontend/src/pages/PatientPage.jsx)",
+      "Bash(git show *)",
+      "Bash(cp /tmp/AlertsPage.jsx frontend/src/pages/AlertsPage.jsx)",
+      "Bash(cp /tmp/DashboardPage.jsx frontend/src/pages/DashboardPage.jsx)",
+      "Bash(cp /tmp/SchedulePage.jsx frontend/src/pages/SchedulePage.jsx)",
+      "Bash(cp /tmp/StatsPage.jsx frontend/src/pages/StatsPage.jsx)",
+      "Bash(cp /tmp/PatientPage.jsx frontend/src/pages/PatientPage.jsx)",
+      "Bash(npm run *)",
+      "Bash(npx vite *)",
+      "Bash(PowerShell *)"
     ]
   }
 }
