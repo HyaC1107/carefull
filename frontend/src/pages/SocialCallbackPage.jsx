@@ -45,11 +45,18 @@ function normalizeProvider(provider) {
   if (provider === 'kakao' || provider === 'google' || provider === 'naver') {
     return provider
   }
+
   return ''
 }
-
 function resolveNextPath(authResult) {
-  if (authResult.is_new_user) return '/register-patient'
+  if (authResult.is_new_user || authResult.next_step === '/register-patient') {
+    return '/register-patient'
+  }
+
+  if (authResult.next_step === '/main' || authResult.next_step === '/dashboard') {
+    return '/dashboard'
+  }
+
   return '/dashboard'
 }
 

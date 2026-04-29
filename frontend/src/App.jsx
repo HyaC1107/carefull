@@ -17,6 +17,10 @@ function ProtectedRoute({ children }) {
   }
   return children
 }
+import AdminLoginPage from './pages/AdminLoginPage'
+import AdminDashboardPage from './pages/AdminDashboardPage'
+import { hasStoredToken } from './api'
+import { hasAdminToken } from './adminApi'
 
 function App() {
   useFCM()
@@ -29,17 +33,48 @@ function App() {
       <Route path="/login" element={<LoginPage />} />
       <Route path="/login/callback/:provider" element={<SocialCallbackPage />} />
 
+      {/* 대시보드 페이지 */}
       <Route path="/dashboard" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
-      <Route path="/schedule"  element={<ProtectedRoute><SchedulePage /></ProtectedRoute>} />
-      <Route path="/stats"     element={<ProtectedRoute><StatsPage /></ProtectedRoute>} />
-      <Route path="/alerts"    element={<ProtectedRoute><AlertsPage /></ProtectedRoute>} />
-      <Route path="/patient"   element={<ProtectedRoute><PatientPage /></ProtectedRoute>} />
-      <Route path="/settings"  element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
 
+      {/* 복약일정 페이지 */}
+      <Route path="/schedule" element={<ProtectedRoute><SchedulePage /></ProtectedRoute>} />
+
+      {/* 통계 페이지 */}
+      <Route path="/stats" element={<ProtectedRoute><StatsPage /></ProtectedRoute>} />
+
+      {/* 알림 페이지 */}
+      <Route path="/alerts" element={<ProtectedRoute><AlertsPage /></ProtectedRoute>} />
+
+      {/* 환자정보 페이지 */}
+      <Route path="/patient" element={<ProtectedRoute><PatientPage /></ProtectedRoute>} />
+      <Route path="/register-patient" element={<ProtectedRoute><PatientPage /></ProtectedRoute>} />
+
+      {/* 설정 페이지 */}
+      <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
+
+      {/* 관리자 페이지 */}
+      <Route path="/admin" element={<AdminLoginPage />} />
+      <Route path="/admin/dashboard" element={<AdminProtectedRoute><AdminDashboardPage /></AdminProtectedRoute>} />
+
+      {/* 없는 주소로 들어오면 로그인 페이지로 보냄 */}
       <Route path="*" element={<Navigate to="/login" replace />} />
     </Routes>
     </HeaderDataProvider>
   )
+}
+
+function ProtectedRoute({ children }) {
+  if (!hasStoredToken()) {
+    return <Navigate to="/login" replace />
+  }
+  return children
+}
+
+function AdminProtectedRoute({ children }) {
+  if (!hasAdminToken()) {
+    return <Navigate to="/admin" replace />
+  }
+  return children
 }
 
 export default App
