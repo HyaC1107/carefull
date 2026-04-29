@@ -1,24 +1,16 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Sidebar from '../components/layout/Sidebar'
 import TopHeader from '../components/layout/TopHeader'
 import MobileBottomNav from '../components/layout/MobileBottomNav'
 import SettingsHeader from '../components/settings/SettingsHeader'
 import SettingsSectionCard from '../components/settings/SettingsSectionCard'
 import SettingToggleRow from '../components/settings/SettingToggleRow'
-import SettingTimeRow from '../components/settings/SettingTimeRow'
-import SettingsSliderRow from '../components/settings/SettingsSliderRow'
 import SettingActionRow from '../components/settings/SettingActionRow'
-import SettingsInfoBanner from '../components/settings/SettingsInfoBanner'
-import SettingsFooterActions from '../components/settings/SettingsFooterActions'
 import GuardianEditModal from '../components/settings/GuardianEditModal'
 import PatientEditModal from '../components/settings/PatientEditModal'
 import VoiceUploadTab from '../components/settings/VoiceUploadTab'
-import { 
-  accountActionItems, 
-  initialGuardianInfo, 
-  initialSettings, 
-  settingsInfo 
-} from '../data/settingsMock'
+import AlarmSoundTab from '../components/settings/AlarmSoundTab'
+import { hasStoredToken, requestJson, TOKEN_STORAGE_KEY } from '../api'
 import '../styles/SettingsPage.css'
 import '../styles/MobileBottomNav.css'
 
@@ -60,6 +52,33 @@ const NOTIF_TOGGLE_ITEMS = [
   },
 ]
 
+const ACCOUNT_ACTION_ITEMS = [
+  {
+    id: 'patient',
+    title: '환자 정보 수정',
+    description: '환자의 기본 정보를 수정합니다',
+    buttonLabel: '수정',
+  },
+  {
+    id: 'guardian',
+    title: '보호자 정보 수정',
+    description: '보호자 연락처와 정보를 관리합니다',
+    buttonLabel: '수정',
+  },
+  {
+    id: 'logout',
+    title: '로그아웃',
+    description: '현재 로그인된 계정에서 로그아웃합니다',
+    buttonLabel: '실행',
+  },
+]
+
+const TABS = [
+  { key: 'general', label: '일반 설정' },
+  { key: 'alarm', label: '알림음' },
+  { key: 'voice', label: '보호자 목소리' },
+]
+
 function loadNotifPrefs() {
   try {
     const stored = localStorage.getItem(NOTIF_PREFS_KEY)
@@ -68,60 +87,80 @@ function loadNotifPrefs() {
   return { ...DEFAULT_NOTIF_PREFS }
 }
 
-const TABS = [
-  { key: 'general', label: '일반 설정' },
-  { key: 'voice', label: '보호자 목소리' },
-]
-
 function SettingsPage() {
   const [activeTab, setActiveTab] = useState('general')
   const [notifPrefs, setNotifPrefs] = useState(loadNotifPrefs)
-  const [settings, setSettings] = useState(initialSettings)
-  const [guardianInfo, setGuardianInfo] = useState(initialGuardianInfo)
+  const [patientData, setPatientData] = useState(null)
+  const [isPatientModalOpen, setIsPatientModalOpen] = useState(false)
   const [isGuardianModalOpen, setIsGuardianModalOpen] = useState(false)
   const [isPatientModalOpen, setIsPatientModalOpen] = useState(false)
 
+  useEffect(() => {
+    if (!hasStoredToken()) return
+    requestJson('/api/patient/me', { auth: true })
+      .then((res) => setPatientData(res?.patient || null))
+      .catch((err) => console.error('settings patient fetch error:', err))
+  }, [])
+
   const handleToggleNotif = (key) => {
-    setNotifPrefs(prev => {
+    setNotifPrefs((prev) => {
       const next = { ...prev, [key]: !prev[key] }
       localStorage.setItem(NOTIF_PREFS_KEY, JSON.stringify(next))
       return next
     })
   }
 
-  const handleToggleSetting = (field) => {
-    setSettings((prev) => ({
-      ...prev,
-      [field]: !prev[field],
-    }))
+  const handleSavePatient = async (updatedFields) => {
+    const res = await requestJson('/api/patient/me', {
+      method: 'PATCH',
+      auth: true,
+      body: {
+        patient_name: updatedFields.patient_name,
+        birthdate: updatedFields.birthdate,
+        gender: updatedFields.gender,
+        phone: updatedFields.phone,
+        address: updatedFields.address,
+        bloodtype: updatedFields.bloodtype,
+        height: updatedFields.height,
+        weight: updatedFields.weight,
+      },
+    })
+    setPatientData(res?.patient || patientData)
+    setIsPatientModalOpen(false)
+    window.dispatchEvent(new Event('carefull:top-header-refresh'))
   }
 
-  const handleChangeSettingValue = (field, value) => {
-    setSettings((prev) => ({
-      ...prev,
-      [field]: value,
-    }))
+  const handleSaveGuardian = async (updatedFields) => {
+    const res = await requestJson('/api/patient/guardian', {
+      method: 'PATCH',
+      auth: true,
+      body: {
+        guardian_name: updatedFields.guardian_name,
+        guardian_phone: updatedFields.guardian_phone,
+      },
+    })
+    setPatientData(res?.patient || patientData)
+    setIsGuardianModalOpen(false)
+    window.dispatchEvent(new Event('carefull:top-header-refresh'))
   }
 
-  const handleAccountAction = (id, title) => {
-    if (id === 'guardian' || title === '보호자 정보 수정') {
-      setIsGuardianModalOpen(true)
-      return
-    }
-    if (id === 'patient' || title === '환자 정보 수정') {
+  const handleAccountAction = (id) => {
+    if (id === 'patient') {
+      if (!patientData) {
+        alert('환자 정보를 불러오는 중입니다. 잠시 후 다시 시도해주세요.')
+        return
+      }
       setIsPatientModalOpen(true)
-      return
+    } else if (id === 'guardian') {
+      if (!patientData) {
+        alert('환자 정보를 불러오는 중입니다. 잠시 후 다시 시도해주세요.')
+        return
+      }
+      setIsGuardianModalOpen(true)
+    } else if (id === 'logout') {
+      localStorage.removeItem(TOKEN_STORAGE_KEY)
+      window.location.href = '/'
     }
-    alert(`${title} 기능은 나중에 연결 예정`)
-  }
-
-  const handleCancel = () => {
-    setSettings(initialSettings)
-    setNotifPrefs(loadNotifPrefs())
-  }
-
-  const handleSave = () => {
-    alert('설정이 저장되었습니다.')
   }
 
   return (
@@ -214,48 +253,41 @@ function SettingsPage() {
               </>
             )}
 
+            {activeTab === 'alarm' && (
+              <SettingsSectionCard title="알림음 설정">
+                <AlarmSoundTab />
+              </SettingsSectionCard>
+            )}
+
             {activeTab === 'voice' && (
               <SettingsSectionCard title="보호자 목소리 등록">
                 <VoiceUploadTab />
               </SettingsSectionCard>
             )}
-
-            <SettingsInfoBanner
-              title={settingsInfo.title}
-              description={settingsInfo.description}
-            />
-
-            <SettingsFooterActions
-              onCancel={handleCancel}
-              onSave={handleSave}
-            />
           </main>
         </div>
       </div>
 
       <MobileBottomNav activeMenu="settings" />
-      
-      {isGuardianModalOpen && (
-        <GuardianEditModal
-          initialData={guardianInfo}
-          onClose={() => setIsGuardianModalOpen(false)}
-          onSave={(updatedGuardianInfo) => {
-            setGuardianInfo(updatedGuardianInfo)
-            setIsGuardianModalOpen(false)
-            alert('보호자 정보가 저장되었습니다.')
-          }}
-        />
-      )}
 
-      {isPatientModalOpen && (
+      {isPatientModalOpen && patientData ? (
         <PatientEditModal
+          initialData={patientData}
           onClose={() => setIsPatientModalOpen(false)}
-          onSave={(updatedPatientData) => {
-            setIsPatientModalOpen(false)
-            alert('환자 정보가 저장되었습니다.')
-          }}
+          onSave={handleSavePatient}
         />
-      )}
+      ) : null}
+
+      {isGuardianModalOpen && patientData ? (
+        <GuardianEditModal
+          initialData={{
+            guardian_name: patientData.guardian_name || '',
+            guardian_phone: patientData.guardian_phone || '',
+          }}
+          onClose={() => setIsGuardianModalOpen(false)}
+          onSave={handleSaveGuardian}
+        />
+      ) : null}
     </div>
   )
 }

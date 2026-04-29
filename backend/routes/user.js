@@ -116,6 +116,11 @@ const build_frontend_callback_url = (req, { provider, token, is_new_user, error 
 };
 
 const handle_social_login = async (social_data, provider) => {
+    if (!social_data.id || !social_data.nickname) {
+        console.error(`[${provider}] invalid social_data:`, JSON.stringify(social_data));
+        return { success: false, message: 'Social login data is incomplete.' };
+    }
+
     try {
         const find_query = `
             SELECT mem_id, nick, profile_img
@@ -186,7 +191,7 @@ const handle_social_login = async (social_data, provider) => {
             }
         };
     } catch (error) {
-        console.error(`${provider} login error:`, error);
+        console.error(`[${provider}] handle_social_login DB error:`, error.message || error);
         return {
             success: false,
             message: 'Server error while processing social login.'
@@ -244,8 +249,10 @@ router.get('/kakao/callback', async (req, res) => {
         console.log('[KAKAO USER RESPONSE]', user_response.data);
         const login_result = await handle_social_login({
             id: user_response.data.id.toString(),
-            nickname: user_response.data.properties.nickname,
-            email: user_response.data.kakao_account?.email || null,
+            nickname: user_response.data.properties?.nickname
+                || user_response.data.kakao_account?.profile?.nickname
+                || '사용자',
+            email: user_response.data.kakao_account?.email || '',
             profile_img: user_response.data.kakao_account?.profile?.profile_image_url || null
         }, 'kakao');
 
@@ -301,8 +308,8 @@ router.get('/google/callback', async (req, res) => {
 
         const login_result = await handle_social_login({
             id: user_response.data.sub,
-            nickname: user_response.data.name,
-            email: user_response.data.email,
+            nickname: user_response.data.name || user_response.data.email?.split('@')[0] || '사용자',
+            email: user_response.data.email || '',
             profile_img: user_response.data.picture || null
         }, 'google');
 
@@ -349,8 +356,8 @@ router.get('/naver/callback', async (req, res) => {
 
         const login_result = await handle_social_login({
             id: response.id,
-            nickname: response.nickname,
-            email: response.email,
+            nickname: response.nickname || response.name || '사용자',
+            email: response.email || '',
             profile_img: response.profile_image || null
         }, 'naver');
 
