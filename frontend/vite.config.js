@@ -35,13 +35,13 @@ export default defineConfig(({ mode }) => {
           scope: '/',
           icons: [
             {
-              src: 'public/favicons/android-chrome-192x192.png',
+              src: 'favicons/android-chrome-192x192.png',
               sizes: '192x192',
               type: 'image/png',
               purpose: 'any maskable',
             },
             {
-              src: 'public/favicons/android-chrome-512x512.png',
+              src: 'favicons/android-chrome-512x512.png',
               sizes: '512x512',
               type: 'image/png',
               purpose: 'any maskable',
@@ -49,14 +49,14 @@ export default defineConfig(({ mode }) => {
           ],
           screenshots: [
             {
-              src: 'public/favicons/android-chrome-512x512.png',
+              src: 'favicons/android-chrome-512x512.png',
               sizes: '512x512',
               type: 'image/png',
               form_factor: 'wide',
               label: 'Care-full 대시보드',
             },
             {
-              src: 'public/favicons/android-chrome-512x512.png',
+              src: 'favicons/android-chrome-512x512.png',
               sizes: '512x512',
               type: 'image/png',
               label: 'Care-full 모바일',
