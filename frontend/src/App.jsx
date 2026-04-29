@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { Navigate, Route, Routes } from 'react-router-dom'
 import LoginPage from './pages/LoginPage'
 import SocialCallbackPage from './pages/SocialCallbackPage'
@@ -8,12 +9,13 @@ import AlertsPage from './pages/AlertsPage'
 import PatientPage from './pages/PatientPage'
 import SettingsPage from './pages/SettingsPage'
 import { useFCM } from './hooks/useFCM'
+import { hasStoredToken } from './api'
+import { registerFcmTokenForCurrentUser } from './firebase-messaging'
 import { HeaderDataProvider } from './context/HeaderDataContext'
 
 
 import AdminLoginPage from './pages/AdminLoginPage'
 import AdminDashboardPage from './pages/AdminDashboardPage'
-import { hasStoredToken } from './api'
 import { hasAdminToken } from './adminApi'
 
 function App() {
@@ -58,6 +60,10 @@ function App() {
 }
 
 function ProtectedRoute({ children }) {
+  useEffect(() => {
+    registerFcmTokenForCurrentUser()
+  }, [])
+
   if (!hasStoredToken()) {
     return <Navigate to="/login" replace />
   }

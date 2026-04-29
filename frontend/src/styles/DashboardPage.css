@@ -169,6 +169,21 @@
   color: #18a44c;
 }
 
+.dashboard-device__value.status-connected,
+.dashboard-device__status-icon.status-connected {
+  color: #22c55e;
+}
+
+.dashboard-device__value.status-waiting,
+.dashboard-device__status-icon.status-waiting {
+  color: #f59e0b;
+}
+
+.dashboard-device__value.status-disconnected,
+.dashboard-device__status-icon.status-disconnected {
+  color: #ef4444;
+}
+
 .dashboard-device__value--blue {
   color: #2563eb;
 }

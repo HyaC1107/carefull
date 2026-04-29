@@ -256,6 +256,18 @@
   color: #0891b2;
 }
 
+.patient-device-status-box.status-connected .patient-device-status-box__value {
+  color: #22c55e;
+}
+
+.patient-device-status-box.status-waiting .patient-device-status-box__value {
+  color: #f59e0b;
+}
+
+.patient-device-status-box.status-disconnected .patient-device-status-box__value {
+  color: #ef4444;
+}
+
 .patient-device-card__detail-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));

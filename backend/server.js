@@ -18,6 +18,7 @@ const device_router = require('./routes/device');
 const face_data_router = require('./routes/face-data');
 const notification_router = require('./routes/notification');
 const activity_router = require('./routes/activity');
+const push_router = require('./routes/push');
 const admin_router    = require('./routes/admin');
 const voice_router    = require('./routes/voice');
 
@@ -69,6 +70,7 @@ app.use('/api/device',       device_router);
 app.use('/api/face-data',    face_data_router);
 app.use('/api/notification', notification_router);
 app.use('/api/log',          activity_router);
+app.use('/api/push',         push_router);
 app.use('/api/admin',        admin_router);
 app.use('/api/voice',        voice_router);
 

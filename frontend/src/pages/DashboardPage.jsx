@@ -6,7 +6,13 @@ import SummaryCard from '../components/dashboard/SummaryCard'
 import DeviceStatusSection from '../components/dashboard/DeviceStatusSection'
 import AlertsSection from '../components/dashboard/AlertsSection'
 import NextMedicationBanner from '../components/dashboard/NextMedicationBanner'
-import { hasStoredToken, requestJson } from '../api'
+import {
+  getDeviceStatus,
+  getDeviceStatusClass,
+  getDeviceStatusText,
+  hasStoredToken,
+  requestJson,
+} from '../api'
 import '../styles/DashboardPage.css'
 import '../styles/MobileBottomNav.css'
 
@@ -15,12 +21,16 @@ const DEFAULT_SUMMARY = {
   today_total_scheduled_count: 0,
   today_completed_count: 0,
   today_missed_count: 0,
+  today_remaining_count: 0,
   status_message: '데이터가 없습니다.',
 }
 
 const DEFAULT_DEVICE_STATUS = {
-  connection_status: '-',
+  connection_status: '미연결',
   medication_level: '-',
+  total_scheduled_count: 0,
+  remaining_medication_count: 0,
+  today_remaining_count: 0,
   last_sync_time: '-',
   next_schedule_time: '-',
 }
@@ -67,20 +77,30 @@ function DashboardPage() {
     [dashboardData],
   )
   const deviceStatus = useMemo(
-    () => mapDeviceStatus(dashboardData?.device),
+    () =>
+      mapDeviceStatus(
+        dashboardData?.device,
+        dashboardData?.summary,
+        dashboardData?.total_scheduled_count,
+        dashboardData?.remaining_medication_count,
+      ),
     [dashboardData],
   )
   const recentAlerts = useMemo(
     () => mapDashboardAlerts(dashboardData?.recent_notifications),
     [dashboardData],
   )
+  const visibleTodaySchedules = useMemo(
+    () => filterVisibleTodaySchedules(dashboardData?.today_schedules),
+    [dashboardData],
+  )
   const nextMedication = useMemo(
     () =>
       mapNextMedication(
-        dashboardData?.today_schedules,
+        visibleTodaySchedules,
         dashboardData?.device?.next_schedule_time,
       ),
-    [dashboardData],
+    [dashboardData, visibleTodaySchedules],
   )
   const patientLabel = buildPatientLabel(
     dashboardData?.patient,
@@ -109,6 +129,7 @@ function DashboardPage() {
             guardianName={headerData.guardianName}
             profileImg={headerData.profileImg}
             deviceStatusText={headerData.deviceStatusText}
+            deviceStatusClass={headerData.deviceStatusClass}
             lastSyncedText={headerData.lastSyncedText}
           />
 
@@ -176,20 +197,46 @@ function buildSummaryCards(summary = DEFAULT_SUMMARY) {
   ]
 }
 
-function mapDeviceStatus(device) {
+function mapDeviceStatus(
+  device,
+  summary = DEFAULT_SUMMARY,
+  totalScheduledCount = 0,
+  remainingMedicationCount = 0,
+) {
   if (!device) {
-    return DEFAULT_DEVICE_STATUS
+    const status = getDeviceStatus(device)
+
+    return {
+      ...DEFAULT_DEVICE_STATUS,
+      connection_status: getDeviceStatusText(status),
+      connection_status_class: getDeviceStatusClass(status),
+      total_scheduled_count: toCount(totalScheduledCount),
+      remaining_medication_count: toCount(remainingMedicationCount),
+      today_remaining_count: toCount(summary?.today_remaining_count),
+    }
   }
 
+  const status = getDeviceStatus(device)
+
   return {
-    connection_status: device.is_connected ? '연결됨' : '연결 안 됨',
+    connection_status: getDeviceStatusText(status),
+    connection_status_class: getDeviceStatusClass(status),
     medication_level:
       device.medication_level === null || device.medication_level === undefined
         ? '-'
         : `${device.medication_level}회`,
+    total_scheduled_count: toCount(totalScheduledCount),
+    remaining_medication_count: toCount(remainingMedicationCount),
+    today_remaining_count: toCount(summary?.today_remaining_count),
     last_sync_time: formatDateTime(device.last_sync_time),
     next_schedule_time: formatDateTime(device.next_schedule_time, true),
   }
+}
+
+function toCount(value) {
+  const parsed = Number(value)
+
+  return Number.isFinite(parsed) ? Math.max(parsed, 0) : 0
 }
 
 function mapDashboardAlerts(notifications = []) {
@@ -200,6 +247,115 @@ function mapDashboardAlerts(notifications = []) {
     timeAgo: formatRelativeTime(notification.created_at),
     message: notification.noti_msg || notification.noti_title || '',
   }))
+}
+
+function filterVisibleTodaySchedules(schedules = []) {
+  if (!Array.isArray(schedules)) {
+    return []
+  }
+
+  const today = new Date()
+
+  return schedules.filter((schedule) => {
+    if (!schedule?.created_at) {
+      console.log('dashboard today schedule missing created_at', schedule)
+      return true
+    }
+
+    const createdAt = new Date(schedule.created_at)
+
+    if (Number.isNaN(createdAt.getTime())) {
+      return true
+    }
+
+    if (!isSameLocalDate(createdAt, today)) {
+      return true
+    }
+
+    const timeValue = schedule.time_to_take || schedule.sche_time
+
+    if (!timeValue) {
+      return true
+    }
+
+    const scheduleDateTime = buildTodayDateTime(timeValue, today)
+
+    if (!scheduleDateTime || Number.isNaN(scheduleDateTime.getTime())) {
+      return true
+    }
+
+    const include = scheduleDateTime.getTime() >= createdAt.getTime()
+
+    console.log('[TODAY_SCHEDULE_FILTER]', {
+      sche_id: schedule.sche_id,
+      time_to_take: schedule.time_to_take,
+      created_at: schedule.created_at,
+      scheduleDateTime,
+      include,
+    })
+
+    return include
+  })
+}
+
+function buildTodayDateTime(timeValue, baseDate) {
+  if (timeValue instanceof Date) {
+    const date = new Date(baseDate)
+
+    date.setHours(
+      timeValue.getHours(),
+      timeValue.getMinutes(),
+      timeValue.getSeconds(),
+      0,
+    )
+
+    return date
+  }
+
+  if (typeof timeValue === 'object' && timeValue !== null) {
+    const date = new Date(baseDate)
+    const hours = Number(timeValue.hours ?? timeValue.hour ?? 0)
+    const minutes = Number(timeValue.minutes ?? timeValue.minute ?? 0)
+    const seconds = Number(timeValue.seconds ?? timeValue.second ?? 0)
+
+    if (![hours, minutes, seconds].every(Number.isFinite)) {
+      return null
+    }
+
+    date.setHours(hours, minutes, seconds, 0)
+
+    return date
+  }
+
+  const normalizedTimeValue = String(timeValue).trim()
+
+  if (normalizedTimeValue.includes('T')) {
+    const parsedDate = new Date(normalizedTimeValue)
+
+    return Number.isNaN(parsedDate.getTime()) ? null : parsedDate
+  }
+
+  const [hours = 0, minutes = 0, seconds = 0] = normalizedTimeValue
+    .split(':')
+    .map((part) => Number(part))
+
+  if (![hours, minutes, seconds].every(Number.isFinite)) {
+    return null
+  }
+
+  const date = new Date(baseDate)
+
+  date.setHours(hours, minutes, seconds || 0, 0)
+
+  return date
+}
+
+function isSameLocalDate(left, right) {
+  return (
+    left.getFullYear() === right.getFullYear() &&
+    left.getMonth() === right.getMonth() &&
+    left.getDate() === right.getDate()
+  )
 }
 
 function mapNextMedication(schedules = [], nextScheduleTime) {
@@ -226,10 +382,13 @@ function mapNextMedication(schedules = [], nextScheduleTime) {
 }
 
 function mapTopHeaderData({ patient, device, nick, profileImg }) {
+  const status = getDeviceStatus(device)
+
   return {
     guardianName: resolveGuardianName(patient?.guardian_name, nick, '-'),
     profileImg,
-    deviceStatusText: getTopHeaderDeviceStatus(device?.is_connected),
+    deviceStatusText: getDeviceStatusText(status),
+    deviceStatusClass: getDeviceStatusClass(status),
     lastSyncedText: formatRelativeTime(device?.last_sync_time),
   }
 }
@@ -278,18 +437,6 @@ function calculateAgeFromBirthdate(value) {
   }
 
   return age >= 0 ? age : null
-}
-
-function getTopHeaderDeviceStatus(isConnected) {
-  if (isConnected === true) {
-    return '기기 연결됨'
-  }
-
-  if (isConnected === false) {
-    return '기기 연결 안 됨'
-  }
-
-  return '기기 상태 확인 중'
 }
 
 function getDashboardAlertLabel(type) {
