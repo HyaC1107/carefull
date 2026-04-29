@@ -6,6 +6,10 @@ import './index.css';
 
 import { ThemeProvider } from '@mui/material/styles';
 import theme from './theme/theme';
+import { registerSW } from 'virtual:pwa-register';
+
+// 서비스 워커 등록
+registerSW({ immediate: true });
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
