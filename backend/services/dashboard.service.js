@@ -29,17 +29,36 @@ const get_today_context = () => {
     };
 };
 
+const log_dashboard_duration = (step_name, started_at) => {
+    console.log(`[dashboard] ${step_name}:`, Date.now() - started_at);
+};
+
+const measure_dashboard_step = async (step_name, callback) => {
+    const started_at = Date.now();
+    const result = await callback();
+    log_dashboard_duration(step_name, started_at);
+
+    return result;
+};
+
 const get_dashboard_data_by_mem_id = async (mem_id) => {
-    const member = await get_member_header(mem_id);
+    const dashboard_started_at = Date.now();
+    const member = await measure_dashboard_step('get_member_header', () =>
+        get_member_header(mem_id)
+    );
 
     if (!member) {
+        log_dashboard_duration('before_response', dashboard_started_at);
+        log_dashboard_duration('total', dashboard_started_at);
         return null;
     }
 
-    const patient_id = await find_patient_id_by_mem_id(mem_id);
+    const patient_id = await measure_dashboard_step('find_patient_id_by_mem_id', () =>
+        find_patient_id_by_mem_id(mem_id)
+    );
 
     if (!patient_id) {
-        return build_dashboard_data({
+        const dashboard_data = build_dashboard_data({
             patient: null,
             member,
             summary: null,
@@ -55,6 +74,11 @@ const get_dashboard_data_by_mem_id = async (mem_id) => {
             recent_notifications: await get_recent_notifications(mem_id),
             recent_activities: []
         });
+
+        log_dashboard_duration('before_response', dashboard_started_at);
+        log_dashboard_duration('total', dashboard_started_at);
+
+        return dashboard_data;
     }
 
     const [
@@ -68,22 +92,30 @@ const get_dashboard_data_by_mem_id = async (mem_id) => {
         recent_notifications,
         recent_activities
     ] = await Promise.all([
-        get_patient_header(patient_id),
-        get_dashboard_summary(patient_id),
-        get_total_planned_schedule_count(patient_id),
-        get_remaining_planned_medication_count(patient_id),
-        get_device_status(patient_id),
-        get_estimated_medication_stock(patient_id),
-        get_today_schedules(patient_id),
-        get_recent_notifications(mem_id),
-        get_recent_activities(patient_id)
+        measure_dashboard_step('get_patient_header', () => get_patient_header(patient_id)),
+        measure_dashboard_step('get_dashboard_summary', () =>
+            get_dashboard_summary(patient_id)
+        ),
+        measure_dashboard_step('total_scheduled_count', () =>
+            get_total_planned_schedule_count(patient_id)
+        ),
+        measure_dashboard_step('remaining_medication_count', () =>
+            get_remaining_planned_medication_count(patient_id)
+        ),
+        measure_dashboard_step('get_device_status', () => get_device_status(patient_id)),
+        measure_dashboard_step('get_estimated_medication_stock', () =>
+            get_estimated_medication_stock(patient_id)
+        ),
+        measure_dashboard_step('get_today_schedules', () =>
+            get_today_schedules(patient_id)
+        ),
+        measure_dashboard_step('recent_notifications', () =>
+            get_recent_notifications(mem_id)
+        ),
+        measure_dashboard_step('recent_activities', () =>
+            get_recent_activities(patient_id)
+        )
     ]);
-
-    await trigger_low_stock_notifications_for_estimated_stock(
-        mem_id,
-        patient_id,
-        medication_stock.lowStockMedications
-    );
 
     const resolved_device = apply_estimated_medication_stock_to_device(
         device,
@@ -102,6 +134,9 @@ const get_dashboard_data_by_mem_id = async (mem_id) => {
         recent_notifications,
         recent_activities
     });
+
+    log_dashboard_duration('before_response', dashboard_started_at);
+    log_dashboard_duration('total', dashboard_started_at);
 
     return dashboard_data;
 };

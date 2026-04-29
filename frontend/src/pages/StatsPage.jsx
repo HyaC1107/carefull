@@ -8,14 +8,22 @@ import BarChartCard from '../components/stats/BarChartCard'
 import LineChartCard from '../components/stats/LineChartCard'
 import PieChartCard from '../components/stats/PieChartCard'
 import WeeklyInsightSection from '../components/stats/WeeklyInsightSection'
-import { hasStoredToken, requestJson } from '../api'
+import {
+  getDeviceStatus,
+  getDeviceStatusClass,
+  getDeviceStatusText,
+  hasStoredToken,
+  requestJson,
+} from '../api'
 import '../styles/StatsPage.css'
 import '../styles/MobileBottomNav.css'
 
 const PIE_COLORS = ['#10b981', '#0ea5e9', '#f59e0b', '#ef4444', '#8b5cf6']
+const PATIENT_REGISTRATION_LABEL = '?섏옄瑜??깅줉?댁＜?몄슂.'
 
 function StatsPage() {
   const [activities, setActivities] = useState([])
+  const [dashboardData, setDashboardData] = useState(null)
   const [dashboardSummary, setDashboardSummary] = useState(null)
   const [schedules, setSchedules] = useState([])
   const [medicationMap, setMedicationMap] = useState({})
@@ -36,6 +44,7 @@ function StatsPage() {
           ])
 
         setActivities(Array.isArray(activityData?.activities) ? activityData.activities : [])
+        setDashboardData(dashboardData?.data ?? null)
         setDashboardSummary(dashboardData?.data?.summary ?? null)
         setSchedules(Array.isArray(scheduleData?.schedules) ? scheduleData.schedules : [])
         setMedicationMap(buildMedicationMap(medicationData?.data))
@@ -67,6 +76,18 @@ function StatsPage() {
     () => buildWeeklyInsights(activities),
     [activities],
   )
+  const headerData = useMemo(
+    () =>
+      mapTopHeaderData({
+        patient: dashboardData?.patient,
+        patientName: dashboardData?.patient_name,
+        device: dashboardData?.device,
+        nick: dashboardData?.member?.nick,
+        profileImg:
+          dashboardData?.member?.profile_img || dashboardData?.profile_img || '',
+      }),
+    [dashboardData],
+  )
 
   return (
     <div className="stats-page">
@@ -74,7 +95,14 @@ function StatsPage() {
         <Sidebar activeMenu="stats" />
 
         <div className="stats-main">
-          <TopHeader />
+          <TopHeader
+            patientLabel={headerData.patientLabel}
+            guardianName={headerData.guardianName}
+            profileImg={headerData.profileImg}
+            deviceStatusText={headerData.deviceStatusText}
+            deviceStatusClass={headerData.deviceStatusClass}
+            lastSyncedText={headerData.lastSyncedText}
+          />
 
           <main className="stats-content">
             <StatsHeader />
@@ -94,6 +122,99 @@ function StatsPage() {
       <MobileBottomNav activeMenu="stats" />
     </div>
   )
+}
+
+function mapTopHeaderData({ patient, patientName, device, nick, profileImg }) {
+  const status = getDeviceStatus(device)
+
+  return {
+    patientLabel: buildPatientLabel(patient, patientName),
+    guardianName: resolveGuardianName(patient?.guardian_name, nick, '-'),
+    profileImg,
+    deviceStatusText: getDeviceStatusText(status),
+    deviceStatusClass: getDeviceStatusClass(status),
+    lastSyncedText: formatRelativeTime(device?.last_sync_time),
+  }
+}
+
+function resolveGuardianName(guardianName, nick, fallbackName) {
+  return (
+    resolveDisplayName(guardianName) ||
+    resolveDisplayName(nick) ||
+    fallbackName
+  )
+}
+
+function resolveDisplayName(value) {
+  return typeof value === 'string' && value.trim() ? value.trim() : ''
+}
+
+function buildPatientLabel(patient, fallbackName) {
+  const patientName =
+    resolveDisplayName(patient?.patient_name) ||
+    resolveDisplayName(fallbackName) ||
+    PATIENT_REGISTRATION_LABEL
+  const patientAge = calculateAgeFromBirthdate(patient?.birthdate)
+
+  return patientAge === null
+    ? `?섏옄: ${patientName}`
+    : `?섏옄: ${patientName} 쨌 留?${patientAge}??`
+}
+
+function calculateAgeFromBirthdate(value) {
+  if (!value) {
+    return null
+  }
+
+  const birthdate = new Date(value)
+
+  if (Number.isNaN(birthdate.getTime())) {
+    return null
+  }
+
+  const today = new Date()
+  let age = today.getFullYear() - birthdate.getFullYear()
+  const monthDiff = today.getMonth() - birthdate.getMonth()
+  const dayDiff = today.getDate() - birthdate.getDate()
+
+  if (monthDiff < 0 || (monthDiff === 0 && dayDiff < 0)) {
+    age -= 1
+  }
+
+  return age >= 0 ? age : null
+}
+
+function formatRelativeTime(value) {
+  if (!value) {
+    return '-'
+  }
+
+  const target = new Date(value)
+
+  if (Number.isNaN(target.getTime())) {
+    return '-'
+  }
+
+  const diffMinutes = Math.max(
+    0,
+    Math.floor((Date.now() - target.getTime()) / 60000),
+  )
+
+  if (diffMinutes < 1) {
+    return '방금 전'
+  }
+
+  if (diffMinutes < 60) {
+    return `${diffMinutes}분 전`
+  }
+
+  const diffHours = Math.floor(diffMinutes / 60)
+
+  if (diffHours < 24) {
+    return `${diffHours}시간 전`
+  }
+
+  return `${Math.floor(diffHours / 24)}일 전`
 }
 
 function buildMedicationMap(medications = []) {
