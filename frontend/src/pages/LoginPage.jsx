@@ -1,35 +1,20 @@
-// 이 파일이 하는 일
-// 로그인 페이지 전체를 담당.
-// 가운데 배경 위에 LoginCard를 올려줌.
-// 지금은 테스트용으로 소셜 로그인 버튼을 누르면 대시보드로 이동하게 설정함.
-import { useNavigate } from 'react-router-dom'
 import LoginCard from '../components/auth/LoginCard'
+import { API_BASE_URL } from '../api'
 import '../styles/LoginPage.css'
 
+const SOCIAL_LOGIN_START_PATHS = {
+  kakao: '/api/user/kakao',
+  google: '/api/user/google',
+  naver: '/api/user/naver',
+}
+
 function LoginPage() {
-  // navigate는 코드로 페이지를 이동시킬 때 사용
-  const navigate = useNavigate()
-
-  // 지금은 테스트용 이동
-  // 나중에 실제 로그인 API 성공 후 navigate('/dashboard')로 바꾸면 됨
-  const handleKakaoLogin = () => {
-    console.log('카카오 로그인 시작')
-    navigate('/dashboard')
-  }
-
-  const handleNaverLogin = () => {
-    console.log('네이버 로그인 시작')
-    navigate('/dashboard')
-  }
-
-  const handleGoogleLogin = () => {
-    console.log('구글 로그인 시작')
-    navigate('/dashboard')
-  }
+  const handleKakaoLogin = () => startSocialLogin('kakao')
+  const handleNaverLogin = () => startSocialLogin('naver')
+  const handleGoogleLogin = () => startSocialLogin('google')
 
   return (
     <main className="login-page">
-      {/* 각 버튼 클릭 시 어떤 함수를 실행할지 LoginCard에 전달 */}
       <LoginCard
         onKakaoLogin={handleKakaoLogin}
         onNaverLogin={handleNaverLogin}
@@ -37,6 +22,25 @@ function LoginPage() {
       />
     </main>
   )
+}
+
+function startSocialLogin(provider) {
+  const loginUrl = buildSocialLoginStartUrl(provider)
+  if (!loginUrl) {
+    console.error(`social login start URL could not be created: ${provider}`)
+    return
+  }
+  window.location.assign(loginUrl)
+}
+
+function buildSocialLoginStartUrl(provider) {
+  const path = SOCIAL_LOGIN_START_PATHS[provider]
+  if (!path) return ''
+  if (!API_BASE_URL) {
+    console.error('VITE_API_BASE_URL is not configured. Social login cannot start.')
+    return ''
+  }
+  return new URL(path, API_BASE_URL).toString()
 }
 
 export default LoginPage

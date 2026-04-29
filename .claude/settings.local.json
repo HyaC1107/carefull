@@ -11,7 +11,8 @@
       "WebSearch",
       "Bash(grep -E \"\\\\.\\(js|jsx|ts|tsx|env|json\\)$\")",
       "Skill(schedule)",
-      "Bash(git fetch *)"
+      "Bash(git fetch *)",
+      "Bash(git ls-tree *)"
     ]
   }
 }
