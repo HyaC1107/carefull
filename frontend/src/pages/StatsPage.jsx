@@ -19,7 +19,7 @@ import '../styles/StatsPage.css'
 import '../styles/MobileBottomNav.css'
 
 const PIE_COLORS = ['#10b981', '#0ea5e9', '#f59e0b', '#ef4444', '#8b5cf6']
-const PATIENT_REGISTRATION_LABEL = '?섏옄瑜??깅줉?댁＜?몄슂.'
+const PATIENT_REGISTRATION_LABEL = '환자를 등록해주세요.'
 
 function StatsPage() {
   const [activities, setActivities] = useState([])
@@ -157,8 +157,8 @@ function buildPatientLabel(patient, fallbackName) {
   const patientAge = calculateAgeFromBirthdate(patient?.birthdate)
 
   return patientAge === null
-    ? `?섏옄: ${patientName}`
-    : `?섏옄: ${patientName} 쨌 留?${patientAge}??`
+    ? `환자: ${patientName}`
+    : `환자: ${patientName} · 만 ${patientAge}세`
 }
 
 function calculateAgeFromBirthdate(value) {
