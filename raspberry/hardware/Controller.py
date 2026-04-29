@@ -112,8 +112,13 @@ class Controller(threading.Thread):
                         logger.info(f"Schedule due: {medi_name} (ID: {sche_id}) — alarm only, UI handles the rest")
 
                         # 알람만 울림 — 인증/배출/검증은 app.py UI 흐름이 담당
+                        # 보호자 맞춤 음성(voice_id.mp3) 우선 확인 후 미존재 시 기본음(default_voice.mp3) 사용
                         custom_voice = f"voice_{sche_id}.mp3"
-                        play_alarm(custom_voice)
+                        default_voice = "default_voice.mp3"
+                        
+                        voice_to_play = custom_voice if os.path.exists(os.path.join(VOICES_DIR, custom_voice)) else default_voice
+                        logger.info(f"Playing alarm: {voice_to_play}")
+                        play_alarm(voice_to_play)
                         
                 time.sleep(30)
                 

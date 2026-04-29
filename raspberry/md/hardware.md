@@ -7,6 +7,9 @@
 1. **스케줄 감시 및 알람 (Schedule & Alarm)**
    - 시스템은 백그라운드에서 복약 스케줄을 지속적으로 확인합니다.
    - 설정된 복약 시간(Scheduled Time)에 도달하면 `raspberry/hardware/alarm.py`를 호출하여 사용자에게 시각/청각적 알림을 제공합니다.
+   - **음성 우선순위**: 
+     1. 보호자 맞춤 음성 파일 (`raspberry/voices/voice_{sche_id}.mp3`) 존재 시 최우선 재생.
+     2. 해당 파일이 없을 경우 기본 알림음 (`raspberry/voices/default_voice.mp3`) 재생.
 
 2. **카메라 준비 (Camera Preparation)**
    - 알람 발생과 동시에 `raspberry/camera/camera.py`를 통해 카메라 모듈을 활성화하고 스트리밍 준비 상태로 전환합니다.
