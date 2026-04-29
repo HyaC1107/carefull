@@ -105,11 +105,7 @@ export default defineConfig(({ mode }) => {
     server: {
       host: env.VITE_DEV_HOST || '0.0.0.0',
       port: devServerPort,
-      strictPort: true,
-      https: {
-        key: fs.readFileSync('../backend/192.168.219.225.nip.io-key.pem'),
-        cert: fs.readFileSync('../backend/192.168.219.225.nip.io.pem'),
-      },
+      strictPort: true
     },
   }
 })
