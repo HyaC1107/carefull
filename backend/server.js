@@ -1,68 +1,139 @@
 require('dotenv').config();
 
 const express = require('express');
-const https = require('https');
 const fs = require('fs');
+const http = require('http');
+const https = require('https');
 const cors = require('cors');
 const path = require('path');
+
 const pool = require('./db');
 
-const userRouter = require('./routes/user');
-const patientRouter = require('./routes/patient');
-const medicationRouter = require('./routes/medication');
-const scheduleRouter = require('./routes/schedule');
-const dashboardRouter = require('./routes/dashboard');
-const deviceRouter = require('./routes/device');
-const faceDataRouter = require('./routes/face-data');
-const notificationRouter = require('./routes/notification');
-const logRouter = require('./routes/log');
+const user_router = require('./routes/user');
+const patient_router = require('./routes/patient');
+const medication_router = require('./routes/medication');
+const schedule_router = require('./routes/schedule');
+const dashboard_router = require('./routes/dashboard');
+const device_router = require('./routes/device');
+const face_data_router = require('./routes/face-data');
+const notification_router = require('./routes/notification');
+const activity_router = require('./routes/activity');
+const admin_router    = require('./routes/admin');
+const voice_router    = require('./routes/voice');
 
-const { startMissedLogJob } = require('./jobs/missed-log-job');
-startMissedLogJob();
+const { startMissedLogJob } = require('./jobs/missed-activity-job');
 
 const app = express();
-const PORT = 443;
 
-// 공통 미들웨어
-app.use(cors());
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+// ─────────────────────────── CORS ────────────────────────────────────────────
+// .env 에 ALLOWED_ORIGINS를 입력
+// 여러 개면 콤마 구분
+const allowed_origins = (process.env.ALLOWED_ORIGINS || '')
+    .split(',')
+    .map(o => o.trim())
+    .filter(Boolean);
 
-// 정적 파일 제공
+app.use(cors({
+    origin: (origin, callback) => {
+        // 서버→서버 호출(origin 없음) 또는 허용 목록 통과
+        if (!origin || allowed_origins.includes(origin)) return callback(null, true);
+        callback(new Error(`CORS blocked: ${origin}`));
+    },
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+}));
+
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
-// HTTPS 인증서 설정
-const sslOptions = {
-    key: fs.readFileSync('localhost+2-key.pem'),
-    cert: fs.readFileSync('localhost+2.pem')
+// ─────────────────────────── Health Check ────────────────────────────────────
+app.get('/health', async (req, res) => {
+    try {
+        await pool.query('SELECT 1');
+        return res.status(200).json({ status: 'ok', db: 'connected' });
+    } catch {
+        return res.status(503).json({ status: 'error', db: 'disconnected' });
+    }
+});
+
+// ─────────────────────────── Routes ──────────────────────────────────────────
+app.use('/api/user',         user_router);
+app.use('/api/patient',      patient_router);
+app.use('/api/medication',   medication_router);
+app.use('/api/schedule',     schedule_router);
+app.use('/api/dashboard',    dashboard_router);
+app.use('/api/device',       device_router);
+app.use('/api/face-data',    face_data_router);
+app.use('/api/notification', notification_router);
+app.use('/api/log',          activity_router);
+app.use('/api/admin',        admin_router);
+app.use('/api/voice',        voice_router);
+
+// ─────────────────────────── Server ──────────────────────────────────────────
+// SSL 종료는 nginx 또는 ALB 에서 처리 → Node.js 는 HTTP 로만 실행
+const PORT = process.env.PORT;
+const HOST = process.env.HOST || undefined;
+const { SSL_KEY_PATH, SSL_CERT_PATH } = process.env;
+
+if (!PORT) throw new Error('Missing env variable: PORT');
+
+const resolve_ssl_path = (file_path) => (
+    path.isAbsolute(file_path) ? file_path : path.resolve(__dirname, file_path)
+);
+
+const ssl_key_path = SSL_KEY_PATH ? resolve_ssl_path(SSL_KEY_PATH) : '';
+const ssl_cert_path = SSL_CERT_PATH ? resolve_ssl_path(SSL_CERT_PATH) : '';
+const use_https = Boolean(
+    ssl_key_path
+    && ssl_cert_path
+    && fs.existsSync(ssl_key_path)
+    && fs.existsSync(ssl_cert_path)
+);
+
+const server = use_https
+    ? https.createServer({
+        key: fs.readFileSync(ssl_key_path),
+        cert: fs.readFileSync(ssl_cert_path),
+    }, app)
+    : http.createServer(app);
+
+const on_server_listen = () => {
+    const protocol = use_https ? 'HTTPS' : 'HTTP';
+    console.log(`[${protocol} mode] Care-full server running on ${HOST || 'default interface'}:${PORT}`);
+    console.log(`[env] NODE_ENV=${process.env.NODE_ENV || 'undefined'}`);
+    console.log(`[env] FRONTEND_URL=${process.env.FRONTEND_URL || 'undefined'}`);
+    console.log(`[env] KAKAO_REDIRECT_URI=${process.env.KAKAO_REDIRECT_URI || 'undefined'}`);
+    console.log(`[env] GOOGLE_REDIRECT_URI=${process.env.GOOGLE_REDIRECT_URI || 'undefined'}`);
+    console.log(`[env] NAVER_REDIRECT_URI=${process.env.NAVER_REDIRECT_URI || 'undefined'}`);
+    if (use_https) {
+        console.log(`[HTTPS mode] SSL key: ${ssl_key_path}`);
+        console.log(`[HTTPS mode] SSL cert: ${ssl_cert_path}`);
+    }
+    startMissedLogJob();
 };
 
-/**
- * 라우터 마운트
- *
- * 왜 수정했는가:
- * - patient.js가 존재해도 서버에 마운트되지 않으면 /api/patient/* 경로는 동작하지 않습니다.
- * - 로그인 -> 환자등록 -> 조회 흐름을 patient 라우터 기준으로 연결하려면 반드시 마운트가 필요합니다.
- */
-app.use('/api/user', userRouter);
-app.use('/api/patient', patientRouter);
-app.use('/api/medication', medicationRouter);
-app.use('/api/schedule', scheduleRouter);
-app.use('/api/dashboard', dashboardRouter);
-app.use('/api/device', deviceRouter);
-app.use('/api/face-data', faceDataRouter);
-app.use('/api/notification', notificationRouter);
-app.use('/api/log', logRouter);
+if (HOST) {
+    server.listen(PORT, HOST, on_server_listen);
+} else {
+    server.listen(PORT, on_server_listen);
+}
 
+// ─────────────────────────── Graceful Shutdown ───────────────────────────────
+const graceful_shutdown = async (signal) => {
+    console.log(`\n[${signal}] Shutting down gracefully...`);
+    server.close(async () => {
+        await pool.end();
+        console.log('DB pool closed.');
+        process.exit(0);
+    });
+    setTimeout(() => {
+        console.error('Forced shutdown after timeout.');
+        process.exit(1);
+    }, 10_000);
+};
 
-
-https.createServer(sslOptions, app).listen(PORT, () => {
-    console.log(`Care-full 서버가 ${PORT}번 포트에서 실행 중입니다.`);
-});
-
-process.on('SIGINT', async () => {
-    console.log('서버를 종료합니다. DB 연결을 정리합니다.');
-    await pool.end();
-    process.exit(0);
-});
+process.on('SIGTERM', () => graceful_shutdown('SIGTERM')); // AWS / PM2 종료 신호
+process.on('SIGINT',  () => graceful_shutdown('SIGINT'));  // Ctrl+C

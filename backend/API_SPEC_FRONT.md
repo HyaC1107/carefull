@@ -51,7 +51,7 @@ Authorization: Bearer {token}
 | Method | Endpoint | 인증 | 용도 |
 |--------|----------|------|------|
 | POST | `/api/user/dev-login` | X | 개발용 로그인 |
-| GET | `/api/user/callback` | X | 카카오 로그인 콜백 |
+| GET | `/api/user/kakao/callback` | X | 카카오 로그인 콜백 |
 | GET | `/api/user/google/callback` | X | 구글 로그인 콜백 |
 | GET | `/api/user/naver/callback` | X | 네이버 로그인 콜백 |
 | POST | `/api/patient/register` | O | 환자 정보 등록 |
@@ -114,7 +114,7 @@ Response
 
 ---
 
-### [GET] `/api/user/callback`
+### [GET] `/api/user/kakao/callback`
 카카오 로그인 콜백
 
 Query
@@ -225,7 +225,7 @@ Response
 Request
 ```json
 {
-  "serial_number": "CAREFULL-0003"
+  "device_uid": "CAREFULL-0003"
 }
 ```
 
@@ -236,7 +236,7 @@ Response
   "message": "기기 등록이 완료되었습니다.",
   "device": {
     "device_id": 1,
-    "serial_number": "CAREFULL-0003",
+    "device_uid": "CAREFULL-0003",
     "user_id": 3,
     "status": "REGISTERED"
   }
@@ -254,7 +254,7 @@ Response
   "success": true,
   "device": {
     "device_id": 1,
-    "serial_number": "CAREFULL-0003",
+    "device_uid": "CAREFULL-0003",
     "status": "REGISTERED",
     "last_ping": "2026-04-13T08:00:00.000Z"
   }
@@ -483,7 +483,7 @@ Response
     "device": {
       "isConnected": true,
       "deviceId": 1,
-      "serialNumber": "CAREFULL-0003",
+      "device_uid": "CAREFULL-0003",
       "deviceStatus": "REGISTERED",
       "fillLevel": null,
       "remainingCount": null,

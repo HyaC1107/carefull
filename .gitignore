@@ -7,9 +7,11 @@ __pycache__/
 venv/
 .env/
 .env.*
+!**/.env.example
 
 # 🔥 환경 변수 / 비밀키
 *.env
+!**/.env.example
 *.pem
 *.key
 *.crt
@@ -56,6 +58,7 @@ datasets/
 *.jpg
 *.jpeg
 *.png
+!frontend/public/favicons/*.png
 *.mp4
 *.avi
 
@@ -93,5 +96,7 @@ backend/.env.local
 *.sqlite3
 *.db
 !raspberry/db/README.md # 폴더 구조 유지를 위해 README만 허용하는 센스!
+raspberry/db/
 .gemini.md
 claude.md
+docs

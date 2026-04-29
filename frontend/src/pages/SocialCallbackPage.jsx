@@ -30,9 +30,7 @@ function SocialCallbackPage() {
       localStorage.setItem(TOKEN_STORAGE_KEY, token)
 
       navigate(
-        resolveNextPath({
-          is_new_user: is_new_user === 'true',
-        }),
+        resolveNextPath({ is_new_user: is_new_user === 'true' }),
         { replace: true },
       )
     }

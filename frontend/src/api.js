@@ -18,35 +18,21 @@ export function hasStoredToken() {
 
 export function getStoredAuthPayload() {
   const token = getStoredToken()
-
-  if (!token) {
-    return null
-  }
+  if (!token) return null
 
   const [, encodedPayload] = token.split('.')
-
-  if (!encodedPayload) {
-    return null
-  }
+  if (!encodedPayload) return null
 
   try {
-    const normalizedPayload = encodedPayload
-      .replace(/-/g, '+')
-      .replace(/_/g, '/')
-    const paddedPayload = normalizedPayload.padEnd(
-      normalizedPayload.length +
-        ((4 - (normalizedPayload.length % 4)) % 4),
+    const normalized = encodedPayload.replace(/-/g, '+').replace(/_/g, '/')
+    const padded = normalized.padEnd(
+      normalized.length + ((4 - (normalized.length % 4)) % 4),
       '=',
     )
-    const binaryPayload = atob(paddedPayload)
-    const payloadBytes = Uint8Array.from(binaryPayload, (char) =>
-      char.charCodeAt(0),
-    )
-    const decodedPayload = new TextDecoder('utf-8').decode(payloadBytes)
-
-    return JSON.parse(decodedPayload)
-  } catch (error) {
-    console.error('failed to decode auth payload:', error)
+    const binary = atob(padded)
+    const bytes = Uint8Array.from(binary, (c) => c.charCodeAt(0))
+    return JSON.parse(new TextDecoder('utf-8').decode(bytes))
+  } catch {
     return null
   }
 }
@@ -57,26 +43,16 @@ export async function requestJson(
 ) {
   const token = getStoredToken()
 
-  if (!API_BASE_URL) {
-    throw new Error('VITE_API_BASE_URL is not configured.')
-  }
-
-  if (auth && !token) {
-    throw new Error('Authentication token is missing.')
-  }
+  if (!API_BASE_URL) throw new Error('VITE_API_BASE_URL is not configured.')
+  if (auth && !token) throw new Error('Authentication token is missing.')
 
   const requestHeaders = {
     Accept: 'application/json',
     ...headers,
   }
 
-  if (body !== undefined) {
-    requestHeaders['Content-Type'] = 'application/json'
-  }
-
-  if (auth) {
-    requestHeaders.Authorization = `Bearer ${token}`
-  }
+  if (body !== undefined) requestHeaders['Content-Type'] = 'application/json'
+  if (auth) requestHeaders.Authorization = `Bearer ${token}`
 
   const response = await fetch(new URL(path, API_BASE_URL), {
     method,

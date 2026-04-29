@@ -1,24 +1,53 @@
 from PyQt5.QtCore import Qt, QThread, QTimer, pyqtSignal
-from PyQt5.QtGui import QFont
-from PyQt5.QtWidgets import QLabel, QVBoxLayout, QWidget
+from PyQt5.QtGui import QColor, QFont, QPainter, QPen
+from PyQt5.QtWidgets import QLabel, QProgressBar, QVBoxLayout, QWidget
 
-_TRANSITION_MS = 3500   # 모터 동작 후 medication 화면 전환 대기
+_BG = "#dde3f8"
+_INDIGO = "#4338ca"
+_DARK = "#1e1b5e"
+_TRANSITION_MS = 3500
 
 
 class _DispenseThread(QThread):
     done = pyqtSignal()
 
-    def __init__(self, user: str = "user", parent=None):
-        super().__init__(parent)
-        self._user = user
-
     def run(self):
         try:
-            from hardware.dispenser import dispense_medicine
-            dispense_medicine(self._user)
+            from hardware.motor import dispense_medicine
+            dispense_medicine()
         except Exception as e:
             print(f"[DISPENSE ERROR] {e}")
         self.done.emit()
+
+
+class _PillsWidget(QWidget):
+    """약 캡슐 3개 아이콘 (QPainter 드로잉)."""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setFixedSize(176, 76)
+
+    def paintEvent(self, event):
+        p = QPainter(self)
+        p.setRenderHint(QPainter.Antialiasing)
+
+        pen = QPen(QColor(_INDIGO), 3, Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin)
+        p.setPen(pen)
+        p.setBrush(Qt.NoBrush)
+
+        configs = [
+            (25, 38, -30),
+            (88, 33, 0),
+            (151, 38, 30),
+        ]
+        for cx, cy, angle in configs:
+            p.save()
+            p.translate(cx, cy)
+            p.rotate(angle)
+            pw, ph = 33, 15
+            p.drawRoundedRect(-pw // 2, -ph // 2, pw, ph, ph // 2, ph // 2)
+            p.drawLine(0, -ph // 2, 0, ph // 2)
+            p.restore()
 
 
 class DispensingScreen(QWidget):
@@ -26,66 +55,86 @@ class DispensingScreen(QWidget):
         super().__init__(parent)
         self._app = parent
         self._thread = None
-        self._dot_step = 0
         self._build_ui()
-        self._init_dot_timer()
-
-    # ──────────────────────────────── UI ─────────────────────────────────────
 
     def _build_ui(self):
+        self.setStyleSheet(f"DispensingScreen {{ background-color: {_BG}; }}")
         root = QVBoxLayout(self)
-        root.setContentsMargins(40, 60, 40, 60)
+        root.setContentsMargins(32, 0, 32, 24)
         root.setSpacing(0)
         root.setAlignment(Qt.AlignCenter)
 
-        icon = QLabel("💊")
-        icon.setFont(QFont("Sans Serif", 72))
-        icon.setAlignment(Qt.AlignCenter)
+        root.addStretch(2)
 
-        msg = QLabel("약을 배출하고 있습니다\n잠시만 기다려주세요")
-        msg.setFont(QFont("Sans Serif", 26, QFont.Bold))
-        msg.setAlignment(Qt.AlignCenter)
-        msg.setWordWrap(True)
-        msg.setStyleSheet("color: #1a1a2e;")
+        root.addWidget(_PillsWidget(), alignment=Qt.AlignCenter)
+        root.addSpacing(20)
 
-        self._dot_lbl = QLabel("●")
-        self._dot_lbl.setFont(QFont("Sans Serif", 36))
-        self._dot_lbl.setStyleSheet("color: #4a90d9;")
-        self._dot_lbl.setAlignment(Qt.AlignCenter)
+        title = QLabel("약이 나옵니다")
+        title.setFont(QFont("Sans Serif", 48, QFont.Bold))
+        title.setAlignment(Qt.AlignCenter)
+        title.setStyleSheet(f"color: {_DARK};")
+        root.addWidget(title)
 
-        root.addStretch()
-        root.addWidget(icon)
-        root.addSpacing(24)
-        root.addWidget(msg)
-        root.addSpacing(32)
-        root.addWidget(self._dot_lbl)
-        root.addStretch()
+        root.addSpacing(16)
 
-    def _init_dot_timer(self):
-        self._dot_timer = QTimer(self)
-        self._dot_timer.timeout.connect(self._animate_dot)
-        self._dot_timer.start(400)
+        self._progress_bar = QProgressBar()
+        self._progress_bar.setRange(0, 100)
+        self._progress_bar.setValue(0)
+        self._progress_bar.setFixedHeight(6)
+        self._progress_bar.setTextVisible(False)
+        self._progress_bar.setStyleSheet(f"""
+            QProgressBar {{
+                border: none;
+                border-radius: 3px;
+                background: #c7d2fe;
+            }}
+            QProgressBar::chunk {{
+                background-color: {_INDIGO};
+                border-radius: 3px;
+            }}
+        """)
+        root.addWidget(self._progress_bar)
 
-    def _animate_dot(self):
-        dots = ["●　　", "●●　", "●●●"]
-        self._dot_lbl.setText(dots[self._dot_step % 3])
-        self._dot_step += 1
+        root.addSpacing(14)
 
-    # ──────────────────────────────── 생명주기 ────────────────────────────────
+        sub = QLabel("잠시만 기다려주세요")
+        sub.setFont(QFont("Sans Serif", 30))
+        sub.setAlignment(Qt.AlignCenter)
+        sub.setStyleSheet(f"color: {_INDIGO};")
+        root.addWidget(sub)
+
+        root.addStretch(2)
 
     def showEvent(self, event):
         super().showEvent(event)
-        self._dot_step = 0
+        self._progress_bar.setValue(0)
+        self._start_progress()
         self._start_dispense()
+
+    def _start_progress(self):
+        self._progress_val = 0
+        step_ms = _TRANSITION_MS // 100
+        self._progress_timer = QTimer(self)
+        self._progress_timer.timeout.connect(self._tick_progress)
+        self._progress_timer.start(step_ms)
+
+    def _tick_progress(self):
+        self._progress_val += 1
+        self._progress_bar.setValue(self._progress_val)
+        if self._progress_val >= 100:
+            self._progress_timer.stop()
 
     def _start_dispense(self):
         if self._thread and self._thread.isRunning():
             return
         self._thread = _DispenseThread(parent=self)
-        self._thread.done.connect(
-            lambda: QTimer.singleShot(_TRANSITION_MS, self._go_medication)
-        )
+        self._thread.done.connect(self._on_dispense_done)
         self._thread.start()
+
+    def _on_dispense_done(self):
+        if self._app:
+            self._app.current_session["dispensed"] = True
+        QTimer.singleShot(_TRANSITION_MS, self._go_medication)
 
     def _go_medication(self):
         if self._app:

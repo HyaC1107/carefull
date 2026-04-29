@@ -4,7 +4,7 @@
 
 | Method | Endpoint | 설명 | 인증 |
 |--------|----------|------|------|
-| GET | `/api/user/callback` | 카카오 OAuth 콜백 로그인 | X |
+| GET | `/api/user/kakao/callback` | 카카오 OAuth 콜백 로그인 | X |
 | GET | `/api/user/google/callback` | 구글 OAuth 콜백 로그인 | X |
 | GET | `/api/user/naver/callback` | 네이버 OAuth 콜백 로그인 | X |
 | POST | `/api/user/dev-login` | 개발용 mock 로그인 | X |
@@ -50,7 +50,7 @@
 
 ---
 
-### [GET] `/api/user/callback`
+### [GET] `/api/user/kakao/callback`
 
 설명: 카카오 OAuth code로 로그인/회원 생성 후 JWT 발급  
 인증: 불필요  
@@ -177,7 +177,7 @@ Request
   - `blood_type`
   - `height`
   - `weight`
-  - `serial_number`
+  - `device_uid`
 - 코드상 명시적 필수 검증은 없음
 
 Response
@@ -541,7 +541,7 @@ Response
     "device": {
       "isConnected": true,
       "deviceId": 1,
-      "serialNumber": "CAREFULL-0003",
+      "device_uid": "CAREFULL-0003",
       "deviceStatus": "REGISTERED",
       "fillLevel": null,
       "remainingCount": null,
@@ -580,7 +580,7 @@ req.user.memberId 사용: O
 Request
 
 - body:
-  - `serial_number` 필수
+  - `device_uid` 필수
 
 Response
 
@@ -590,7 +590,7 @@ Response
   "message": "기기 등록이 완료되었습니다.",
   "device": {
     "device_id": 1,
-    "serial_number": "CAREFULL-0003",
+    "device_uid": "CAREFULL-0003",
     "user_id": 3,
     "status": "REGISTERED"
   }
@@ -626,7 +626,7 @@ Response
   "success": true,
   "device": {
     "device_id": 1,
-    "serial_number": "CAREFULL-0003",
+    "device_uid": "CAREFULL-0003",
     "status": "REGISTERED",
     "last_ping": "2026-04-13T08:00:00.000Z"
   }
@@ -662,7 +662,7 @@ Response
   "message": "기기 연결이 해제되었습니다.",
   "device": {
     "device_id": 1,
-    "serial_number": "CAREFULL-0003",
+    "device_uid": "CAREFULL-0003",
     "user_id": null,
     "status": "UNREGISTERED"
   }
@@ -956,7 +956,7 @@ DB 사용
 
 ### 인증 없는 API
 
-- `/api/user/callback`
+- `/api/user/kakao/callback`
 - `/api/user/google/callback`
 - `/api/user/naver/callback`
 - `/api/user/dev-login`
