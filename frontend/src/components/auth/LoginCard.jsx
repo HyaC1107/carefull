@@ -15,7 +15,6 @@ function LoginCard({ onKakaoLogin, onNaverLogin, onGoogleLogin }) {
         />
       </div>
 
-      <h1 className="login-card__title">약쏙</h1>
       <p className="login-card__subtitle">Care-full 스마트 복약 관리 서비스</p>
 
       <div className="login-card__actions">
