@@ -1,4 +1,8 @@
 const express = require('express');
+const fs = require('fs');
+const path = require('path');
+const multer = require('multer');
+const jwt = require('jsonwebtoken');
 const router = express.Router();
 
 const pool = require('../db');
@@ -6,6 +10,25 @@ const { verifyToken } = require('../middleware/auth');
 const { find_patient_id_by_mem_id } = require('../utils/auth-user');
 const { sendSuccess, sendError } = require('../utils/response');
 const { is_device_online } = require('../utils/device-status');
+
+// ─── 알림음 업로드 multer ─────────────────────────────────────────────────────
+const SOUND_UPLOAD_DIR = path.join(__dirname, '..', 'uploads', 'sounds');
+fs.mkdirSync(SOUND_UPLOAD_DIR, { recursive: true });
+
+const sound_upload = multer({
+    storage: multer.diskStorage({
+        destination: (_req, _file, cb) => cb(null, SOUND_UPLOAD_DIR),
+        filename: (_req, file, cb) => {
+            const ext = path.extname(file.originalname) || '.mp3';
+            cb(null, `alarm_${Date.now()}${ext}`);
+        },
+    }),
+    limits: { fileSize: 20 * 1024 * 1024 }, // 20 MB
+    fileFilter: (_req, file, cb) => {
+        if (file.mimetype.startsWith('audio/')) return cb(null, true);
+        cb(new Error('오디오 파일만 업로드할 수 있습니다'));
+    },
+});
 
 const to_device_response = (row) => ({
     device_id: row.device_id,
@@ -439,36 +462,107 @@ router.delete('/me', verifyToken, async (req, res) => {
     }
 });
 
-// GET /api/device/sound?device_uid=...  — 라파용, 현재 알림음 메타 조회
+// GET /api/device/sound  — 알림음 메타 조회
+//   Raspberry Pi: ?device_uid=XXX (인증 불필요)
+//   프론트엔드:   Authorization: Bearer <token>
 router.get('/sound', async (req, res) => {
     const { device_uid } = req.query;
-    if (!device_uid || !String(device_uid).trim()) {
-        return sendError(res, 400, 'device_uid is required.');
-    }
-    try {
-        const { rows } = await pool.query(`
-            SELECT vs.file_path, vs.uploaded_at
-            FROM voice_samples vs
-            JOIN devices d ON d.patient_id = vs.patient_id
-            WHERE d.device_uid = $1
-              AND vs.status IN ('pending', 'ready')
-            ORDER BY vs.uploaded_at DESC
-            LIMIT 1
-        `, [String(device_uid).trim()]);
+    const auth_header = req.headers.authorization;
 
-        if (!rows.length) {
+    try {
+        let row;
+
+        if (device_uid) {
+            const { rows } = await pool.query(
+                `SELECT alarm_sound_path, alarm_sound_name, alarm_sound_updated_at
+                 FROM devices WHERE device_uid = $1 LIMIT 1`,
+                [String(device_uid).trim()]
+            );
+            row = rows[0];
+        } else if (auth_header?.startsWith('Bearer ')) {
+            const decoded = jwt.verify(auth_header.slice(7), process.env.JWT_SECRET);
+            const patient_id = await find_patient_id_by_mem_id(decoded.mem_id);
+            if (!patient_id) return sendError(res, 404, 'Patient not found.');
+            const { rows } = await pool.query(
+                `SELECT alarm_sound_path, alarm_sound_name, alarm_sound_updated_at
+                 FROM devices WHERE patient_id = $1 LIMIT 1`,
+                [patient_id]
+            );
+            row = rows[0];
+        } else {
+            return sendError(res, 400, 'device_uid or Authorization required.');
+        }
+
+        if (!row?.alarm_sound_path) {
             return sendSuccess(res, 200, { sound: null });
         }
 
         return sendSuccess(res, 200, {
             sound: {
-                file_path: rows[0].file_path,   // "uploads/voices/filename.ext"
-                updated_at: rows[0].uploaded_at,
+                file_name: row.alarm_sound_name,
+                file_path: row.alarm_sound_path,
+                updated_at: row.alarm_sound_updated_at,
             }
         });
     } catch (err) {
+        if (err.name === 'JsonWebTokenError' || err.name === 'TokenExpiredError') {
+            return sendError(res, 401, 'Invalid or expired token.');
+        }
         console.error('Sound fetch error:', err);
         return sendError(res, 500, 'Server error while fetching sound.');
+    }
+});
+
+// POST /api/device/sound  — 알림음 업로드 (프론트엔드, JWT 필요)
+router.post('/sound', verifyToken, sound_upload.single('sound'), async (req, res) => {
+    if (!req.file) return sendError(res, 400, '업로드된 파일이 없습니다.');
+
+    const remove_file = (p) => { try { fs.unlinkSync(p); } catch {} };
+
+    try {
+        const patient_id = await find_patient_id_by_mem_id(req.user.mem_id);
+        if (!patient_id) {
+            remove_file(req.file.path);
+            return sendError(res, 404, 'Patient not found.');
+        }
+
+        // 기존 파일 삭제
+        const { rows: old } = await pool.query(
+            'SELECT alarm_sound_path FROM devices WHERE patient_id = $1 LIMIT 1',
+            [patient_id]
+        );
+        if (old[0]?.alarm_sound_path) {
+            remove_file(path.join(__dirname, '..', old[0].alarm_sound_path));
+        }
+
+        const relative_path = path.join('uploads', 'sounds', req.file.filename).replace(/\\/g, '/');
+
+        const { rows } = await pool.query(
+            `UPDATE devices
+             SET alarm_sound_path = $1,
+                 alarm_sound_name = $2,
+                 alarm_sound_updated_at = NOW()
+             WHERE patient_id = $3
+             RETURNING alarm_sound_name, alarm_sound_path, alarm_sound_updated_at`,
+            [relative_path, req.file.originalname, patient_id]
+        );
+
+        if (!rows.length) {
+            remove_file(req.file.path);
+            return sendError(res, 404, 'Device not found.');
+        }
+
+        return sendSuccess(res, 201, {
+            sound: {
+                file_name: rows[0].alarm_sound_name,
+                file_path: rows[0].alarm_sound_path,
+                updated_at: rows[0].alarm_sound_updated_at,
+            }
+        });
+    } catch (err) {
+        remove_file(req.file.path);
+        console.error('Sound upload error:', err);
+        return sendError(res, 500, 'Server error while uploading sound.');
     }
 });
 
