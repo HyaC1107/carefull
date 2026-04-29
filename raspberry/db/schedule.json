@@ -1,10 +1,13 @@
 [
   {
-    "user": "user1",
-    "time": "12:05"
-  },
-  {
-    "user": "user1",
-    "time": "20:00"
+    "sche_id": 44,
+    "patient_id": 18,
+    "medi_id": 5838,
+    "time_to_take": "09:40:00",
+    "start_date": "2026-04-28T00:00:00.000Z",
+    "end_date": null,
+    "dose_interval": 1,
+    "status": "ACTIVE",
+    "medi_name": "캠블정"
   }
 ]

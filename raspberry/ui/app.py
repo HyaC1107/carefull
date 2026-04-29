@@ -3,11 +3,12 @@ import sys
 from PyQt5.QtCore import QThread, QTimer, pyqtSignal
 from PyQt5.QtWidgets import QApplication, QMainWindow, QStackedWidget
 
-from config.settings import SCHEDULE_POLL_SECONDS, SCREEN_HEIGHT, SCREEN_WIDTH
+from config.settings import FULLSCREEN, SCHEDULE_POLL_SECONDS, SCREEN_HEIGHT, SCREEN_WIDTH
 from ui.screens.auth_result import AuthResultScreen
 from ui.screens.camera_view import CameraViewScreen
 from ui.screens.complete import CompleteScreen
 from ui.screens.dispensing import DispensingScreen
+from ui.screens.fingerprint_auth import FingerprintAuthScreen
 from ui.screens.fingerprint_register import FingerprintRegisterScreen
 from ui.screens.home import HomeScreen
 from ui.screens.medication import MedicationScreen
@@ -24,6 +25,7 @@ def _new_session() -> dict:
         "dispensed": False,
         "action_verified": False,
         "similarity_score": 0.0,
+        "fp_test_mode": False,
     }
 
 
@@ -31,6 +33,13 @@ class _ScheduleSyncWorker(QThread):
     sync_done = pyqtSignal(list)
 
     def run(self):
+        # 알림음 파일 변경 시 다운로드 (변경 없으면 즉시 스킵)
+        try:
+            from utils.sound_sync import sync_sound
+            sync_sound()
+        except Exception:
+            pass
+
         try:
             from scheduler.schedule import sync_schedules
             schedules = sync_schedules()
@@ -57,6 +66,7 @@ class App(QMainWindow):
             "register":             RegisterScreen(self),
             "camera_view":          CameraViewScreen(self),
             "fingerprint_register": FingerprintRegisterScreen(self),
+            "fingerprint_auth":     FingerprintAuthScreen(self),
             "register_complete":    RegisterCompleteScreen(self),
             "medication_start":     MedicationStartScreen(self),
             "auth_result":          AuthResultScreen(self),
@@ -112,5 +122,8 @@ class App(QMainWindow):
 def run():
     app = QApplication(sys.argv)
     window = App()
-    window.show()
+    if FULLSCREEN:
+        window.showFullScreen()
+    else:
+        window.show()
     sys.exit(app.exec_())

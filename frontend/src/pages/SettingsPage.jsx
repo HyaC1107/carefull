@@ -8,6 +8,8 @@ import SettingToggleRow from '../components/settings/SettingToggleRow'
 import SettingActionRow from '../components/settings/SettingActionRow'
 import GuardianEditModal from '../components/settings/GuardianEditModal'
 import PatientEditModal from '../components/settings/PatientEditModal'
+import VoiceUploadTab from '../components/settings/VoiceUploadTab'
+import AlarmSoundTab from '../components/settings/AlarmSoundTab'
 import { hasStoredToken, requestJson, TOKEN_STORAGE_KEY } from '../api'
 import '../styles/SettingsPage.css'
 import '../styles/MobileBottomNav.css'
@@ -71,6 +73,12 @@ const ACCOUNT_ACTION_ITEMS = [
   },
 ]
 
+const TABS = [
+  { key: 'general', label: '일반 설정' },
+  { key: 'alarm', label: '알림음' },
+  { key: 'voice', label: '보호자 목소리' },
+]
+
 function loadNotifPrefs() {
   try {
     const stored = localStorage.getItem(NOTIF_PREFS_KEY)
@@ -82,6 +90,7 @@ function loadNotifPrefs() {
 }
 
 function SettingsPage() {
+  const [activeTab, setActiveTab] = useState('general')
   const [notifPrefs, setNotifPrefs] = useState(loadNotifPrefs)
   const [notificationPermission, setNotificationPermission] = useState(
     getNotificationPermission,
@@ -98,7 +107,6 @@ function SettingsPage() {
 
   useEffect(() => {
     if (!hasStoredToken()) return
-
     requestJson('/api/patient/me', { auth: true })
       .then((res) => setPatientData(res?.patient || null))
       .catch((err) => console.error('settings patient fetch error:', err))
@@ -223,69 +231,113 @@ function SettingsPage() {
           <main className="settings-content">
             <SettingsHeader />
 
-            <SettingsSectionCard title="알림 수신 설정">
-              <SettingToggleRow
-                title="전체 알림"
-                description="모든 알림 항목의 수신 여부를 한 번에 설정합니다."
-                checked={areAllNotifEnabled}
-                onChange={handleToggleAllNotif}
-              />
+<nav className="settings-tabs">
+  {TABS.map((tab) => (
+    <button
+      key={tab.key}
+      className={`settings-tab-btn${activeTab === tab.key ? ' settings-tab-btn--active' : ''}`}
+      onClick={() => setActiveTab(tab.key)}
+    >
+      {tab.label}
+    </button>
+  ))}
+</nav>
 
-              {NOTIF_TOGGLE_ITEMS.map((item) => (
-                <SettingToggleRow
-                  key={item.key}
-                  title={item.title}
-                  description={item.description}
-                  checked={notifPrefs[item.key]}
-                  onChange={() => handleToggleNotif(item.key)}
-                />
-              ))}
+{activeTab === 'notification' && (
+  <>
+    <SettingsSectionCard title="알림 수신 설정">
+      <SettingToggleRow
+        title="전체 알림"
+        description="모든 알림 항목의 수신 여부를 한 번에 설정합니다."
+        checked={areAllNotifEnabled}
+        onChange={handleToggleAllNotif}
+      />
 
-              <div className="settings-section-actions">
-                <button
-                  type="button"
-                  className="settings-footer-actions__button settings-footer-actions__button--primary"
-                  onClick={handleSaveNotifPrefs}
-                >
-                  {isNotifSaved ? '반영됨' : '변경사항 반영'}
-                </button>
-              </div>
-            </SettingsSectionCard>
+      {NOTIF_TOGGLE_ITEMS.map((item) => (
+        <SettingToggleRow
+          key={item.key}
+          title={item.title}
+          description={item.description}
+          checked={notifPrefs[item.key]}
+          onChange={() => handleToggleNotif(item.key)}
+        />
+      ))}
 
-            <SettingsSectionCard title="브라우저 알림 권한">
-              <div className="settings-row settings-row--action">
-                <div className="settings-row__text">
-                  <p className="settings-row__title">
-                    현재 상태: {getNotificationPermissionText(notificationPermission)}
-                  </p>
-                  <p className="settings-row__description">
-                    {getNotificationPermissionDescription(notificationPermission)}
-                  </p>
-                </div>
+      <div className="settings-section-actions">
+        <button
+          type="button"
+          className="settings-footer-actions__button settings-footer-actions__button--primary"
+          onClick={handleSaveNotifPrefs}
+        >
+          {isNotifSaved ? '반영됨' : '변경사항 반영'}
+        </button>
+      </div>
+    </SettingsSectionCard>
 
-                {isNotificationSupported && notificationPermission === 'default' ? (
-                  <button
-                    type="button"
-                    className="settings-action-button"
-                    onClick={handleRequestNotificationPermission}
-                  >
-                    알림 권한 요청
-                  </button>
-                ) : null}
-              </div>
-            </SettingsSectionCard>
+    <SettingsSectionCard title="브라우저 알림 권한">
+      <div className="settings-row settings-row--action">
+        <div className="settings-row__text">
+          <p className="settings-row__title">
+            현재 상태: {getNotificationPermissionText(notificationPermission)}
+          </p>
+          <p className="settings-row__description">
+            {getNotificationPermissionDescription(notificationPermission)}
+          </p>
+        </div>
 
-            <SettingsSectionCard title="계정 설정">
-              {ACCOUNT_ACTION_ITEMS.map((item) => (
-                <SettingActionRow
-                  key={item.id}
-                  title={item.title}
-                  description={item.description}
-                  buttonLabel={item.buttonLabel}
-                  onClick={() => handleAccountAction(item.id)}
-                />
-              ))}
-            </SettingsSectionCard>
+        {isNotificationSupported && notificationPermission === 'default' ? (
+          <button
+            type="button"
+            className="settings-action-button"
+            onClick={handleRequestNotificationPermission}
+          >
+            알림 권한 요청
+          </button>
+        ) : null}
+      </div>
+    </SettingsSectionCard>
+  </>
+)}
+
+            {activeTab === 'general' && (
+              <>
+                <SettingsSectionCard title="알림 수신 설정">
+                  {NOTIF_TOGGLE_ITEMS.map((item) => (
+                    <SettingToggleRow
+                      key={item.key}
+                      title={item.title}
+                      description={item.description}
+                      checked={notifPrefs[item.key]}
+                      onChange={() => handleToggleNotif(item.key)}
+                    />
+                  ))}
+                </SettingsSectionCard>
+
+                <SettingsSectionCard title="계정 설정">
+                  {ACCOUNT_ACTION_ITEMS.map((item) => (
+                    <SettingActionRow
+                      key={item.id}
+                      title={item.title}
+                      description={item.description}
+                      buttonLabel={item.buttonLabel}
+                      onClick={() => handleAccountAction(item.id)}
+                    />
+                  ))}
+                </SettingsSectionCard>
+              </>
+            )}
+
+            {activeTab === 'alarm' && (
+              <SettingsSectionCard title="알림음 설정">
+                <AlarmSoundTab />
+              </SettingsSectionCard>
+            )}
+
+            {activeTab === 'voice' && (
+              <SettingsSectionCard title="보호자 목소리 등록">
+                <VoiceUploadTab />
+              </SettingsSectionCard>
+            )}
           </main>
         </div>
       </div>

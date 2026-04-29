@@ -13,32 +13,27 @@
 }
 
 .login-card__logo {
-  width: 40px;
-  height: 40px;
-  border-radius: 12px;
-  background: linear-gradient(135deg, #1ec8ff, #2b80ff);
-  color: #ffffff;
   display: flex;
-  align-items: center;
   justify-content: center;
+  align-items: center;
   margin-bottom: 16px;
 }
 
+.login-card__logo-image {
+  width: 120px;
+  height: auto;
+  display: block;
+}
+
 .login-card__title {
+  text-align: center;
   margin: 0;
-  font-size: 2rem;
-  font-weight: 800;
-  color: #1f2937;
-  line-height: 1.2;
 }
 
 .login-card__subtitle {
-  margin: 10px 0 24px;
-  font-size: 0.95rem;
-  color: #6b7280;
   text-align: center;
+  margin-top: 8px;
 }
-
 .login-card__actions {
   width: 100%;
   display: flex;

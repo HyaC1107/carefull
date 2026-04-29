@@ -295,9 +295,35 @@ const trigger_activity_notification = async (executor, payload) => {
     return create_notification(executor, payload);
 };
 
+const send_fcm_push_safe = async (mem_id, title, body) => {
+    try {
+        const { rows } = await pool.query(
+            'SELECT fcm_token FROM members WHERE mem_id = $1 LIMIT 1',
+            [mem_id]
+        );
+        const fcm_token = rows[0]?.fcm_token;
+        if (!fcm_token) return;
+
+        const { send_push } = require('./fcm.service');
+        await send_push(fcm_token, title, body);
+    } catch (e) {
+        console.error('[NOTIFICATION-TRIGGER] FCM push failed:', e.message);
+    }
+};
+
 const trigger_activity_notification_safe = async (payload) => {
     try {
-        return await create_notification(pool, payload);
+        const result = await create_notification(pool, payload);
+
+        if (result.created && result.notification) {
+            send_fcm_push_safe(
+                payload.mem_id,
+                result.notification.noti_title,
+                result.notification.noti_msg
+            );
+        }
+
+        return result;
     } catch (error) {
         console.error('[NOTIFICATION-TRIGGER] failed to create notification:', error);
         return {

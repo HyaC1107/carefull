@@ -1,8 +1,14 @@
+import os
+
 from PyQt5.QtCore import QPointF, QRectF, Qt, QTimer
-from PyQt5.QtGui import QColor, QFont, QPainter, QPen
+from PyQt5.QtGui import QColor, QFont, QPainter, QPen, QPixmap
 from PyQt5.QtWidgets import QLabel, QVBoxLayout, QWidget
 
-_BG = "#e8f8f0"
+_ICONS_DIR = os.path.normpath(
+    os.path.join(os.path.dirname(__file__), "..", "..", "assets", "icons")
+)
+
+_BG = "#c8f5e2"
 _GREEN = "#16a34a"
 _DARK = "#14532d"
 
@@ -21,13 +27,11 @@ class _CheckCircleWidget(QWidget):
         cx, cy = w / 2, h / 2
         r = min(w, h) / 2 - 4
 
-        # 원 테두리
         pen = QPen(self._color, 3)
         p.setPen(pen)
         p.setBrush(Qt.NoBrush)
         p.drawEllipse(QRectF(cx - r, cy - r, r * 2, r * 2))
 
-        # 체크 마크
         pen2 = QPen(self._color, 4, Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin)
         p.setPen(pen2)
         s = r * 0.5
@@ -45,19 +49,28 @@ class RegisterCompleteScreen(QWidget):
         self._build_ui()
 
     def _build_ui(self):
-        self.setStyleSheet(f"background-color: {_BG};")
+        self.setStyleSheet(f"RegisterCompleteScreen {{ background-color: {_BG}; }}")
         root = QVBoxLayout(self)
-        root.setContentsMargins(40, 0, 40, 40)
+        root.setContentsMargins(24, 0, 24, 24)
         root.setSpacing(0)
         root.setAlignment(Qt.AlignCenter)
 
         root.addStretch()
 
-        root.addWidget(_CheckCircleWidget(), alignment=Qt.AlignCenter)
+        _check_path = os.path.join(_ICONS_DIR, "check_circle.png")
+        if os.path.exists(_check_path):
+            check_lbl = QLabel()
+            check_lbl.setAlignment(Qt.AlignCenter)
+            _pix = QPixmap(_check_path).scaled(150, 150, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+            check_lbl.setPixmap(_pix)
+            root.addWidget(check_lbl, alignment=Qt.AlignCenter)
+        else:
+            root.addWidget(_CheckCircleWidget(), alignment=Qt.AlignCenter)
+
         root.addSpacing(24)
 
         title = QLabel("등록 완료")
-        title.setFont(QFont("Sans Serif", 26, QFont.Bold))
+        title.setFont(QFont("Sans Serif", 50, QFont.Bold))
         title.setAlignment(Qt.AlignCenter)
         title.setStyleSheet(f"color: {_DARK};")
         root.addWidget(title)
@@ -65,7 +78,7 @@ class RegisterCompleteScreen(QWidget):
         root.addSpacing(10)
 
         sub = QLabel("메인 화면으로 이동합니다")
-        sub.setFont(QFont("Sans Serif", 18))
+        sub.setFont(QFont("Sans Serif", 32))
         sub.setAlignment(Qt.AlignCenter)
         sub.setStyleSheet(f"color: {_GREEN};")
         root.addWidget(sub)

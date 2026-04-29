@@ -1,8 +1,8 @@
 from PyQt5.QtCore import Qt, QThread, QTimer, pyqtSignal
-from PyQt5.QtGui import QColor, QFont, QPainter, QPen, QRectF
+from PyQt5.QtGui import QColor, QFont, QPainter, QPen
 from PyQt5.QtWidgets import QLabel, QProgressBar, QVBoxLayout, QWidget
 
-_BG = "#eaebff"
+_BG = "#dde3f8"
 _INDIGO = "#4338ca"
 _DARK = "#1e1b5e"
 _TRANSITION_MS = 3500
@@ -13,7 +13,7 @@ class _DispenseThread(QThread):
 
     def run(self):
         try:
-            from hardware.dispenser import dispense_medicine
+            from hardware.motor import dispense_medicine
             dispense_medicine()
         except Exception as e:
             print(f"[DISPENSE ERROR] {e}")
@@ -25,7 +25,7 @@ class _PillsWidget(QWidget):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setFixedSize(140, 60)
+        self.setFixedSize(176, 76)
 
     def paintEvent(self, event):
         p = QPainter(self)
@@ -36,18 +36,16 @@ class _PillsWidget(QWidget):
         p.setBrush(Qt.NoBrush)
 
         configs = [
-            (20, 30, -30),
-            (70, 26, 0),
-            (120, 30, 30),
+            (25, 38, -30),
+            (88, 33, 0),
+            (151, 38, 30),
         ]
         for cx, cy, angle in configs:
             p.save()
             p.translate(cx, cy)
             p.rotate(angle)
-            # 캡슐 모양 (좌측 반원 + 우측 반원 + 연결선)
-            pw, ph = 26, 12
+            pw, ph = 33, 15
             p.drawRoundedRect(-pw // 2, -ph // 2, pw, ph, ph // 2, ph // 2)
-            # 중앙 구분선
             p.drawLine(0, -ph // 2, 0, ph // 2)
             p.restore()
 
@@ -60,9 +58,9 @@ class DispensingScreen(QWidget):
         self._build_ui()
 
     def _build_ui(self):
-        self.setStyleSheet(f"background-color: {_BG};")
+        self.setStyleSheet(f"DispensingScreen {{ background-color: {_BG}; }}")
         root = QVBoxLayout(self)
-        root.setContentsMargins(40, 0, 40, 40)
+        root.setContentsMargins(32, 0, 32, 24)
         root.setSpacing(0)
         root.setAlignment(Qt.AlignCenter)
 
@@ -72,7 +70,7 @@ class DispensingScreen(QWidget):
         root.addSpacing(20)
 
         title = QLabel("약이 나옵니다")
-        title.setFont(QFont("Sans Serif", 24, QFont.Bold))
+        title.setFont(QFont("Sans Serif", 48, QFont.Bold))
         title.setAlignment(Qt.AlignCenter)
         title.setStyleSheet(f"color: {_DARK};")
         root.addWidget(title)
@@ -100,7 +98,7 @@ class DispensingScreen(QWidget):
         root.addSpacing(14)
 
         sub = QLabel("잠시만 기다려주세요")
-        sub.setFont(QFont("Sans Serif", 16))
+        sub.setFont(QFont("Sans Serif", 30))
         sub.setAlignment(Qt.AlignCenter)
         sub.setStyleSheet(f"color: {_INDIGO};")
         root.addWidget(sub)

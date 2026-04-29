@@ -286,11 +286,13 @@ provider varchar(20) NOT NULL,
 email varchar(100) NOT NULL,
 nick varchar(50) NOT NULL,
 profile_img text NOT NULL,
+fcm_token text NULL,
 joined_at timestamptz DEFAULT CURRENT_TIMESTAMP NOT NULL,
 CONSTRAINT members_pkey PRIMARY KEY (mem_id)
 );
 CREATE INDEX ix_members_1 ON public.members USING btree (joined_at);
 CREATE UNIQUE INDEX uq_members_1 ON public.members USING btree (email, nick);
+-- 기존 DB 마이그레이션: ALTER TABLE public.members ADD COLUMN IF NOT EXISTS fcm_token text NULL;
 
 CREATE TABLE public.patients (
 patient_id serial4 NOT NULL,
@@ -409,4 +411,31 @@ public.patients(patient_id)
 CREATE INDEX ix_notifications_1 ON public.notifications USING btree (created_at);
 CREATE INDEX ix_notifications_2 ON public.notifications USING btree (mem_id, is_received);
 
+CREATE TABLE public.voice_samples (
+voice_id serial4 NOT NULL,
+patient_id int4 NOT NULL,
+file_name varchar(255) NOT NULL,
+file_path text NOT NULL,
+file_size int4 NULL,
+mime_type varchar(100) NULL,
+status varchar(20) NOT NULL DEFAULT 'pending',
+uploaded_at timestamptz DEFAULT CURRENT_TIMESTAMP NOT NULL,
+updated_at timestamptz NULL,
+CONSTRAINT voice_samples_pkey PRIMARY KEY (voice_id),
+CONSTRAINT fk_voice_samples_patient_id FOREIGN KEY (patient_id) REFERENCES public.patients(patient_id)
+);
+CREATE INDEX ix_voice_samples_1 ON public.voice_samples USING btree (patient_id);
+CREATE INDEX ix_voice_samples_2 ON public.voice_samples USING btree (uploaded_at);
+
+CREATE TABLE public.fingerprints (
+fp_id serial4 NOT NULL,
+patient_id int4 NOT NULL,
+slot_id int4 NOT NULL,
+label varchar(50) NOT NULL DEFAULT '지문',
+registered_at timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP,
+CONSTRAINT fingerprints_pkey PRIMARY KEY (fp_id),
+CONSTRAINT fingerprints_patient_slot_unique UNIQUE (patient_id, slot_id),
+CONSTRAINT fk_fingerprints_patient_id FOREIGN KEY (patient_id) REFERENCES public.patients(patient_id)
+);
+CREATE INDEX ix_fingerprints_1 ON public.fingerprints USING btree (patient_id);
 

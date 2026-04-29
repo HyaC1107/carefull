@@ -8,16 +8,30 @@ import StatsPage from './pages/StatsPage'
 import AlertsPage from './pages/AlertsPage'
 import PatientPage from './pages/PatientPage'
 import SettingsPage from './pages/SettingsPage'
+import { useFCM } from './hooks/useFCM'
 import { hasStoredToken } from './api'
 import { registerFcmTokenForCurrentUser } from './firebase-messaging'
+import { HeaderDataProvider } from './context/HeaderDataContext'
+
+function ProtectedRoute({ children }) {
+  if (!hasStoredToken()) {
+    return <Navigate to="/login" replace />
+  }
+  return children
+}
+import AdminLoginPage from './pages/AdminLoginPage'
+import AdminDashboardPage from './pages/AdminDashboardPage'
+import { hasStoredToken } from './api'
+import { hasAdminToken } from './adminApi'
 
 function App() {
+  useFCM()
+
   return (
+    <HeaderDataProvider>
     <Routes>
-      {/* 기본 주소로 들어오면 로그인 페이지로 보냄 */}
       <Route path="/" element={<Navigate to="/login" replace />} />
 
-      {/* 로그인 페이지 */}
       <Route path="/login" element={<LoginPage />} />
       <Route path="/login/callback/:provider" element={<SocialCallbackPage />} />
 
@@ -40,9 +54,14 @@ function App() {
       {/* 설정 페이지 */}
       <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
 
+      {/* 관리자 페이지 */}
+      <Route path="/admin" element={<AdminLoginPage />} />
+      <Route path="/admin/dashboard" element={<AdminProtectedRoute><AdminDashboardPage /></AdminProtectedRoute>} />
+
       {/* 없는 주소로 들어오면 로그인 페이지로 보냄 */}
       <Route path="*" element={<Navigate to="/login" replace />} />
     </Routes>
+    </HeaderDataProvider>
   )
 }
 
@@ -54,7 +73,13 @@ function ProtectedRoute({ children }) {
   if (!hasStoredToken()) {
     return <Navigate to="/login" replace />
   }
+  return children
+}
 
+function AdminProtectedRoute({ children }) {
+  if (!hasAdminToken()) {
+    return <Navigate to="/admin" replace />
+  }
   return children
 }
 

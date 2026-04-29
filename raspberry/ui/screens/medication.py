@@ -1,14 +1,24 @@
 from PyQt5.QtCore import Qt, QTimer
-from PyQt5.QtGui import QFont
-from PyQt5.QtWidgets import QLabel, QSizePolicy, QVBoxLayout, QWidget
+from PyQt5.QtGui import QColor, QFont, QLinearGradient, QPainter
+from PyQt5.QtWidgets import QLabel, QWidget
 
 from ui.widgets.camera_card_widget import CameraCardWidget
-from ui.threads.behavior_thread import BehaviorThread, _SUCCESS_FRAMES
+from ui.threads.behavior_thread import BehaviorThread
 
-_BG = "#e4ecff"
-_BLUE = "#3b82f6"
-_DARK = "#1e3a8a"
 _MANUAL_TIMEOUT_MS = 60_000
+
+
+class _GradientOverlay(QWidget):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setAttribute(Qt.WA_TransparentForMouseEvents)
+
+    def paintEvent(self, event):
+        p = QPainter(self)
+        grad = QLinearGradient(0, 0, 0, self.height())
+        grad.setColorAt(0.0, QColor(0, 0, 0, 0))
+        grad.setColorAt(1.0, QColor(0, 0, 0, 180))
+        p.fillRect(self.rect(), grad)
 
 
 class MedicationScreen(QWidget):
@@ -20,37 +30,35 @@ class MedicationScreen(QWidget):
         self._build_ui()
 
     def _build_ui(self):
-        self.setStyleSheet(f"background-color: {_BG};")
-        root = QVBoxLayout(self)
-        root.setContentsMargins(20, 20, 20, 24)
-        root.setSpacing(0)
+        self._camera_card = CameraCardWidget(dash_color="#3b82f6", parent=self)
 
-        # 카메라 카드 (행위감지 화면 표시)
-        self._camera_card = CameraCardWidget(dash_color=_BLUE)
-        self._camera_card.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
-        root.addWidget(self._camera_card, stretch=3)
+        self._gradient = _GradientOverlay(parent=self)
 
-        root.addSpacing(18)
+        self._title_lbl = QLabel("약을 복용해주세요", parent=self)
+        self._title_lbl.setFont(QFont("Sans Serif", 36, QFont.Bold))
+        self._title_lbl.setAlignment(Qt.AlignCenter)
+        self._title_lbl.setStyleSheet("color: #ffffff; background: transparent;")
+        self._title_lbl.setAttribute(Qt.WA_TransparentForMouseEvents)
 
-        title = QLabel("약을 복용해주세요")
-        title.setFont(QFont("Sans Serif", 20, QFont.Bold))
-        title.setAlignment(Qt.AlignCenter)
-        title.setStyleSheet(f"color: {_DARK};")
-        root.addWidget(title)
-
-        root.addSpacing(6)
-
-        self._sub_lbl = QLabel("물과 함께 드세요")
-        self._sub_lbl.setFont(QFont("Sans Serif", 15))
+        self._sub_lbl = QLabel("물과 함께 드세요", parent=self)
+        self._sub_lbl.setFont(QFont("Sans Serif", 28))
         self._sub_lbl.setAlignment(Qt.AlignCenter)
-        self._sub_lbl.setStyleSheet(f"color: {_BLUE};")
-        root.addWidget(self._sub_lbl)
+        self._sub_lbl.setStyleSheet("color: #93c5fd; background: transparent;")
+        self._sub_lbl.setAttribute(Qt.WA_TransparentForMouseEvents)
 
-        root.addStretch(1)
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        w, h = self.width(), self.height()
+        self._camera_card.setGeometry(0, 0, w, h)
+        overlay_h = int(h * 0.27)
+        self._gradient.setGeometry(0, h - overlay_h, w, overlay_h)
+        self._title_lbl.setGeometry(0, h - int(h * 0.20), w, 58)
+        self._sub_lbl.setGeometry(0, h - int(h * 0.10), w, 46)
 
     def showEvent(self, event):
         super().showEvent(event)
         self._sub_lbl.setText("물과 함께 드세요")
+        self._sub_lbl.setStyleSheet("color: #93c5fd; background: transparent;")
         self._start_thread()
         self._timeout_timer = QTimer(self)
         self._timeout_timer.setSingleShot(True)

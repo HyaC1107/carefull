@@ -2,46 +2,73 @@ import json
 import os
 
 import numpy as np
-from PyQt5.QtCore import Qt
-from PyQt5.QtGui import QFont
-from PyQt5.QtWidgets import (
-    QLabel, QSizePolicy, QVBoxLayout, QWidget,
-)
+from PyQt5.QtCore import Qt, QTimer
+from PyQt5.QtGui import QColor, QFont, QLinearGradient, QPainter
+from PyQt5.QtWidgets import QLabel, QWidget
 
 from ui.widgets.camera_card_widget import CameraCardWidget
-from ui.threads.face_thread import FaceThread, MODE_AUTH, MODE_REGISTER
+from ui.threads.face_thread import AUTH_TIMEOUT_SEC, FaceThread, MODE_AUTH, MODE_REGISTER
 
 _DB_PATH = os.path.normpath(
     os.path.join(os.path.dirname(__file__), "..", "..", "db", "user_db.json")
 )
 
-# 모드별 테마
+# 얼굴 인증 가이드 메시지 순환 (2초마다 교체)
+_AUTH_GUIDES = [
+    "정면을 바라봐 주세요",
+    "좌우로 천천히 움직여 주세요",
+    "카메라와 눈높이를 맞춰 주세요",
+    "밝은 곳에서 시도해 주세요",
+]
+
 _THEMES = {
     MODE_REGISTER: {
-        "bg":         "#ede8ff",
-        "dash":       "#7c3aed",
-        "title":      "얼굴을 맞춰주세요",
-        "sub":        "자동으로 촬영합니다",
-        "title_color": "#1e1b4b",
-        "sub_color":   "#7c3aed",
+        "dash":        "#7c3aed",
+        "title":       "얼굴을 맞춰주세요",
+        "sub":         "자동으로 촬영합니다",
+        "title_color": "#ffffff",
+        "sub_color":   "#c4b5fd",
     },
     MODE_AUTH: {
-        "bg":         "#e4ecff",
-        "dash":       "#3b82f6",
-        "title":      "얼굴을 화면 중앙에 맞춰주세요",
-        "sub":        "카메라를 바라봐 주세요",
-        "title_color": "#1e3a8a",
-        "sub_color":   "#3b82f6",
+        "dash":        "#3b82f6",
+        "title":       "얼굴을 화면 중앙에 맞춰주세요",
+        "sub":         "카메라를 바라봐 주세요",
+        "title_color": "#ffffff",
+        "sub_color":   "#93c5fd",
     },
 }
+
+# 카메라가 완전히 준비될 때까지 대기 (프레임 수 기준)
+_CAMERA_READY_FRAMES = 5
+
+
+class _GradientOverlay(QWidget):
+    """하단 텍스트 가독성을 위한 반투명 그라데이션."""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setAttribute(Qt.WA_TransparentForMouseEvents)
+
+    def paintEvent(self, event):
+        p = QPainter(self)
+        grad = QLinearGradient(0, 0, 0, self.height())
+        grad.setColorAt(0.0, QColor(0, 0, 0, 0))
+        grad.setColorAt(1.0, QColor(0, 0, 0, 180))
+        p.fillRect(self.rect(), grad)
 
 
 class CameraViewScreen(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
-        self._app = parent
-        self._mode = MODE_AUTH
-        self._thread = None
+        self._app             = parent
+        self._mode            = MODE_AUTH
+        self._thread          = None
+        self._countdown_timer = None
+        self._guide_timer     = None
+        self._remaining       = 0
+        self._guide_index     = 0
+        self._frame_count     = 0   # 카메라 준비 판단용
+        self._auth_started    = False
         self._build_ui()
 
     def set_mode(self, mode: str, **kwargs):
@@ -51,40 +78,53 @@ class CameraViewScreen(QWidget):
     # ─────────────────────────────── UI ──────────────────────────────────────
 
     def _build_ui(self):
-        root = QVBoxLayout(self)
-        root.setContentsMargins(20, 20, 20, 24)
-        root.setSpacing(0)
+        self._camera_card = CameraCardWidget(parent=self)
+        self._gradient    = _GradientOverlay(parent=self)
 
-        self._camera_card = CameraCardWidget()
-        self._camera_card.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
-        root.addWidget(self._camera_card, stretch=3)
-
-        root.addSpacing(18)
-
-        self._title_lbl = QLabel()
-        self._title_lbl.setFont(QFont("Sans Serif", 20, QFont.Bold))
+        self._title_lbl = QLabel(parent=self)
+        self._title_lbl.setFont(QFont("Sans Serif", 36, QFont.Bold))
         self._title_lbl.setAlignment(Qt.AlignCenter)
-        root.addWidget(self._title_lbl)
+        self._title_lbl.setAttribute(Qt.WA_TransparentForMouseEvents)
 
-        root.addSpacing(6)
-
-        self._sub_lbl = QLabel()
-        self._sub_lbl.setFont(QFont("Sans Serif", 15))
+        self._sub_lbl = QLabel(parent=self)
+        self._sub_lbl.setFont(QFont("Sans Serif", 28))
         self._sub_lbl.setAlignment(Qt.AlignCenter)
-        root.addWidget(self._sub_lbl)
+        self._sub_lbl.setAttribute(Qt.WA_TransparentForMouseEvents)
 
-        root.addStretch(1)
+        # 카메라 준비 중 오버레이
+        self._loading_lbl = QLabel("카메라 준비 중...", parent=self)
+        self._loading_lbl.setFont(QFont("Sans Serif", 32, QFont.Bold))
+        self._loading_lbl.setAlignment(Qt.AlignCenter)
+        self._loading_lbl.setStyleSheet(
+            "color: white; background: rgba(0,0,0,160); border-radius: 12px; padding: 12px 24px;"
+        )
+        self._loading_lbl.adjustSize()
 
         self._apply_theme()
 
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        w, h = self.width(), self.height()
+
+        self._camera_card.setGeometry(0, 0, w, h)
+
+        overlay_h = int(h * 0.27)
+        self._gradient.setGeometry(0, h - overlay_h, w, overlay_h)
+
+        self._title_lbl.setGeometry(0, h - int(h * 0.20), w, 58)
+        self._sub_lbl.setGeometry(0, h - int(h * 0.10), w, 46)
+
+        # 로딩 레이블 중앙
+        lw, lh = self._loading_lbl.sizeHint().width() + 48, 56
+        self._loading_lbl.setGeometry((w - lw) // 2, (h - lh) // 2, lw, lh)
+
     def _apply_theme(self):
         t = _THEMES.get(self._mode, _THEMES[MODE_AUTH])
-        self.setStyleSheet(f"background-color: {t['bg']};")
         self._camera_card.set_dash_color(t["dash"])
         self._title_lbl.setText(t["title"])
-        self._title_lbl.setStyleSheet(f"color: {t['title_color']};")
+        self._title_lbl.setStyleSheet(f"color: {t['title_color']}; background: transparent;")
         self._sub_lbl.setText(t["sub"])
-        self._sub_lbl.setStyleSheet(f"color: {t['sub_color']};")
+        self._sub_lbl.setStyleSheet(f"color: {t['sub_color']}; background: transparent;")
 
     # ─────────────────────────────── 생명주기 ────────────────────────────────
 
@@ -101,11 +141,18 @@ class CameraViewScreen(QWidget):
 
     def _start_thread(self):
         self._stop_thread()
+        self._frame_count  = 0
+        self._auth_started = False
+        self._guide_index  = 0
+
+        self._loading_lbl.show()
+        self._loading_lbl.raise_()
+
         self._thread = FaceThread(mode=self._mode)
-        self._thread.frame_ready.connect(self._camera_card.update_frame)
+        self._thread.frame_ready.connect(self._on_frame_ready)
 
         if self._mode == MODE_AUTH:
-            self._thread.auth_success.connect(self._on_auth_success)  # (str, float)
+            self._thread.auth_success.connect(self._on_auth_success)
             self._thread.auth_failed.connect(self._on_auth_failed)
         else:
             self._thread.capture_progress.connect(self._on_progress)
@@ -114,17 +161,63 @@ class CameraViewScreen(QWidget):
         self._thread.start()
 
     def _stop_thread(self):
+        if self._countdown_timer and self._countdown_timer.isActive():
+            self._countdown_timer.stop()
+        if self._guide_timer and self._guide_timer.isActive():
+            self._guide_timer.stop()
+        self._countdown_timer = None
+        self._guide_timer     = None
         if self._thread and self._thread.isRunning():
             self._thread.stop()
             self._thread.wait(3000)
         self._thread = None
 
-    # ─────────────────────────────── 콜백: auth ───────────────────────────────
+    # ─────────────────────────────── 프레임 수신 ─────────────────────────────
+
+    def _on_frame_ready(self, frame):
+        self._camera_card.update_frame(frame)
+        self._frame_count += 1
+
+        # 카메라가 준비됐다고 판단되면 인증 타이머 시작
+        if not self._auth_started and self._frame_count >= _CAMERA_READY_FRAMES:
+            self._auth_started = True
+            self._loading_lbl.hide()
+            if self._mode == MODE_AUTH:
+                self._begin_auth_countdown()
+
+    def _begin_auth_countdown(self):
+        """카메라 준비 완료 후 인증 카운트다운 + 가이드 텍스트 시작."""
+        self._remaining = AUTH_TIMEOUT_SEC
+        self._update_sub_with_guide()
+
+        self._countdown_timer = QTimer(self)
+        self._countdown_timer.timeout.connect(self._tick_countdown)
+        self._countdown_timer.start(1000)
+
+        self._guide_timer = QTimer(self)
+        self._guide_timer.timeout.connect(self._rotate_guide)
+        self._guide_timer.start(2000)
+
+    def _tick_countdown(self):
+        self._remaining -= 1
+        self._update_sub_with_guide()
+        if self._remaining <= 0:
+            self._countdown_timer.stop()
+
+    def _rotate_guide(self):
+        self._guide_index = (self._guide_index + 1) % len(_AUTH_GUIDES)
+        self._update_sub_with_guide()
+
+    def _update_sub_with_guide(self):
+        guide = _AUTH_GUIDES[self._guide_index]
+        self._sub_lbl.setText(f"{guide}  ({self._remaining}초)")
+
+    # ─────────────────────────────── 콜백: auth ──────────────────────────────
 
     def _on_auth_success(self, user: str, score: float):
         self._stop_thread()
         if self._app:
-            self._app.current_session["face_verified"] = True
+            self._app.current_session["face_verified"]    = True
             self._app.current_session["similarity_score"] = score
         result = self._app.screens["auth_result"]
         result.set_result(success=True, user=user)
@@ -132,9 +225,8 @@ class CameraViewScreen(QWidget):
 
     def _on_auth_failed(self):
         self._stop_thread()
-        result = self._app.screens["auth_result"]
-        result.set_result(success=False)
-        self._app.show_screen("auth_result")
+        if self._app:
+            self._app.show_screen("fingerprint_auth")
 
     # ─────────────────────────────── 콜백: register ──────────────────────────
 
@@ -167,7 +259,6 @@ class CameraViewScreen(QWidget):
             db["_latest"] = mean_emb
             with open(_DB_PATH, "w", encoding="utf-8") as f:
                 json.dump(db, f, ensure_ascii=False, indent=2)
-
             try:
                 from api.client import upload_face_embedding
                 upload_face_embedding(mean_emb)

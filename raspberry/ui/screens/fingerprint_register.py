@@ -1,14 +1,31 @@
-from PyQt5.QtCore import Qt, QTimer
-from PyQt5.QtGui import QColor, QFont, QPainter, QPen, QRectF
+import os
+
+from PyQt5.QtCore import Qt, QThread, QTimer, QRectF
+from PyQt5.QtGui import QColor, QFont, QPainter, QPen, QPixmap
 from PyQt5.QtWidgets import (
     QLabel, QProgressBar, QSizePolicy, QVBoxLayout, QWidget,
+)
+
+
+class _UploadWorker(QThread):
+    def __init__(self, fp_id: int, parent=None):
+        super().__init__(parent)
+        self._fp_id = fp_id
+
+    def run(self):
+        try:
+            from api.client import upload_fingerprint
+            upload_fingerprint(self._fp_id)
+        except Exception as e:
+            print(f"[FP UPLOAD ERROR] {e}")
+
+_ICONS_DIR = os.path.normpath(
+    os.path.join(os.path.dirname(__file__), "..", "..", "assets", "icons")
 )
 
 _BG = "#ede8ff"
 _PURPLE = "#7c3aed"
 _DARK = "#1e1b4b"
-
-_MOCK_DURATION_MS = 4000   # 실제 R307 연동 전 임시 모의 시간
 
 
 class _FingerprintWidget(QWidget):
@@ -17,7 +34,7 @@ class _FingerprintWidget(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self._progress = 0
-        self.setFixedSize(130, 130)
+        self.setFixedSize(160, 160)
 
     def set_progress(self, pct: int):
         self._progress = max(0, min(100, pct))
@@ -68,42 +85,53 @@ class FingerprintRegisterScreen(QWidget):
         super().__init__(parent)
         self._app = parent
         self._progress = 0
+        self._fp_id = None
+        self._thread = None
+        self._prepare_thread = None
+        self._upload_worker = None
         self._build_ui()
 
     def _build_ui(self):
-        self.setStyleSheet(f"background-color: {_BG};")
+        self.setStyleSheet(f"FingerprintRegisterScreen {{ background-color: {_BG}; }}")
         root = QVBoxLayout(self)
-        root.setContentsMargins(40, 0, 40, 40)
+        root.setContentsMargins(24, 0, 24, 24)
         root.setSpacing(0)
         root.setAlignment(Qt.AlignCenter)
 
         root.addStretch(2)
 
-        self._fp_widget = _FingerprintWidget()
+        _fp_path = os.path.join(_ICONS_DIR, "fingerprint.png")
+        if os.path.exists(_fp_path):
+            self._fp_widget = QLabel()
+            self._fp_widget.setAlignment(Qt.AlignCenter)
+            _pix = QPixmap(_fp_path).scaled(180, 180, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+            self._fp_widget.setPixmap(_pix)
+        else:
+            self._fp_widget = _FingerprintWidget()
         root.addWidget(self._fp_widget, alignment=Qt.AlignCenter)
-        root.addSpacing(24)
+        root.addSpacing(20)
 
         self._progress_bar = QProgressBar()
         self._progress_bar.setRange(0, 100)
         self._progress_bar.setValue(0)
-        self._progress_bar.setFixedHeight(6)
+        self._progress_bar.setFixedHeight(8)
         self._progress_bar.setTextVisible(False)
         self._progress_bar.setStyleSheet(f"""
             QProgressBar {{
                 border: none;
-                border-radius: 3px;
+                border-radius: 4px;
                 background: #d8b4fe;
             }}
             QProgressBar::chunk {{
                 background-color: {_PURPLE};
-                border-radius: 3px;
+                border-radius: 4px;
             }}
         """)
         root.addWidget(self._progress_bar)
-        root.addSpacing(20)
+        root.addSpacing(16)
 
         self._title_lbl = QLabel("지문을 스캔하는 중...")
-        self._title_lbl.setFont(QFont("Sans Serif", 22, QFont.Bold))
+        self._title_lbl.setFont(QFont("Sans Serif", 42, QFont.Bold))
         self._title_lbl.setAlignment(Qt.AlignCenter)
         self._title_lbl.setStyleSheet(f"color: {_DARK};")
         root.addWidget(self._title_lbl)
@@ -111,15 +139,15 @@ class FingerprintRegisterScreen(QWidget):
         root.addSpacing(8)
 
         sub = QLabel("센서에 손가락을 올려주세요")
-        sub.setFont(QFont("Sans Serif", 16))
+        sub.setFont(QFont("Sans Serif", 30))
         sub.setAlignment(Qt.AlignCenter)
         sub.setStyleSheet(f"color: {_PURPLE};")
         root.addWidget(sub)
 
-        root.addSpacing(10)
+        root.addSpacing(8)
 
         self._pct_lbl = QLabel("0%")
-        self._pct_lbl.setFont(QFont("Sans Serif", 18, QFont.Bold))
+        self._pct_lbl.setFont(QFont("Sans Serif", 32, QFont.Bold))
         self._pct_lbl.setAlignment(Qt.AlignCenter)
         self._pct_lbl.setStyleSheet(f"color: {_DARK};")
         root.addWidget(self._pct_lbl)
@@ -128,30 +156,69 @@ class FingerprintRegisterScreen(QWidget):
 
     def showEvent(self, event):
         super().showEvent(event)
+        self._reset()
+        self._prepare_slot()
+
+    def hideEvent(self, event):
+        super().hideEvent(event)
+        self._stop_thread()
+
+    def _reset(self):
         self._progress = 0
         self._progress_bar.setValue(0)
-        self._fp_widget.set_progress(0)
+        if hasattr(self._fp_widget, "set_progress"):
+            self._fp_widget.set_progress(0)
         self._pct_lbl.setText("0%")
-        self._title_lbl.setText("지문을 스캔하는 중...")
-        self._start_mock()
+        self._title_lbl.setText("준비 중...")
 
-    def _start_mock(self):
-        # TODO: 실제 R307 스레드로 교체
-        step_ms = _MOCK_DURATION_MS // 100
-        self._tick_timer = QTimer(self)
-        self._tick_timer.timeout.connect(self._tick)
-        self._tick_timer.start(step_ms)
+    def _prepare_slot(self):
+        """서버에서 기존 슬롯 조회 후 다음 빈 슬롯 번호 확정."""
+        from ui.threads.fingerprint_thread import FingerprintPrepareThread
+        self._prepare_thread = FingerprintPrepareThread(parent=self)
+        self._prepare_thread.ready.connect(self._on_slot_ready)
+        self._prepare_thread.start()
 
-    def _tick(self):
-        self._progress += 1
-        self._progress_bar.setValue(self._progress)
-        self._fp_widget.set_progress(self._progress)
-        self._pct_lbl.setText(f"{self._progress}%")
-        if self._progress >= 100:
-            self._tick_timer.stop()
-            self._title_lbl.setText("등록 완료!")
-            QTimer.singleShot(600, self._go_complete)
+    def _on_slot_ready(self, next_slot: int):
+        self._title_lbl.setText("첫 번째 지문을 올려주세요")
+        self._start_enroll(next_slot)
+
+    def _start_enroll(self, position: int = 1):
+        self._stop_thread()
+        from ui.threads.fingerprint_thread import FingerprintEnrollThread
+        self._thread = FingerprintEnrollThread(position=position, parent=self)
+        self._thread.stage_changed.connect(self._on_stage)
+        self._thread.progress.connect(self._on_progress)
+        self._thread.enrolled.connect(self._on_enrolled)
+        self._thread.failed.connect(self._on_failed)
+        self._thread.start()
+
+    def _stop_thread(self):
+        if self._thread and self._thread.isRunning():
+            self._thread.stop()
+            self._thread.wait(2000)
+        self._thread = None
+
+    def _on_stage(self, msg: str):
+        self._title_lbl.setText(msg)
+
+    def _on_progress(self, value: int):
+        self._progress_bar.setValue(value)
+        if hasattr(self._fp_widget, "set_progress"):
+            self._fp_widget.set_progress(value)
+        self._pct_lbl.setText(f"{value}%")
+
+    def _on_enrolled(self, fp_id: int):
+        self._fp_id = fp_id
+        self._title_lbl.setText("등록 완료!")
+        self._on_progress(100)
+        QTimer.singleShot(600, self._go_complete)
+
+    def _on_failed(self, msg: str):
+        self._title_lbl.setText(f"등록 실패: {msg}")
 
     def _go_complete(self):
+        if self._fp_id is not None:
+            self._upload_worker = _UploadWorker(self._fp_id, parent=self)
+            self._upload_worker.start()
         if self._app:
             self._app.show_screen("register_complete")
