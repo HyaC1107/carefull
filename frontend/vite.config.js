@@ -18,9 +18,9 @@ export default defineConfig(({ mode }) => {
           enabled: true,
         },
         includeAssets: [
-          'favicons/favicon.ico',
-          'favicons/android-chrome-192x192.png',
-          'favicons/android-chrome-512x512.png',
+          'public/favicons/favicon.ico',
+          'public/favicons/android-chrome-192x192.png',
+          'public/favicons/android-chrome-512x512.png',
         ],
         manifest: {
           id: '/',
@@ -34,13 +34,13 @@ export default defineConfig(({ mode }) => {
           scope: '/',
           icons: [
             {
-              src: 'favicons/android-chrome-192x192.png',
+              src: 'public/favicons/android-chrome-192x192.png',
               sizes: '192x192',
               type: 'image/png',
               purpose: 'any maskable',
             },
             {
-              src: 'favicons/android-chrome-512x512.png',
+              src: 'public/favicons/android-chrome-512x512.png',
               sizes: '512x512',
               type: 'image/png',
               purpose: 'any maskable',
@@ -48,14 +48,14 @@ export default defineConfig(({ mode }) => {
           ],
           screenshots: [
             {
-              src: 'favicons/android-chrome-512x512.png',
+              src: 'public/favicons/android-chrome-512x512.png',
               sizes: '512x512',
               type: 'image/png',
               form_factor: 'wide',
               label: 'Care-full 대시보드',
             },
             {
-              src: 'favicons/android-chrome-512x512.png',
+              src: 'public/favicons/android-chrome-512x512.png',
               sizes: '512x512',
               type: 'image/png',
               label: 'Care-full 모바일',
