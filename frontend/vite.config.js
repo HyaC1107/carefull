@@ -14,13 +14,14 @@ export default defineConfig(({ mode }) => {
       react(),
       VitePWA({
         registerType: 'autoUpdate',
+        filename: 'manifest.json',
         devOptions: {
           enabled: true,
         },
         includeAssets: [
-          'public/favicons/favicon.ico',
-          'public/favicons/android-chrome-192x192.png',
-          'public/favicons/android-chrome-512x512.png',
+          'favicons/favicon.ico',
+          'favicons/android-chrome-192x192.png',
+          'favicons/android-chrome-512x512.png',
         ],
         manifest: {
           id: '/',
