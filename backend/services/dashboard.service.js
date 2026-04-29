@@ -15,6 +15,9 @@ const { is_device_online } = require('../utils/device-status');
 const {
     trigger_low_stock_notification
 } = require('./notification-trigger.service');
+const {
+    get_planned_quantity_for_one_schedule
+} = require('./stock-calc.service');
 
 const get_today_context = () => {
     const current_date = new Date();
@@ -46,6 +49,8 @@ const get_dashboard_data_by_mem_id = async (mem_id) => {
                 lowStockMedications: [],
                 medications: []
             },
+            total_scheduled_count: 0,
+            remaining_medication_count: 0,
             today_schedules: [],
             recent_notifications: await get_recent_notifications(mem_id),
             recent_activities: []
@@ -55,6 +60,8 @@ const get_dashboard_data_by_mem_id = async (mem_id) => {
     const [
         patient,
         summary,
+        total_scheduled_count,
+        remaining_medication_count,
         device,
         medication_stock,
         today_schedules,
@@ -63,6 +70,8 @@ const get_dashboard_data_by_mem_id = async (mem_id) => {
     ] = await Promise.all([
         get_patient_header(patient_id),
         get_dashboard_summary(patient_id),
+        get_total_planned_schedule_count(patient_id),
+        get_remaining_planned_medication_count(patient_id),
         get_device_status(patient_id),
         get_estimated_medication_stock(patient_id),
         get_today_schedules(patient_id),
@@ -85,6 +94,8 @@ const get_dashboard_data_by_mem_id = async (mem_id) => {
         patient,
         member,
         summary,
+        total_scheduled_count,
+        remaining_medication_count,
         device: resolved_device,
         medication_stock,
         today_schedules,
@@ -99,6 +110,8 @@ const build_dashboard_data = ({
     patient,
     member,
     summary,
+    total_scheduled_count,
+    remaining_medication_count,
     device,
     medication_stock,
     today_schedules,
@@ -119,6 +132,8 @@ const build_dashboard_data = ({
         },
         profile_img: member?.profile_img || '',
         summary,
+        total_scheduled_count,
+        remaining_medication_count,
         device,
         remainingMedicationCount: medication_stock.remainingMedicationCount,
         lowStockMedications: medication_stock.lowStockMedications,
@@ -301,6 +316,13 @@ const get_dashboard_summary = async (patient_id) => {
           AND status = 'ACTIVE'
           AND start_date <= $2::date
           AND (end_date IS NULL OR end_date >= $2::date)
+          AND (
+              $2::date > created_at::date
+              OR (
+                  $2::date = created_at::date
+                  AND ($2::date + time_to_take) >= created_at
+              )
+          )
     `;
 
     const today_activity_summary_query = `
@@ -331,6 +353,7 @@ const get_dashboard_summary = async (patient_id) => {
     const total_scheduled_count = total_scheduled_result.rows[0]?.count || 0;
     const completed_count = today_activity_summary_result.rows[0]?.completed_count || 0;
     const missed_count = today_activity_summary_result.rows[0]?.missed_count || 0;
+    const today_remaining_count = Math.max(total_scheduled_count - completed_count, 0);
 
     const today_success_rate = total_scheduled_count > 0
         ? Math.round((completed_count / total_scheduled_count) * 100)
@@ -343,9 +366,56 @@ const get_dashboard_summary = async (patient_id) => {
         today_total_scheduled_count: total_scheduled_count,
         today_completed_count: completed_count,
         today_missed_count: missed_count,
+        today_remaining_count,
         status_color: summary_status.color,
         status_message: summary_status.message
     };
+};
+
+const get_total_planned_schedule_count = async (patient_id) => {
+    const query = `
+        SELECT
+            sche_id,
+            start_date,
+            end_date,
+            time_to_take,
+            created_at,
+            dose_interval
+        FROM schedules
+        WHERE patient_id = $1
+          AND status = 'ACTIVE'
+    `;
+
+    const { rows } = await pool.query(query, [patient_id]);
+
+    return rows.reduce((sum, schedule) => {
+        const planned_result = get_planned_quantity_for_one_schedule(schedule);
+
+        if (!planned_result.calculable) {
+            return sum;
+        }
+
+        return sum + planned_result.planned_quantity;
+    }, 0);
+};
+
+const get_remaining_planned_medication_count = async (patient_id) => {
+    const total_planned_count = await get_total_planned_schedule_count(patient_id);
+    const query = `
+        SELECT COUNT(a.activity_id)::int AS completed_count
+        FROM activities a
+        INNER JOIN schedules s
+            ON s.sche_id = a.sche_id
+        WHERE a.patient_id = $1
+          AND s.patient_id = $1
+          AND s.status = 'ACTIVE'
+          AND UPPER(a.status) = ANY($2::text[])
+    `;
+
+    const { rows } = await pool.query(query, [patient_id, COMPLETED_STATUSES]);
+    const completed_count = rows[0]?.completed_count || 0;
+
+    return Math.max(total_planned_count - completed_count, 0);
 };
 
 const get_next_schedule_time_today = async (patient_id) => {
@@ -360,6 +430,13 @@ const get_next_schedule_time_today = async (patient_id) => {
           AND status = 'ACTIVE'
           AND start_date <= $2::date
           AND (end_date IS NULL OR end_date >= $2::date)
+          AND (
+              $2::date > created_at::date
+              OR (
+                  $2::date = created_at::date
+                  AND ($2::date + time_to_take) >= created_at
+              )
+          )
         ORDER BY time_to_take ASC, sche_id ASC
     `;
 
@@ -468,6 +545,7 @@ const get_today_schedules = async (patient_id) => {
             s.start_date,
             s.end_date,
             s.dose_interval,
+            s.created_at,
             s.status AS schedule_status,
             m.medi_name,
             a.activity_id,
@@ -485,6 +563,13 @@ const get_today_schedules = async (patient_id) => {
           AND s.status = 'ACTIVE'
           AND s.start_date <= $2::date
           AND (s.end_date IS NULL OR s.end_date >= $2::date)
+          AND (
+              $2::date > s.created_at::date
+              OR (
+                  $2::date = s.created_at::date
+                  AND ($2::date + s.time_to_take) >= s.created_at
+              )
+          )
         ORDER BY s.time_to_take ASC, s.sche_id ASC, a.activity_id DESC
     `;
 
@@ -499,6 +584,7 @@ const get_today_schedules = async (patient_id) => {
                 medi_id: row.medi_id,
                 medi_name: row.medi_name,
                 time_to_take: row.time_to_take,
+                created_at: row.created_at,
                 planned_date: today_date_string,
                 status: 'Scheduled',
                 status_color: 'gray',

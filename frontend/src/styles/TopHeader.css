@@ -58,6 +58,21 @@
   font-weight: 700;
 }
 
+.top-header__device-status.status-connected,
+.top-header__device-icon.status-connected {
+  color: #22c55e;
+}
+
+.top-header__device-status.status-waiting,
+.top-header__device-icon.status-waiting {
+  color: #f59e0b;
+}
+
+.top-header__device-status.status-disconnected,
+.top-header__device-icon.status-disconnected {
+  color: #ef4444;
+}
+
 .top-header__device-time {
   margin: 3px 0 0;
   font-size: 0.7rem;

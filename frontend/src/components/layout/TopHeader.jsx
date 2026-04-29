@@ -1,6 +1,13 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { getStoredToken, hasStoredToken, requestJson } from '../../api'
+import {
+  getDeviceStatus,
+  getDeviceStatusClass,
+  getDeviceStatusText,
+  getStoredToken,
+  hasStoredToken,
+  requestJson,
+} from '../../api'
 import '../../styles/TopHeader.css'
 
 let cachedHeaderToken = ''
@@ -13,6 +20,7 @@ function TopHeader({
   patientLabel,
   guardianName,
   deviceStatusText,
+  deviceStatusClass,
   lastSyncedText,
   profileImg,
 }) {
@@ -27,6 +35,7 @@ function TopHeader({
       patientLabel === undefined ||
       guardianName === undefined ||
       deviceStatusText === undefined ||
+      deviceStatusClass === undefined ||
       lastSyncedText === undefined ||
       profileImg === undefined
 
@@ -49,7 +58,14 @@ function TopHeader({
     return () => {
       isMounted = false
     }
-  }, [deviceStatusText, guardianName, lastSyncedText, patientLabel, profileImg])
+  }, [
+    deviceStatusClass,
+    deviceStatusText,
+    guardianName,
+    lastSyncedText,
+    patientLabel,
+    profileImg,
+  ])
 
   const resolvedProfileImg = profileImg ?? sharedHeaderData?.profileImg ?? ''
   const shouldShowProfileImg =
@@ -89,7 +105,9 @@ function TopHeader({
     resolveDisplayName(sharedHeaderData?.guardianName) ||
     '-'
   const resolvedDeviceStatusText =
-    deviceStatusText ?? sharedHeaderData?.deviceStatusText ?? '기기 상태 확인 중'
+    deviceStatusText ?? sharedHeaderData?.deviceStatusText ?? '미연결'
+  const resolvedDeviceStatusClass =
+    deviceStatusClass ?? sharedHeaderData?.deviceStatusClass ?? 'status-disconnected'
   const resolvedLastSyncedText =
     lastSyncedText ?? sharedHeaderData?.lastSyncedText ?? '-'
 
@@ -126,7 +144,10 @@ function TopHeader({
 
       <div className="top-header__right">
         <div className="top-header__device">
-          <div className="top-header__device-icon" aria-hidden="true">
+          <div
+            className={`top-header__device-icon ${resolvedDeviceStatusClass}`}
+            aria-hidden="true"
+          >
             <svg
               viewBox="0 0 24 24"
               width="16"
@@ -143,7 +164,9 @@ function TopHeader({
             </svg>
           </div>
           <div>
-            <p className="top-header__device-status">{resolvedDeviceStatusText}</p>
+            <p className={`top-header__device-status ${resolvedDeviceStatusClass}`}>
+              {resolvedDeviceStatusText}
+            </p>
             <p className="top-header__device-time">
               마지막 동기화: {resolvedLastSyncedText}
             </p>
@@ -221,6 +244,7 @@ async function loadSharedHeaderData() {
 }
 
 function mapSharedHeaderData(dashboardData) {
+  const status = getDeviceStatus(dashboardData?.device)
   const guardianName = resolveGuardianName(
     dashboardData?.patient?.guardian_name,
     dashboardData?.member?.nick,
@@ -234,7 +258,8 @@ function mapSharedHeaderData(dashboardData) {
     ),
     guardianName,
     profileImg: dashboardData?.member?.profile_img || dashboardData?.profile_img || '',
-    deviceStatusText: getHeaderDeviceStatusText(dashboardData?.device?.is_connected),
+    deviceStatusText: getDeviceStatusText(status),
+    deviceStatusClass: getDeviceStatusClass(status),
     lastSyncedText: formatHeaderRelativeTime(dashboardData?.device?.last_sync_time),
   }
 }
@@ -284,18 +309,6 @@ function calculateAgeFromBirthdate(value) {
   }
 
   return age >= 0 ? age : null
-}
-
-function getHeaderDeviceStatusText(isConnected) {
-  if (isConnected === true) {
-    return '기기 연결됨'
-  }
-
-  if (isConnected === false) {
-    return '기기 연결 안 됨'
-  }
-
-  return '기기 상태 확인 중'
 }
 
 function formatHeaderRelativeTime(value) {

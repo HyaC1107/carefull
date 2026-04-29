@@ -32,6 +32,57 @@ const get_schedule_step_days = (schedule) => {
     return 1;
 };
 
+const build_schedule_datetime = (date, time_value) => {
+    if (!time_value) {
+        return null;
+    }
+
+    const [hours = 0, minutes = 0, seconds = 0] = String(time_value)
+        .split(':')
+        .map(Number);
+    const schedule_datetime = new Date(date);
+    schedule_datetime.setUTCHours(hours, minutes, seconds || 0, 0);
+
+    return schedule_datetime;
+};
+
+const should_include_planned_schedule_date = (schedule, schedule_date) => {
+    if (!schedule.created_at) {
+        return true;
+    }
+
+    const created_at = new Date(schedule.created_at);
+
+    if (Number.isNaN(created_at.getTime())) {
+        return true;
+    }
+
+    const created_date = normalize_date_only(created_at);
+
+    if (!created_date) {
+        return true;
+    }
+
+    if (schedule_date.getTime() > created_date.getTime()) {
+        return true;
+    }
+
+    if (schedule_date.getTime() < created_date.getTime()) {
+        return false;
+    }
+
+    const schedule_datetime = build_schedule_datetime(
+        schedule_date,
+        schedule.time_to_take
+    );
+
+    if (!schedule_datetime) {
+        return true;
+    }
+
+    return schedule_datetime.getTime() >= created_at.getTime();
+};
+
 const get_planned_quantity_for_one_schedule = (schedule) => {
     const start_date = normalize_date_only(schedule.start_date);
     const end_date = normalize_date_only(schedule.end_date);
@@ -53,11 +104,21 @@ const get_planned_quantity_for_one_schedule = (schedule) => {
     }
 
     const step_days = get_schedule_step_days(schedule);
-    const diff_days = Math.floor((end_date.getTime() - start_date.getTime()) / DAY_IN_MS);
+    let planned_quantity = 0;
+
+    for (
+        let current_date = new Date(start_date);
+        current_date.getTime() <= end_date.getTime();
+        current_date = new Date(current_date.getTime() + (step_days * DAY_IN_MS))
+    ) {
+        if (should_include_planned_schedule_date(schedule, current_date)) {
+            planned_quantity += 1;
+        }
+    }
 
     return {
         calculable: true,
-        planned_quantity: Math.floor(diff_days / step_days) + 1
+        planned_quantity
     };
 };
 
@@ -80,6 +141,7 @@ const find_base_schedule = async (executor, sche_id) => {
             s.time_to_take,
             s.dose_interval,
             s.status,
+            s.created_at,
             m.medi_name
         FROM schedules s
         LEFT JOIN medications m
@@ -103,6 +165,7 @@ const find_group_schedules = async (executor, base_schedule) => {
             s.time_to_take,
             s.dose_interval,
             s.status,
+            s.created_at,
             m.medi_name
         FROM schedules s
         LEFT JOIN medications m
