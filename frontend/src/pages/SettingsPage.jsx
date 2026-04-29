@@ -13,7 +13,12 @@ import SettingsFooterActions from '../components/settings/SettingsFooterActions'
 import GuardianEditModal from '../components/settings/GuardianEditModal'
 import PatientEditModal from '../components/settings/PatientEditModal'
 import VoiceUploadTab from '../components/settings/VoiceUploadTab'
-import { hasStoredToken, requestJson, TOKEN_STORAGE_KEY } from '../api'
+import { 
+  accountActionItems, 
+  initialGuardianInfo, 
+  initialSettings, 
+  settingsInfo 
+} from '../data/settingsMock'
 import '../styles/SettingsPage.css'
 import '../styles/MobileBottomNav.css'
 
@@ -55,27 +60,6 @@ const NOTIF_TOGGLE_ITEMS = [
   },
 ]
 
-const ACCOUNT_ACTION_ITEMS = [
-  {
-    id: 'patient',
-    title: '환자 정보 수정',
-    description: '환자의 기본 정보를 수정합니다',
-    buttonLabel: '수정',
-  },
-  {
-    id: 'guardian',
-    title: '보호자 정보 수정',
-    description: '보호자 연락처와 정보를 관리합니다',
-    buttonLabel: '수정',
-  },
-  {
-    id: 'logout',
-    title: '로그아웃',
-    description: '현재 로그인된 계정에서 로그아웃합니다',
-    buttonLabel: '실행',
-  },
-]
-
 function loadNotifPrefs() {
   try {
     const stored = localStorage.getItem(NOTIF_PREFS_KEY)
@@ -92,38 +76,48 @@ const TABS = [
 function SettingsPage() {
   const [activeTab, setActiveTab] = useState('general')
   const [notifPrefs, setNotifPrefs] = useState(loadNotifPrefs)
-  const [patientData, setPatientData] = useState(null)
-  const [isPatientModalOpen, setIsPatientModalOpen] = useState(false)
-import {
-  accountActionItems,
-  initialGuardianInfo,
-  initialSettings,
-  settingsInfo,
-} from '../data/settingsMock'
-import '../styles/SettingsPage.css'
-import '../styles/MobileBottomNav.css'
-
-function SettingsPage() {
   const [settings, setSettings] = useState(initialSettings)
   const [guardianInfo, setGuardianInfo] = useState(initialGuardianInfo)
   const [isGuardianModalOpen, setIsGuardianModalOpen] = useState(false)
+  const [isPatientModalOpen, setIsPatientModalOpen] = useState(false)
 
-  const handleToggle = (field) => {
+  const handleToggleNotif = (key) => {
+    setNotifPrefs(prev => {
+      const next = { ...prev, [key]: !prev[key] }
+      localStorage.setItem(NOTIF_PREFS_KEY, JSON.stringify(next))
+      return next
+    })
+  }
+
+  const handleToggleSetting = (field) => {
     setSettings((prev) => ({
       ...prev,
       [field]: !prev[field],
     }))
   }
 
-  const handleChangeValue = (field, value) => {
+  const handleChangeSettingValue = (field, value) => {
     setSettings((prev) => ({
       ...prev,
       [field]: value,
     }))
   }
 
+  const handleAccountAction = (id, title) => {
+    if (id === 'guardian' || title === '보호자 정보 수정') {
+      setIsGuardianModalOpen(true)
+      return
+    }
+    if (id === 'patient' || title === '환자 정보 수정') {
+      setIsPatientModalOpen(true)
+      return
+    }
+    alert(`${title} 기능은 나중에 연결 예정`)
+  }
+
   const handleCancel = () => {
     setSettings(initialSettings)
+    setNotifPrefs(loadNotifPrefs())
   }
 
   const handleSave = () => {
@@ -141,7 +135,6 @@ function SettingsPage() {
           <main className="settings-content">
             <SettingsHeader />
 
-<<<<<<< HEAD
             <nav className="settings-tabs">
               {TABS.map((tab) => (
                 <button
@@ -166,16 +159,55 @@ function SettingsPage() {
                       onChange={() => handleToggleNotif(item.key)}
                     />
                   ))}
+                  
+                  <div style={{ marginTop: '20px', borderTop: '1px solid #eee', paddingTop: '20px' }}>
+                    <SettingToggleRow
+                      title="SMS 알림"
+                      description="복약 시간에 SMS로 알림을 전송합니다"
+                      checked={settings.smsEnabled}
+                      onChange={() => handleToggleSetting('smsEnabled')}
+                    />
+
+                    <SettingTimeRow
+                      title="알림 시간 설정"
+                      description="복약 알림 받을 시간을 설정합니다"
+                      value={settings.alertTime}
+                      onChange={(value) => handleChangeSettingValue('alertTime', value)}
+                    />
+                  </div>
+                </SettingsSectionCard>
+
+                <SettingsSectionCard title="디바이스 설정">
+                  <SettingToggleRow
+                    title="자동 동기화"
+                    description="디바이스와 자동으로 데이터를 동기화합니다"
+                    checked={settings.autoSyncEnabled}
+                    onChange={() => handleToggleSetting('autoSyncEnabled')}
+                  />
+
+                  <SettingsSliderRow
+                    title="알림 소리 크기"
+                    description="알림음의 볼륨을 조절합니다"
+                    value={settings.volume}
+                    onChange={(value) => handleChangeSettingValue('volume', value)}
+                  />
+
+                  <SettingToggleRow
+                    title="음성 안내 설정"
+                    description="복약 알림 음성을 설정합니다"
+                    checked={settings.voiceGuideEnabled}
+                    onChange={() => handleToggleSetting('voiceGuideEnabled')}
+                  />
                 </SettingsSectionCard>
 
                 <SettingsSectionCard title="계정 설정">
-                  {ACCOUNT_ACTION_ITEMS.map((item) => (
+                  {accountActionItems.map((item) => (
                     <SettingActionRow
                       key={item.id}
                       title={item.title}
                       description={item.description}
                       buttonLabel={item.buttonLabel}
-                      onClick={() => handleAccountAction(item.id)}
+                      onClick={() => handleAccountAction(item.id, item.title)}
                     />
                   ))}
                 </SettingsSectionCard>
@@ -187,64 +219,6 @@ function SettingsPage() {
                 <VoiceUploadTab />
               </SettingsSectionCard>
             )}
-=======
-            <SettingsSectionCard title="알림 설정">
-              <SettingToggleRow
-                title="SMS 알림"
-                description="복약 시간에 SMS로 알림을 전송합니다"
-                checked={settings.smsEnabled}
-                onChange={() => handleToggle('smsEnabled')}
-              />
-
-              <SettingTimeRow
-                title="알림 시간 설정"
-                description="복약 알림 받을 시간을 설정합니다"
-                value={settings.alertTime}
-                onChange={(value) => handleChangeValue('alertTime', value)}
-              />
-            </SettingsSectionCard>
-
-            <SettingsSectionCard title="디바이스 설정">
-              <SettingToggleRow
-                title="자동 동기화"
-                description="디바이스와 자동으로 데이터를 동기화합니다"
-                checked={settings.autoSyncEnabled}
-                onChange={() => handleToggle('autoSyncEnabled')}
-              />
-
-            <SettingsSliderRow
-            title="알림 소리 크기"
-            description="알림음의 볼륨을 조절합니다"
-            value={settings.volume}
-            onChange={(value) => handleChangeValue('volume', value)}
-            />
-
-              <SettingToggleRow
-                title="음성 안내 설정"
-                description="복약 알림 음성을 설정합니다"
-                checked={settings.voiceGuideEnabled}
-                onChange={() => handleToggle('voiceGuideEnabled')}
-              />
-            </SettingsSectionCard>
-
-            <SettingsSectionCard title="계정 설정">
-              {accountActionItems.map((item) => (
-                <SettingActionRow
-                  key={item.id}
-                  title={item.title}
-                  description={item.description}
-                  buttonLabel={item.buttonLabel}
-                onClick={() => {
-                        if (item.title === '보호자 정보 수정') {
-                            setIsGuardianModalOpen(true)
-                            return
-                        }
-
-                alert(`${item.title} 기능은 나중에 연결 예정`)
-            }}
-                />
-              ))}
-            </SettingsSectionCard>
 
             <SettingsInfoBanner
               title={settingsInfo.title}
@@ -255,23 +229,33 @@ function SettingsPage() {
               onCancel={handleCancel}
               onSave={handleSave}
             />
->>>>>>> origin/front
           </main>
         </div>
       </div>
 
       <MobileBottomNav activeMenu="settings" />
-      {isGuardianModalOpen ? (
+      
+      {isGuardianModalOpen && (
         <GuardianEditModal
-            initialData={guardianInfo}
-            onClose={() => setIsGuardianModalOpen(false)}
-            onSave={(updatedGuardianInfo) => {
-                setGuardianInfo(updatedGuardianInfo)
-                setIsGuardianModalOpen(false)
-                alert('보호자 정보가 저장되었습니다.')
-            }}
+          initialData={guardianInfo}
+          onClose={() => setIsGuardianModalOpen(false)}
+          onSave={(updatedGuardianInfo) => {
+            setGuardianInfo(updatedGuardianInfo)
+            setIsGuardianModalOpen(false)
+            alert('보호자 정보가 저장되었습니다.')
+          }}
         />
-    ) : null}
+      )}
+
+      {isPatientModalOpen && (
+        <PatientEditModal
+          onClose={() => setIsPatientModalOpen(false)}
+          onSave={(updatedPatientData) => {
+            setIsPatientModalOpen(false)
+            alert('환자 정보가 저장되었습니다.')
+          }}
+        />
+      )}
     </div>
   )
 }
