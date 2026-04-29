@@ -22,7 +22,8 @@
       "Bash(cp /tmp/StatsPage.jsx frontend/src/pages/StatsPage.jsx)",
       "Bash(cp /tmp/PatientPage.jsx frontend/src/pages/PatientPage.jsx)",
       "Bash(npm run *)",
-      "Bash(npx vite *)"
+      "Bash(npx vite *)",
+      "Bash(PowerShell *)"
     ]
   }
 }
