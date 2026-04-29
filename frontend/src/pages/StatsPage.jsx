@@ -26,7 +26,6 @@ function StatsPage() {
   const [dashboardData, setDashboardData] = useState(null)
   const [dashboardSummary, setDashboardSummary] = useState(null)
   const [schedules, setSchedules] = useState([])
-  const [medicationMap, setMedicationMap] = useState({})
 
   useEffect(() => {
     const fetchStatsData = async () => {
@@ -35,19 +34,18 @@ function StatsPage() {
       }
 
       try {
-        const [activityData, dashboardData, scheduleData, medicationData] =
+        const activityLogPath = buildRecentSixMonthActivityLogPath()
+        const [activityData, dashboardData, scheduleData] =
           await Promise.all([
-            requestJson('/api/log', { auth: true }),
+            requestJson(activityLogPath, { auth: true }),
             requestJson('/api/dashboard', { auth: true }),
             requestJson('/api/schedule', { auth: true }),
-            requestJson('/api/medication'),
           ])
 
         setActivities(Array.isArray(activityData?.activities) ? activityData.activities : [])
         setDashboardData(dashboardData?.data ?? null)
         setDashboardSummary(dashboardData?.data?.summary ?? null)
         setSchedules(Array.isArray(scheduleData?.schedules) ? scheduleData.schedules : [])
-        setMedicationMap(buildMedicationMap(medicationData?.data))
       } catch (error) {
         console.error('stats fetch error:', error)
       }
@@ -69,8 +67,8 @@ function StatsPage() {
     [activities],
   )
   const medicineRateData = useMemo(
-    () => buildMedicineRateData(activities, schedules, medicationMap),
-    [activities, schedules, medicationMap],
+    () => buildMedicineRateData(activities, schedules),
+    [activities, schedules],
   )
   const weeklyInsights = useMemo(
     () => buildWeeklyInsights(activities),
@@ -122,6 +120,26 @@ function StatsPage() {
       <MobileBottomNav activeMenu="stats" />
     </div>
   )
+}
+
+function buildRecentSixMonthActivityLogPath() {
+  const today = new Date()
+  const from = new Date(today.getFullYear(), today.getMonth() - 5, 1)
+  const params = new URLSearchParams({
+    from: formatDateQueryValue(from),
+    to: formatDateQueryValue(today),
+  })
+
+  // Stats activity-derived charts, including medication rate, use this six-month window.
+  return `/api/log?${params.toString()}`
+}
+
+function formatDateQueryValue(date) {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+
+  return `${year}-${month}-${day}`
 }
 
 function mapTopHeaderData({ patient, patientName, device, nick, profileImg }) {
@@ -215,13 +233,6 @@ function formatRelativeTime(value) {
   }
 
   return `${Math.floor(diffHours / 24)}일 전`
-}
-
-function buildMedicationMap(medications = []) {
-  return medications.reduce((acc, medication) => {
-    acc[medication.medi_id] = medication.medi_name
-    return acc
-  }, {})
 }
 
 function buildStatsSummaryCards(summary, activities) {
@@ -339,23 +350,29 @@ function buildTimePatternData(activities) {
   }))
 }
 
-function buildMedicineRateData(activities, schedules, medicationMap) {
+function buildMedicineRateData(activities, schedules) {
   const scheduleMedicationMap = schedules.reduce((acc, schedule) => {
-    acc[schedule.sche_id] = schedule.medi_id
+    acc[schedule.sche_id] = {
+      medi_id: schedule.medi_id,
+      medi_name: schedule.medi_name,
+    }
     return acc
   }, {})
 
   const medicationStats = {}
 
   activities.forEach((activity) => {
-    const medicationId = scheduleMedicationMap[activity.sche_id]
+    const medication = scheduleMedicationMap[activity.sche_id]
 
-    if (!medicationId) {
+    if (!medication?.medi_id) {
       return
     }
 
+    const medicationId = medication.medi_id
+
     if (!medicationStats[medicationId]) {
       medicationStats[medicationId] = {
+        name: medication.medi_name || `약물 ${medicationId}`,
         total: 0,
         success: 0,
       }
@@ -370,7 +387,7 @@ function buildMedicineRateData(activities, schedules, medicationMap) {
 
   return Object.entries(medicationStats)
     .map(([medicationId, stat], index) => ({
-      name: medicationMap[medicationId] || `약물 ${medicationId}`,
+      name: stat.name || `약물 ${medicationId}`,
       value: stat.total === 0 ? 0 : Math.round((stat.success / stat.total) * 100),
       fill: PIE_COLORS[index % PIE_COLORS.length],
     }))
