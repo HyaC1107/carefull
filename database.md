@@ -11,9 +11,12 @@ PostgreSQL + pgvector 확장 사용.
 | `patients` | 환자 정보 |
 | `schedules` | 복약 스케줄 |
 | `activities` | 복약 로그 |
-| `devices` | 디스펜서 기기 |
+| `devices` | 디스펜서 기기 (알림음 파일 포함) |
 | `face_embeddings` | 얼굴 벡터 (pgvector) |
-| `notifications` | 알림 이력 |
+| `fingerprints` | 지문 슬롯 (R307 센서) |
+| `voice_samples` | 보호자 목소리 파일 |
+| `notifications` | FCM 알림 이력 |
+| `push_tokens` | FCM 푸시 토큰 |
 
 ---
 
@@ -21,12 +24,15 @@ PostgreSQL + pgvector 확장 사용.
 
 ```
 members ──< patients ──< schedules >── medications
-                │            │
-                │            └──< activities >── notifications
-                │                                      │
-                ├──< devices                    members ┘
-                │
-                └──< face_embeddings
+   │            │            │
+   │            │            └──< activities >── notifications
+   │            │                                      │
+   │            ├──< devices                    members ┘
+   │            ├──< face_embeddings
+   │            ├──< fingerprints
+   │            └──< voice_samples
+   │
+   └──< push_tokens
 ```
 
 ---
@@ -135,7 +141,7 @@ members ──< patients ──< schedules >── medications
 ---
 
 ### devices
-디스펜서 기기. `device_uid`로 식별.
+디스펜서 기기. `device_uid`로 식별. 알림음 파일 경로 포함.
 
 | 컬럼 | 타입 | 필수 | 설명 |
 |---|---|---|---|
@@ -146,9 +152,20 @@ members ──< patients ──< schedules >── medications
 | `device_status` | varchar(50) | | 기기 상태 (default: `UNREGISTERED`) |
 | `last_ping` | timestamptz | | 마지막 통신 시각 |
 | `registered_at` | timestamptz | ✓ | 등록일시 |
+| `alarm_sound_path` | text | | 알림음 파일 상대 경로 (`uploads/sounds/...`) |
+| `alarm_sound_name` | text | | 알림음 원본 파일명 |
+| `alarm_sound_updated_at` | timestamptz | | 알림음 최종 업데이트 시각 |
 
 **인덱스**
 - `ix_devices_1` — `registered_at` B-tree
+
+**마이그레이션** (미실행 시 실행 필요)
+```sql
+ALTER TABLE devices
+  ADD COLUMN IF NOT EXISTS alarm_sound_path TEXT,
+  ADD COLUMN IF NOT EXISTS alarm_sound_name TEXT,
+  ADD COLUMN IF NOT EXISTS alarm_sound_updated_at TIMESTAMPTZ;
+```
 
 ---
 
@@ -166,6 +183,39 @@ members ──< patients ──< schedules >── medications
 - `ix_face_embeddings_1` — `created_at` B-tree
 - `ix_face_embeddings_2` — `face_vector` B-tree
 - `ix_face_embeddings_3` — `patient_id` B-tree
+
+---
+
+### fingerprints
+지문 슬롯. R307 지문 센서에 등록된 슬롯 정보.
+
+| 컬럼 | 타입 | 필수 | 설명 |
+|---|---|---|---|
+| `fp_id` | serial4 | PK | 자동 증가 ID |
+| `patient_id` | int4 | ✓ | 환자 FK → `patients.patient_id` |
+| `slot_id` | int4 | ✓ | R307 센서 내부 슬롯 번호 |
+| `label` | varchar | | 슬롯 이름 (default: `지문`) |
+| `registered_at` | timestamptz | ✓ | 등록일시 (default: now) |
+
+**제약**
+- `(patient_id, slot_id)` Unique — 환자당 슬롯 번호 중복 불가
+
+---
+
+### voice_samples
+보호자 목소리 파일. AI 처리 후 복약 알림 TTS에 사용.
+
+| 컬럼 | 타입 | 필수 | 설명 |
+|---|---|---|---|
+| `voice_id` | serial4 | PK | 자동 증가 ID |
+| `patient_id` | int4 | ✓ | 환자 FK → `patients.patient_id` |
+| `file_name` | text | ✓ | 원본 파일명 |
+| `file_path` | text | ✓ | 서버 저장 경로 (`uploads/voices/...`) |
+| `file_size` | int8 | | 파일 크기 (bytes) |
+| `mime_type` | varchar(100) | | MIME 타입 (`audio/webm` 등) |
+| `status` | varchar(20) | ✓ | 처리 상태 (`pending` / `processing` / `ready` / `error`) |
+| `uploaded_at` | timestamptz | ✓ | 업로드 일시 (default: now) |
+| `updated_at` | timestamptz | | 상태 변경 일시 |
 
 ---
 
@@ -188,3 +238,25 @@ FCM 푸시 알림 이력. 미복용 30분 초과 시 보호자 알림.
 **인덱스**
 - `ix_notifications_1` — `created_at` B-tree
 - `ix_notifications_2` — `(mem_id, is_received)` B-tree → 보호자별 미확인 알림 조회 최적화
+
+---
+
+### push_tokens
+FCM 푸시 토큰. 보호자 기기별 토큰 관리.
+
+| 컬럼 | 타입 | 필수 | 설명 |
+|---|---|---|---|
+| `push_token_id` | serial4 | PK | 자동 증가 ID |
+| `mem_id` | int4 | ✓ | 보호자 FK → `members.mem_id` |
+| `fcm_token` | text | ✓ | FCM 등록 토큰 (Unique) |
+| `device_type` | varchar(20) | ✓ | 기기 유형 (default: `web`) |
+| `is_active` | bool | ✓ | 활성 여부 (default: `true`) |
+| `created_at` | timestamptz | ✓ | 생성일시 (default: now) |
+| `updated_at` | timestamptz | ✓ | 수정일시 (default: now, 트리거로 자동 갱신) |
+
+**인덱스**
+- `ix_push_tokens_mem_id_is_active` — `(mem_id, is_active)` B-tree → 보호자별 활성 토큰 조회 최적화
+- `uq_push_tokens_fcm_token` — `fcm_token` Unique
+
+**트리거**
+- `trg_push_tokens_updated_at` — UPDATE 시 `updated_at` 자동 갱신

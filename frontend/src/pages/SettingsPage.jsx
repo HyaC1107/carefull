@@ -75,6 +75,7 @@ const ACCOUNT_ACTION_ITEMS = [
 
 const TABS = [
   { key: 'general', label: '일반 설정' },
+  { key: 'alarm', label: '알림음' },
   { key: 'voice', label: '보호자 목소리' },
 ]
 
@@ -210,6 +211,12 @@ function SettingsPage() {
                   ))}
                 </SettingsSectionCard>
               </>
+            )}
+
+            {activeTab === 'alarm' && (
+              <SettingsSectionCard title="알림음 설정">
+                <AlarmSoundTab />
+              </SettingsSectionCard>
             )}
 
             {activeTab === 'voice' && (
