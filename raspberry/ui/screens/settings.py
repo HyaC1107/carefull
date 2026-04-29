@@ -186,7 +186,7 @@ class _ControlCard(QFrame):
             }
             QPushButton:pressed { background-color: #fecaca; }
         """)
-        exit_btn.clicked.connect(QApplication.quit)
+        exit_btn.clicked.connect(self._exit)
         lay.addWidget(exit_btn)
 
     @staticmethod
@@ -195,6 +195,14 @@ class _ControlCard(QFrame):
             os.system("sudo reboot")
         except Exception:
             pass
+
+    @staticmethod
+    def _exit():
+        # pm2 stop으로 종료해야 PM2가 의도적 종료로 인식해 재시작하지 않음
+        ret = os.system("pm2 stop carefull")
+        if ret != 0:
+            # pm2가 없는 환경(직접 실행 등)이면 그냥 종료
+            QApplication.quit()
 
 
 class _FingerprintFetchWorker(QThread):

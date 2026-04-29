@@ -439,4 +439,37 @@ router.delete('/me', verifyToken, async (req, res) => {
     }
 });
 
+// GET /api/device/sound?device_uid=...  — 라파용, 현재 알림음 메타 조회
+router.get('/sound', async (req, res) => {
+    const { device_uid } = req.query;
+    if (!device_uid || !String(device_uid).trim()) {
+        return sendError(res, 400, 'device_uid is required.');
+    }
+    try {
+        const { rows } = await pool.query(`
+            SELECT vs.file_path, vs.uploaded_at
+            FROM voice_samples vs
+            JOIN devices d ON d.patient_id = vs.patient_id
+            WHERE d.device_uid = $1
+              AND vs.status IN ('pending', 'ready')
+            ORDER BY vs.uploaded_at DESC
+            LIMIT 1
+        `, [String(device_uid).trim()]);
+
+        if (!rows.length) {
+            return sendSuccess(res, 200, { sound: null });
+        }
+
+        return sendSuccess(res, 200, {
+            sound: {
+                file_path: rows[0].file_path,   // "uploads/voices/filename.ext"
+                updated_at: rows[0].uploaded_at,
+            }
+        });
+    } catch (err) {
+        console.error('Sound fetch error:', err);
+        return sendError(res, 500, 'Server error while fetching sound.');
+    }
+});
+
 module.exports = router;

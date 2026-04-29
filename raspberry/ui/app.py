@@ -33,6 +33,13 @@ class _ScheduleSyncWorker(QThread):
     sync_done = pyqtSignal(list)
 
     def run(self):
+        # 알림음 파일 변경 시 다운로드 (변경 없으면 즉시 스킵)
+        try:
+            from utils.sound_sync import sync_sound
+            sync_sound()
+        except Exception:
+            pass
+
         try:
             from scheduler.schedule import sync_schedules
             schedules = sync_schedules()

@@ -1,23 +1,17 @@
 from PyQt5.QtCore import QThread, pyqtSignal
 
-from config.settings import UI_TEST_MODE, MODELS_DIR
-import os
+from config.settings import UI_TEST_MODE
 
-_DIST_THRESHOLD  = 0.13
-_SUCCESS_FRAMES  = 5
-_YOLO_MODEL_PATH = os.path.join(MODELS_DIR, "yolo26n-pose_ncnn_model")
-_YOLO_IMGSZ      = 640
-_YOLO_CONF       = 0.3
-
-_KP_L_WRIST = 9
-_KP_R_WRIST = 10
-_KP_MOUTH   = 13  # FaceMesh landmark
+_DIST_THRESHOLD = 0.13   # 정규화 거리 (손가락 끝 ↔ 입)
+_SUCCESS_FRAMES = 5      # 연속 감지 프레임 수
+_FINGER_TIPS    = [4, 8, 12, 16, 20]   # 엄지·검지·중지·약지·소지 끝
+_MOUTH_LM       = 13     # FaceMesh 상순 중앙
 
 
 class BehaviorThread(QThread):
-    frame_ready = pyqtSignal(object)         # BGR ndarray (optional display)
-    progress_updated = pyqtSignal(int, int)  # current_count, required
-    intake_detected = pyqtSignal()
+    frame_ready      = pyqtSignal(object)   # BGR ndarray (화면 표시용)
+    progress_updated = pyqtSignal(int, int) # current, required
+    intake_detected  = pyqtSignal()
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -25,28 +19,24 @@ class BehaviorThread(QThread):
 
     def run(self):
         self._running = True
+
         if UI_TEST_MODE:
-            for i in range(1, _SUCCESS_FRAMES + 1):
-                if not self._running:
-                    return
-                self.progress_updated.emit(i, _SUCCESS_FRAMES)
-                self.msleep(400)
-            if self._running:
-                self.intake_detected.emit()
+            self._run_test_mode()
             return
 
         import cv2
         import mediapipe as mp
         import numpy as np
-        from ultralytics import YOLO
         from camera.camera import get_frame
 
-        yolo = YOLO(_YOLO_MODEL_PATH)
-
-        mp_face_mesh_mod = mp.solutions.face_mesh
-        face_mesh = mp_face_mesh_mod.FaceMesh(
+        hands = mp.solutions.hands.Hands(
+            max_num_hands=2,
+            min_detection_confidence=0.6,
+            min_tracking_confidence=0.6,
+        )
+        face_mesh = mp.solutions.face_mesh.FaceMesh(
             max_num_faces=1,
-            refine_landmarks=True,
+            refine_landmarks=False,
             min_detection_confidence=0.5,
             min_tracking_confidence=0.5,
         )
@@ -57,45 +47,40 @@ class BehaviorThread(QThread):
             while self._running:
                 frame = get_frame()
                 if frame is None:
-                    self.msleep(100)
+                    self.msleep(50)
                     continue
 
                 self.frame_ready.emit(frame.copy())
 
                 rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-                rgb = cv2.flip(rgb, 1)
                 h, w = rgb.shape[:2]
 
-                face_res = face_mesh.process(rgb)
+                # 입 좌표 (FaceMesh)
                 mouth = None
+                face_res = face_mesh.process(rgb)
                 if face_res.multi_face_landmarks:
-                    lm = face_res.multi_face_landmarks[0].landmark[_KP_MOUTH]
+                    lm = face_res.multi_face_landmarks[0].landmark[_MOUTH_LM]
                     mouth = (lm.x, lm.y)
 
-                wrist = None
-                bgr = cv2.cvtColor(rgb, cv2.COLOR_RGB2BGR)
-                results = yolo(bgr, imgsz=_YOLO_IMGSZ, verbose=False)
-                for r in results:
-                    if r.keypoints is None or len(r.keypoints.data) == 0:
-                        break
-                    kps = r.keypoints.data[0]
-                    l_kp = kps[_KP_L_WRIST]
-                    r_kp = kps[_KP_R_WRIST]
+                # 손가락 끝 좌표 (MediaPipe Hands)
+                finger_tip = None
+                if mouth:
+                    hand_res = hands.process(rgb)
+                    if hand_res.multi_hand_landmarks:
+                        best_dist = float('inf')
+                        for hand_lm in hand_res.multi_hand_landmarks:
+                            for tip_idx in _FINGER_TIPS:
+                                tip = hand_lm.landmark[tip_idx]
+                                d = float(np.hypot(tip.x - mouth[0],
+                                                   tip.y - mouth[1]))
+                                if d < best_dist:
+                                    best_dist = d
+                                    finger_tip = (tip.x, tip.y)
 
-                    dist_l = dist_r = float("inf")
-                    if mouth:
-                        if l_kp[2] >= _YOLO_CONF:
-                            dist_l = float(np.hypot(l_kp[0] / w - mouth[0], l_kp[1] / h - mouth[1]))
-                        if r_kp[2] >= _YOLO_CONF:
-                            dist_r = float(np.hypot(r_kp[0] / w - mouth[0], r_kp[1] / h - mouth[1]))
-
-                    closer = l_kp if dist_l <= dist_r else r_kp
-                    if closer[2] >= _YOLO_CONF:
-                        wrist = (closer[0].item() / w, closer[1].item() / h)
-                    break
-
-                if mouth and wrist:
-                    dist = np.hypot(wrist[0] - mouth[0], wrist[1] - mouth[1])
+                # 거리 판정
+                if mouth and finger_tip:
+                    dist = float(np.hypot(finger_tip[0] - mouth[0],
+                                         finger_tip[1] - mouth[1]))
                     if dist < _DIST_THRESHOLD:
                         counter += 1
                     else:
@@ -109,8 +94,19 @@ class BehaviorThread(QThread):
                     if self._running:
                         self.intake_detected.emit()
                     return
+
         finally:
+            hands.close()
             face_mesh.close()
+
+    def _run_test_mode(self):
+        for i in range(1, _SUCCESS_FRAMES + 1):
+            if not self._running:
+                return
+            self.progress_updated.emit(i, _SUCCESS_FRAMES)
+            self.msleep(400)
+        if self._running:
+            self.intake_detected.emit()
 
     def stop(self):
         self._running = False

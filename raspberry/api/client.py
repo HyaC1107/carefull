@@ -1,4 +1,5 @@
 import logging
+import os
 from datetime import datetime
 
 import requests
@@ -188,6 +189,41 @@ def delete_fingerprint(slot_id: int, device_uid: str = DEVICE_UID) -> bool:
         return r.status_code == 200
     except Exception as e:
         logger.error("delete_fingerprint failed: %s", e)
+        return False
+
+
+def fetch_sound_meta(device_uid: str = DEVICE_UID) -> dict | None:
+    """서버에서 현재 알림음 메타 조회. 파일 없으면 None 반환."""
+    if not device_uid:
+        return None
+    try:
+        r = requests.get(
+            _url("/api/device/sound"),
+            params={"device_uid": device_uid},
+            timeout=API_TIMEOUT,
+        )
+        r.raise_for_status()
+        sound = r.json().get("sound")
+        if sound and sound.get("file_path"):
+            sound["url"] = f"{API_BASE_URL.rstrip('/')}/{sound['file_path'].replace(os.sep, '/')}"
+        return sound
+    except Exception as e:
+        logger.warning("fetch_sound_meta failed: %s", e)
+        return None
+
+
+def download_sound(url: str, dest_path: str) -> bool:
+    """url에서 음원 파일을 dest_path로 다운로드."""
+    try:
+        os.makedirs(os.path.dirname(dest_path), exist_ok=True)
+        with requests.get(url, stream=True, timeout=30) as r:
+            r.raise_for_status()
+            with open(dest_path, "wb") as f:
+                for chunk in r.iter_content(chunk_size=8192):
+                    f.write(chunk)
+        return True
+    except Exception as e:
+        logger.error("download_sound failed: %s", e)
         return False
 
 

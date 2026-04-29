@@ -9,6 +9,7 @@ import PatientPage from './pages/PatientPage'
 import SettingsPage from './pages/SettingsPage'
 import { useFCM } from './hooks/useFCM'
 import { hasStoredToken } from './api'
+import { HeaderDataProvider } from './context/HeaderDataContext'
 
 function ProtectedRoute({ children }) {
   if (!hasStoredToken()) {
@@ -21,6 +22,7 @@ function App() {
   useFCM()
 
   return (
+    <HeaderDataProvider>
     <Routes>
       <Route path="/" element={<Navigate to="/login" replace />} />
 
@@ -36,6 +38,7 @@ function App() {
 
       <Route path="*" element={<Navigate to="/login" replace />} />
     </Routes>
+    </HeaderDataProvider>
   )
 }
 
