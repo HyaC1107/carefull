@@ -67,12 +67,11 @@
 
 .sidebar__menu-button:hover {
   background: #eff6ff;
-  color : #000000;
 }
 
 .sidebar__menu-button--active {
   background: #4d95f6;
-  color: #000000;
+  color: #ffffff;
 }
 
 .sidebar__menu-icon {

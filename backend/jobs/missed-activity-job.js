@@ -35,6 +35,7 @@ const findActiveScheduleCandidates = async () => {
             s.end_date,
             s.dose_interval,
             s.status,
+            s.created_at,
             p.mem_id,
             m.medi_name
         FROM schedules s
@@ -160,6 +161,21 @@ const filterMissedTargets = (candidates) => {
             }
 
             const planned_date_time = buildTodayDateTime(item.time_to_take, now);
+
+            if (item.created_at) {
+                const created_at = new Date(item.created_at);
+                const created_date_string = Number.isNaN(created_at.getTime())
+                    ? null
+                    : created_at.toISOString().slice(0, 10);
+
+                if (
+                    created_date_string === today_date_string &&
+                    planned_date_time.getTime() < created_at.getTime()
+                ) {
+                    return false;
+                }
+            }
+
             const deadline_date_time = new Date(planned_date_time.getTime() + GRACE_MINUTES * 60 * 1000);
 
             if (now < deadline_date_time) {

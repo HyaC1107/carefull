@@ -6,6 +6,7 @@ const { verifyToken } = require('../middleware/auth');
 const { find_patient_id_by_mem_id } = require('../utils/auth-user');
 const { parseNumericFields, parseNumericValue, validateRequiredFields } = require('../utils/validators');
 const { sendSuccess, sendError } = require('../utils/response');
+const { send_schedule_created_push_safe } = require('../services/push.service');
 
 const validate_schedule_payload = (body) => {
     const required_fields = [
@@ -108,6 +109,77 @@ const parse_schedule_times = (body) => {
     return parsed_times.length > 0 ? parsed_times : null;
 };
 
+const parse_date_only = (value) => {
+    if (!value) {
+        return null;
+    }
+
+    const [year, month, day] = String(value).slice(0, 10).split('-').map(Number);
+
+    if (![year, month, day].every(Number.isInteger)) {
+        return null;
+    }
+
+    return new Date(year, month - 1, day);
+};
+
+const format_date_only = (date) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+
+    return `${year}-${month}-${day}`;
+};
+
+const add_days = (date, days) => {
+    const next_date = new Date(date);
+    next_date.setDate(next_date.getDate() + days);
+
+    return next_date;
+};
+
+const build_schedule_datetime = (date, time_to_take) => {
+    const [hours = 0, minutes = 0, seconds = 0] = String(time_to_take)
+        .split(':')
+        .map(Number);
+
+    if (![hours, minutes, seconds].every(Number.isFinite)) {
+        return null;
+    }
+
+    const schedule_datetime = new Date(date);
+    schedule_datetime.setHours(hours, minutes, seconds || 0, 0);
+
+    return schedule_datetime;
+};
+
+const resolve_insert_start_date = (start_date, end_date, time_to_take, registered_at) => {
+    const start_date_only = parse_date_only(start_date);
+
+    if (!start_date_only) {
+        return null;
+    }
+
+    const schedule_datetime = build_schedule_datetime(start_date_only, time_to_take);
+
+    if (!schedule_datetime) {
+        return null;
+    }
+
+    if (schedule_datetime.getTime() >= registered_at.getTime()) {
+        return format_date_only(start_date_only);
+    }
+
+    const next_date = add_days(start_date_only, 1);
+    const end_date_only = end_date ? parse_date_only(end_date) : null;
+
+    if (end_date_only && next_date.getTime() > end_date_only.getTime()) {
+        return null;
+    }
+
+    return format_date_only(next_date);
+};
+
 const to_schedule_response = (row) => ({
     sche_id: row.sche_id,
     patient_id: row.patient_id,
@@ -153,6 +225,9 @@ router.post('/', verifyToken, async (req, res) => {
         return sendError(res, 400, 'dose_interval must be an integer from 1 to 5.');
     }
 
+    const registered_at = new Date();
+    registered_at.setSeconds(0, 0);
+
     try {
         const patient_id = await find_patient_id_by_mem_id(mem_id);
 
@@ -191,11 +266,22 @@ router.post('/', verifyToken, async (req, res) => {
 
             for (const parsed_medi_id of parsed_medi_ids) {
                 for (const parsed_time of parsed_times) {
+                    const insert_start_date = resolve_insert_start_date(
+                        start_date,
+                        end_date,
+                        parsed_time,
+                        registered_at
+                    );
+
+                    if (!insert_start_date) {
+                        continue;
+                    }
+
                     const { rows } = await client.query(insert_query, [
                         patient_id,
                         parsed_medi_id,
                         parsed_time,
-                        start_date,
+                        insert_start_date,
                         end_date,
                         parsed_dose_interval,
                         status
@@ -205,7 +291,13 @@ router.post('/', verifyToken, async (req, res) => {
                 }
             }
 
+            if (created_rows.length === 0) {
+                await client.query('ROLLBACK');
+                return sendError(res, 400, 'No valid future schedule time to create.');
+            }
+
             await client.query('COMMIT');
+            await send_schedule_created_push_safe(mem_id);
 
             return sendSuccess(res, 201, {
                 message: 'Schedule created successfully.',
@@ -424,6 +516,13 @@ router.get('/device', async (req, res) => {
               AND s.status = 'ACTIVE'
               AND s.start_date <= CURRENT_DATE
               AND (s.end_date IS NULL OR s.end_date >= CURRENT_DATE)
+              AND (
+                  CURRENT_DATE > s.created_at::date
+                  OR (
+                      CURRENT_DATE = s.created_at::date
+                      AND (CURRENT_DATE + s.time_to_take) >= s.created_at
+                  )
+              )
             ORDER BY s.time_to_take, s.sche_id
         `;
 

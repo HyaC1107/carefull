@@ -1,3 +1,34 @@
+self.addEventListener('push', (event) => {
+  const payload = event.data ? event.data.json() : {}
+  const notification = payload.notification || {}
+  const data = payload.data || {}
+  const title = notification.title || data.title || 'Carefull'
+  const options = {
+    body: notification.body || data.body || '',
+    data,
+  }
+
+  event.waitUntil(self.registration.showNotification(title, options))
+})
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close()
+
+  const targetUrl = event.notification.data?.url || self.registration.scope
+
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true })
+      .then((clients) => {
+        const matchedClient = clients.find((client) => client.url === targetUrl)
+
+        if (matchedClient) {
+          return matchedClient.focus()
+        }
+
+        return self.clients.openWindow(targetUrl)
+      }),
+  )
+})
 // Firebase Messaging 백그라운드 푸시 수신 서비스 워커
 // firebase.js와 동일한 설정값으로 채워야 합니다.
 // 서비스 워커는 Vite 번들링 밖에 있으므로 env 변수를 직접 사용할 수 없습니다.

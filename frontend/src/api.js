@@ -16,6 +16,34 @@ export function hasStoredToken() {
   return Boolean(getStoredToken())
 }
 
+export function getDeviceStatus(device) {
+  if (!device || device.device_status === 'UNREGISTERED') {
+    return 'disconnected'
+  }
+
+  if (device.is_connected) {
+    return 'connected'
+  }
+
+  return 'waiting'
+}
+
+export function getDeviceStatusText(status) {
+  if (status === 'connected') {
+    return '연결됨'
+  }
+
+  if (status === 'waiting') {
+    return '연결 대기'
+  }
+
+  return '미연결'
+}
+
+export function getDeviceStatusClass(status) {
+  return `status-${status}`
+}
+
 export function getStoredAuthPayload() {
   const token = getStoredToken()
   if (!token) return null
