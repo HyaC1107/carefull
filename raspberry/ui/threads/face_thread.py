@@ -61,7 +61,10 @@ class FaceThread(QThread):
         from camera.camera import get_frame
         from face_detection.mediapipe_detector import detect_face
         from auth.authenticate import authenticate
+        from hardware.gimbal import Gimbal
+        import cv2
 
+        gimbal = Gimbal()
         deadline = time.time() + AUTH_TIMEOUT_SEC
 
         while self._running and time.time() < deadline:
@@ -70,6 +73,11 @@ class FaceThread(QThread):
                 self.msleep(200)
                 continue
 
+            fh, fw = frame.shape[:2]
+            # --- 가이드 라인 그리기 (주석 해제 시 사용) ---
+            # cv2.line(frame, (fw // 2, 0), (fw // 2, fh), (0, 255, 0), 1) # 수직선
+            # cv2.line(frame, (0, fh // 2), (fw, fh // 2), (0, 255, 0), 1) # 수평선
+
             self.frame_ready.emit(frame.copy())
 
             faces = detect_face(frame)
@@ -77,7 +85,14 @@ class FaceThread(QThread):
                 self.msleep(200)
                 continue
 
-            x, y, w, h = faces[0]
+            # 가장 큰 얼굴 기준 추적
+            faces.sort(key=lambda b: b[2] * b[3], reverse=True)
+            main_face = faces[0]
+            
+            # 짐벌 추적 실행
+            gimbal.track_face(main_face, fw, fh)
+
+            x, y, w, h = main_face
             face_img = frame[y: y + h, x: x + w]
             if face_img.size == 0:
                 continue
@@ -86,18 +101,24 @@ class FaceThread(QThread):
             if user:
                 if self._running:
                     self.auth_success.emit(user, float(score))
+                gimbal.stop()
                 return
 
-            self.msleep(300)
+            self.msleep(100) # 추적 반응 속도를 위해 대기 시간 단축
 
         if self._running:
             self.auth_failed.emit()
+        gimbal.stop()
 
     # ─────────────────────────────── register ────────────────────────────────
 
     def _run_register(self):
         from camera.camera import get_frame
         from face_detection.mediapipe_detector import detect_face
+        from hardware.gimbal import Gimbal
+        import cv2
+        
+        gimbal = Gimbal()
         face_imgs = []
         frame_count = 0
         last_capture_time = 0.0
@@ -108,6 +129,10 @@ class FaceThread(QThread):
                 self.msleep(30)
                 continue
 
+            fh, fw = frame.shape[:2]
+            # --- 가이드 라인 그리기 (주석 해제 시 사용) ---
+            # cv2.line(frame, (fw // 2, 0), (fw // 2, fh), (255, 0, 0), 1)
+
             # 항상 프레임 송출 → 디스플레이 ~30fps 유지
             self.frame_ready.emit(frame.copy())
             frame_count += 1
@@ -117,29 +142,30 @@ class FaceThread(QThread):
             now = time.time()
             if frame_count % _DETECT_EVERY_N != 0:
                 continue
-            if now - last_capture_time < _REGISTER_COOLDOWN_SEC:
-                continue
-
+            
             faces = detect_face(frame)
-            if not faces:
-                continue
+            if faces:
+                # 짐벌 추적
+                faces.sort(key=lambda b: b[2] * b[3], reverse=True)
+                gimbal.track_face(faces[0], fw, fh)
 
-            x, y, w, h = faces[0]
-            fh, fw = frame.shape[:2]
-            mx = int(w * _FACE_MARGIN)
-            my = int(h * _FACE_MARGIN)
-            x1 = max(0, x - mx)
-            y1 = max(0, y - my)
-            x2 = min(fw, x + w + mx)
-            y2 = min(fh, y + h + my)
+                if now - last_capture_time < _REGISTER_COOLDOWN_SEC:
+                    continue
 
-            crop = frame[y1:y2, x1:x2]
-            if crop.size == 0:
-                continue
+                x, y, w, h = faces[0]
+                mx = int(w * _FACE_MARGIN)
+                my = int(h * _FACE_MARGIN)
+                x1 = max(0, x - mx)
+                y1 = max(0, y - my)
+                x2 = min(fw, x + w + mx)
+                y2 = min(fh, y + h + my)
 
-            face_imgs.append(crop)
-            last_capture_time = now
-            self.capture_progress.emit(len(face_imgs))
+                crop = frame[y1:y2, x1:x2]
+                if crop.size > 0:
+                    face_imgs.append(crop)
+                    last_capture_time = now
+                    self.capture_progress.emit(len(face_imgs))
 
         if self._running:
             self.capture_done.emit(face_imgs)
+        gimbal.stop()

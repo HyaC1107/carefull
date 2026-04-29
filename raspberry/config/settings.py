@@ -42,6 +42,8 @@ STEP_PINS  = [
     int(os.getenv("CAREFULL_STEP_PIN4", "21")),
 ]
 PUMP_PIN   = int(os.getenv("CAREFULL_PUMP_PIN",   "26"))
+PAN_PIN    = int(os.getenv("CAREFULL_PAN_PIN",    "13"))
+TILT_PIN   = int(os.getenv("CAREFULL_TILT_PIN",   "19"))
 LED_PIN_1  = int(os.getenv("CAREFULL_LED_PIN1",    "5"))
 LED_PIN_2  = int(os.getenv("CAREFULL_LED_PIN2",    "6"))
 

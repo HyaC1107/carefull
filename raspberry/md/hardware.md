@@ -11,12 +11,14 @@
      1. 보호자 맞춤 음성 파일 (`raspberry/voices/voice_{sche_id}.mp3`) 존재 시 최우선 재생.
      2. 해당 파일이 없을 경우 기본 알림음 (`raspberry/voices/default_voice.mp3`) 재생.
 
-2. **카메라 준비 (Camera Preparation)**
-   - 알람 발생과 동시에 `raspberry/camera/camera.py`를 통해 카메라 모듈을 활성화하고 스트리밍 준비 상태로 전환합니다.
+2. **카메라 준비 및 얼굴 추적 (Camera & Gimbal Tracking)**
+   - 알람 발생과 동시에 `raspberry/camera/camera.py`를 통해 카메라 모듈을 활성화합니다.
+   - **2축 짐벌 제어**: `raspberry/hardware/gimbal.py`를 사용하여 감지된 얼굴이 프레임 중앙에 오도록 서보 모터(Pan, Tilt)를 실시간 조정합니다.
+   - 사용자가 움직이더라도 안정적인 인증 환경을 제공합니다.
 
-3. **사용자 인증 (User Authentication) - *구현 예정***
-   - 안면 인식 또는 지문 인식을 통한 본인 확인 단계입니다.
-   - 현재 모듈 통합 작업이 진행 중입니다.
+3. **사용자 인증 (User Authentication)**
+   - 안면 인식(`FaceThread`) 또는 지문 인식을 통한 본인 확인 단계입니다.
+   - 짐벌 추적을 통해 최적의 안면 이미지를 획득하여 인증 성공률을 높입니다.
 
 4. **약제 배출 (Dispensing Control)**
    - 사용자 인증이 성공하면 `raspberry/hardware/motor.py`를 통해 하드웨어를 제어합니다.
@@ -27,4 +29,4 @@
    - 검증 완료 후 모든 하드웨어(카메라, 알람)는 대기 상태로 복귀합니다.
 
 ---
-*최종 업데이트: 2026-04-28*
+*최종 업데이트: 2026-04-29*
