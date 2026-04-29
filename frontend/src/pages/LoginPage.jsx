@@ -30,6 +30,8 @@ function startSocialLogin(provider) {
     console.error(`social login start URL could not be created: ${provider}`)
     return
   }
+
+  console.log('[social-login:debug]', { provider, loginUrl })
   window.location.assign(loginUrl)
 }
 
