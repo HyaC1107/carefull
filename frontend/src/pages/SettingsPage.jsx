@@ -9,6 +9,7 @@ import SettingActionRow from '../components/settings/SettingActionRow'
 import GuardianEditModal from '../components/settings/GuardianEditModal'
 import PatientEditModal from '../components/settings/PatientEditModal'
 import VoiceUploadTab from '../components/settings/VoiceUploadTab'
+import AlarmSoundTab from '../components/settings/AlarmSoundTab'
 import { hasStoredToken, requestJson, TOKEN_STORAGE_KEY } from '../api'
 import '../styles/SettingsPage.css'
 import '../styles/MobileBottomNav.css'
@@ -74,6 +75,7 @@ const ACCOUNT_ACTION_ITEMS = [
 
 const TABS = [
   { key: 'general', label: '일반 설정' },
+  { key: 'alarm', label: '알림음' },
   { key: 'voice', label: '보호자 목소리' },
 ]
 
@@ -209,6 +211,12 @@ function SettingsPage() {
                   ))}
                 </SettingsSectionCard>
               </>
+            )}
+
+            {activeTab === 'alarm' && (
+              <SettingsSectionCard title="알림음 설정">
+                <AlarmSoundTab />
+              </SettingsSectionCard>
             )}
 
             {activeTab === 'voice' && (
