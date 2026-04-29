@@ -93,7 +93,6 @@ function SettingsPage() {
   const [patientData, setPatientData] = useState(null)
   const [isPatientModalOpen, setIsPatientModalOpen] = useState(false)
   const [isGuardianModalOpen, setIsGuardianModalOpen] = useState(false)
-  const [isPatientModalOpen, setIsPatientModalOpen] = useState(false)
 
   useEffect(() => {
     if (!hasStoredToken()) return
