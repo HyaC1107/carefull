@@ -18,12 +18,9 @@ const device_router = require('./routes/device');
 const face_data_router = require('./routes/face-data');
 const notification_router = require('./routes/notification');
 const activity_router = require('./routes/activity');
-<<<<<<< HEAD
 const push_router = require('./routes/push');
-=======
 const admin_router    = require('./routes/admin');
 const voice_router    = require('./routes/voice');
->>>>>>> main
 
 const { startMissedLogJob } = require('./jobs/missed-activity-job');
 

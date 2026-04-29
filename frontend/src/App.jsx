@@ -13,15 +13,9 @@ import { hasStoredToken } from './api'
 import { registerFcmTokenForCurrentUser } from './firebase-messaging'
 import { HeaderDataProvider } from './context/HeaderDataContext'
 
-function ProtectedRoute({ children }) {
-  if (!hasStoredToken()) {
-    return <Navigate to="/login" replace />
-  }
-  return children
-}
+
 import AdminLoginPage from './pages/AdminLoginPage'
 import AdminDashboardPage from './pages/AdminDashboardPage'
-import { hasStoredToken } from './api'
 import { hasAdminToken } from './adminApi'
 
 function App() {
