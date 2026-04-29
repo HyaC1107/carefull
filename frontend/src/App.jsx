@@ -8,15 +8,9 @@ import AlertsPage from './pages/AlertsPage'
 import PatientPage from './pages/PatientPage'
 import SettingsPage from './pages/SettingsPage'
 import { useFCM } from './hooks/useFCM'
-import { hasStoredToken } from './api'
 import { HeaderDataProvider } from './context/HeaderDataContext'
 
-function ProtectedRoute({ children }) {
-  if (!hasStoredToken()) {
-    return <Navigate to="/login" replace />
-  }
-  return children
-}
+
 import AdminLoginPage from './pages/AdminLoginPage'
 import AdminDashboardPage from './pages/AdminDashboardPage'
 import { hasStoredToken } from './api'
