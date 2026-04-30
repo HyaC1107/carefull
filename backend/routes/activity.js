@@ -184,6 +184,28 @@ const touch_device_last_ping_by_device_uid = async (executor, device_uid) => {
     );
 };
 
+const parse_optional_date = (value) => {
+    if (!value || !String(value).trim()) {
+        return null;
+    }
+
+    const date = new Date(value);
+
+    return Number.isNaN(date.getTime()) ? null : date;
+};
+
+const parse_optional_non_negative_integer = (value) => {
+    if (value === undefined || value === null || value === '') {
+        return null;
+    }
+
+    const parsed = Number(value);
+
+    return Number.isSafeInteger(parsed) && parsed >= 0 ? parsed : null;
+};
+
+const is_date_only_string = (value) => /^\d{4}-\d{2}-\d{2}$/.test(String(value || '').trim());
+
 router.post('/', verifyToken, async (req, res) => {
     const mem_id = req.user.mem_id;
 
@@ -562,6 +584,46 @@ router.get('/', verifyToken, async (req, res) => {
             return sendError(res, 404, 'Patient not found.');
         }
 
+        const params = [patient_id];
+        const where_clauses = ['patient_id = $1'];
+        const from_date = parse_optional_date(req.query.from);
+        const to_date = parse_optional_date(req.query.to);
+        const limit = parse_optional_non_negative_integer(req.query.limit);
+        const offset = parse_optional_non_negative_integer(req.query.offset);
+
+        if (from_date) {
+            params.push(from_date.toISOString());
+            where_clauses.push(`sche_time >= $${params.length}`);
+        }
+
+        if (to_date) {
+            const normalized_to_date = new Date(to_date);
+
+            if (is_date_only_string(req.query.to)) {
+                normalized_to_date.setDate(normalized_to_date.getDate() + 1);
+            }
+
+            params.push(normalized_to_date.toISOString());
+            where_clauses.push(
+                is_date_only_string(req.query.to)
+                    ? `sche_time < $${params.length}`
+                    : `sche_time <= $${params.length}`
+            );
+        }
+
+        const limit_clause = limit && limit > 0
+            ? (() => {
+                params.push(limit);
+                return `LIMIT $${params.length}`;
+            })()
+            : '';
+        const offset_clause = offset !== null
+            ? (() => {
+                params.push(offset);
+                return `OFFSET $${params.length}`;
+            })()
+            : '';
+
         const query = `
             SELECT
                 activity_id,
@@ -575,11 +637,13 @@ router.get('/', verifyToken, async (req, res) => {
                 similarity_score,
                 created_at
             FROM activities
-            WHERE patient_id = $1
+            WHERE ${where_clauses.join(' AND ')}
             ORDER BY sche_time DESC NULLS LAST, activity_id DESC
+            ${limit_clause}
+            ${offset_clause}
         `;
 
-        const { rows } = await pool.query(query, [patient_id]);
+        const { rows } = await pool.query(query, params);
 
         return sendSuccess(res, 200, {
             activities: rows.map(to_activity_response)

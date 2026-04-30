@@ -61,6 +61,11 @@
   gap: 20px;
 }
 
+.settings-section-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
 /* 공통 row */
 .settings-row {
   display: flex;

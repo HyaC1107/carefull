@@ -33,9 +33,10 @@ function SchedulePage() {
       }
 
       try {
+        const activityLogPath = buildMonthActivityLogPath(year, month)
         const [scheduleData, activityData] = await Promise.all([
           requestJson('/api/schedule', { auth: true }),
-          requestJson('/api/log', { auth: true }),
+          requestJson(activityLogPath, { auth: true }),
         ])
 
         setSchedules(Array.isArray(scheduleData?.schedules) ? scheduleData.schedules : [])
@@ -46,7 +47,7 @@ function SchedulePage() {
     }
 
     fetchScheduleData()
-  }, [])
+  }, [month, year])
 
   const scheduleMap = useMemo(
     () => buildScheduleMap(schedules, backendCompletedKeys, year, month),
@@ -243,6 +244,16 @@ function createInitialCalendarState() {
       today.getDate(),
     ),
   }
+}
+
+function buildMonthActivityLogPath(year, month) {
+  const lastDay = new Date(year, month, 0).getDate()
+  const params = new URLSearchParams({
+    from: formatDateKey(year, month, 1),
+    to: formatDateKey(year, month, lastDay),
+  })
+
+  return `/api/log?${params.toString()}`
 }
 
 function buildCompletedKeySet(activities = []) {

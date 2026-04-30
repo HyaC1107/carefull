@@ -9,6 +9,9 @@ import PatientEmptyState from '../components/patient/PatientEmptyState'
 import DeviceRegisterModal from '../components/patient/DeviceRegisterModal'
 import PatientRegisterModal from '../components/patient/PatientRegisterModal'
 import {
+  getDeviceStatus,
+  getDeviceStatusClass,
+  getDeviceStatusText,
   getStoredAuthPayload,
   hasStoredToken,
   requestJson,
@@ -47,8 +50,8 @@ function PatientPage() {
       try {
         const [patientResponse, deviceResponse, scheduleResponse] =
           await Promise.all([
-            requestJson('/api/patient/me', { auth: true }).catch(() => null),
-            requestJson('/api/device/me', { auth: true }).catch(() => null),
+            requestOptionalJson('/api/patient/me'),
+            requestOptionalJson('/api/device/me'),
             requestJson('/api/schedule', { auth: true }).catch(() => null),
           ])
 
@@ -62,10 +65,9 @@ function PatientPage() {
         setPatientData(mapPatientProfile(patient, nickname))
         setDeviceData(mapDeviceDetail(device))
         setMedications(mapPatientMedications(scheduleResponse?.schedules))
+        setIsRegistrationCheckLoading(false)
       } catch (error) {
         console.error('patient page fetch error:', error)
-      } finally {
-        setIsRegistrationCheckLoading(false)
       }
     }
 
@@ -297,26 +299,52 @@ function hasRegisteredDevice(device) {
   return Boolean(device?.device_id || device?.device_uid)
 }
 
+async function requestOptionalJson(path) {
+  try {
+    return await requestJson(path, { auth: true })
+  } catch (error) {
+    if (error.status === 404) {
+      return null
+    }
+
+    throw error
+  }
+}
+
 function buildDeviceStatusList(deviceData) {
   if (!deviceData) {
+    const status = getDeviceStatus(deviceData)
+
     return [
-      { id: 'connection', label: '연결 상태', value: '미연결', type: 'success' },
+      {
+        id: 'connection',
+        label: '연결 상태',
+        value: getDeviceStatusText(status),
+        statusClass: getDeviceStatusClass(status),
+        type: 'success',
+      },
       { id: 'status', label: '디바이스 상태', value: '-', type: 'primary' },
       { id: 'sync', label: '마지막 동기화', value: '-', type: 'info' },
     ]
   }
 
+  const status = getDeviceStatus(deviceData)
+  const statusText = getDeviceStatusText(status)
+  const statusClass = getDeviceStatusClass(status)
+
   return [
     {
       id: 'connection',
       label: '연결 상태',
-      value: deviceData.is_connected ? '연결됨' : '연결 안 됨',
+      value: statusText,
+      statusClass,
       type: 'success',
     },
     {
       id: 'status',
       label: '디바이스 상태',
-      value: deviceData.device_status,
+      value: statusText,
+      statusClass,
       type: 'primary',
     },
     {
