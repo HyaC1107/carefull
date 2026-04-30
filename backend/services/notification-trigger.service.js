@@ -355,5 +355,6 @@ module.exports = {
     trigger_activity_notification,
     trigger_activity_notification_safe,
     trigger_low_stock_notification,
-    to_notification_response
+    to_notification_response,
+    send_fcm_push_safe
 };
