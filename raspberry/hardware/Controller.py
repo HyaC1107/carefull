@@ -111,9 +111,9 @@ class Controller(threading.Thread):
                         medi_name = s.get("medi_name", "약")
                         logger.info(f"Schedule due: {medi_name} (ID: {sche_id}) — alarm only, UI handles the rest")
 
-                        # 알람만 울림 — 인증/배출/검증은 app.py UI 흐름이 담당
-                        custom_voice = f"voice_{sche_id}.mp3"
-                        play_alarm(custom_voice)
+#                        # 알람만 울림 — 인증/배출/검증은 app.py UI 흐름이 담당
+#                        custom_voice = f"voice_{sche_id}.mp3"
+#                        play_alarm(custom_voice)
                         
                 time.sleep(30)
                 
