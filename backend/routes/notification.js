@@ -28,12 +28,12 @@ router.post('/fcm-token', verifyToken, async (req, res) => {
     try {
         await pool.query(
             `
-            INSERT INTO push_tokens (mem_id, fcm_token)
-            VALUES ($1, $2)
+            INSERT INTO push_tokens (mem_id, fcm_token, is_active, updated_at)
+            VALUES ($1, $2, TRUE, CURRENT_TIMESTAMP)
             ON CONFLICT (fcm_token)
             DO UPDATE SET
                 mem_id = EXCLUDED.mem_id,
-                is_active = true,
+                is_active = TRUE,
                 updated_at = CURRENT_TIMESTAMP
             `,
             [mem_id, String(fcm_token).trim()]

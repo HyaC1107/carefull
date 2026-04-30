@@ -298,7 +298,7 @@ const trigger_activity_notification = async (executor, payload) => {
 const send_fcm_push_safe = async (mem_id, title, body) => {
     try {
         const { rows } = await pool.query(
-            'SELECT fcm_token FROM push_tokens WHERE mem_id = $1 AND is_active = TRUE',
+            'SELECT fcm_token FROM push_tokens WHERE mem_id = $1 AND is_active IS NOT FALSE',
             [mem_id]
         );
         const tokens = rows.map(r => r.fcm_token).filter(Boolean);

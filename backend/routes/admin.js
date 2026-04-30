@@ -344,8 +344,8 @@ router.post('/test/push', verifyAdminToken, async (req, res) => {
         // push_tokens 테이블에서 해당 회원의 활성 토큰 수 먼저 확인
         const pool = require('../db');
         const { rows: tokenRows } = await pool.query(
-            'SELECT fcm_token FROM push_tokens WHERE mem_id = $1 AND is_active = TRUE',
-            [mem_id]
+            'SELECT fcm_token FROM push_tokens WHERE mem_id = $1 AND is_active IS NOT FALSE',
+            [parseInt(mem_id, 10)]
         );
         if (tokenRows.length === 0) {
             return res.status(400).json({
