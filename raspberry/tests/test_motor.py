@@ -48,7 +48,7 @@ def test_stepper_motor():
     logger.info("--- 스텝 모터 테스트 시작 (512 steps) ---")
     try:
         # 512단계 회전 테스트
-        _run_step_motor(512, delay=0.002)
+        _run_step_motor(-256, delay=0.002)
         logger.info("스텝 모터 테스트 완료")
     except Exception as e:
         logger.error(f"스텝 모터 테스트 실패: {e}")
