@@ -48,7 +48,7 @@ def test_stepper_simple():
     logger.info("--- [단순 회전] 스텝 모터 테스트 시작 (-256 steps) ---")
     try:
         # 가감속은 포함된 기본 회전
-        _run_step_motor(-256, delay=0.005)
+        _run_step_motor(-256, delay=0.010)
         logger.info("[단순 회전] 테스트 완료")
     except Exception as e:
         logger.error(f"스텝 모터 테스트 실패: {e}")
@@ -59,7 +59,7 @@ def test_stepper_jiggle():
     logger.info("--- [지글링 패턴] 스텝 모터 테스트 시작 (-256 steps) ---")
     try:
         # 지글링 패턴 적용 테스트
-        _run_step_motor_with_jiggle(total_steps=-256, chunk_size=64, jiggle_steps=12, delay=0.005)
+        _run_step_motor_with_jiggle(total_steps=-256, chunk_size=64, jiggle_steps=12, delay=0.010)
         logger.info("[지글링 패턴] 테스트 완료")
     except Exception as e:
         logger.error(f"스텝 모터 테스트 실패: {e}")

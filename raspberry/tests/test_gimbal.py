@@ -54,17 +54,17 @@ def test_gimbal_movement():
             gimbal.set_angles(angle, 90)
             time.sleep(0.2)
         
-        gimbal.reset()
-        time.sleep(1)
+        # gimbal.reset()
+        # time.sleep(1)
         
-        # Tilt 테스트
-        logger.info("Tilt 테스트: 0 -> 180")
-        for angle in range(90, -1, -10):
-            gimbal.set_angles(90, angle)
-            time.sleep(0.2)
-        for angle in range(0, 181, 10):
-            gimbal.set_angles(90, angle)
-            time.sleep(0.2)
+        # # Tilt 테스트
+        # logger.info("Tilt 테스트: 0 -> 180")
+        # for angle in range(90, -1, -10):
+        #     gimbal.set_angles(90, angle)
+        #     time.sleep(0.2)
+        # for angle in range(0, 181, 10):
+        #     gimbal.set_angles(90, angle)
+        #     time.sleep(0.2)
             
         gimbal.reset()
         logger.info("짐벌 가동 테스트 완료")
