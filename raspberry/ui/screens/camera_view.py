@@ -127,6 +127,20 @@ class CameraViewScreen(QWidget):
         self._camera_card = CameraCardWidget(parent=self)
         self._gradient    = _GradientOverlay(parent=self)
 
+        # 중단 버튼 추가
+        self._btn_cancel = QPushButton("중단", parent=self)
+        self._btn_cancel.setFont(QFont("Sans Serif", 20, QFont.Bold))
+        self._btn_cancel.setStyleSheet("""
+            QPushButton {
+                background: rgba(255, 255, 255, 180);
+                color: #374151;
+                border: 2px solid #d0d5dd;
+                border-radius: 12px;
+            }
+            QPushButton:pressed { background: white; }
+        """)
+        self._btn_cancel.clicked.connect(self._on_cancel)
+
         self._title_lbl = QLabel(parent=self)
         self._title_lbl.setFont(QFont("Sans Serif", 42, QFont.Bold))
         self._title_lbl.setAlignment(Qt.AlignCenter)
@@ -153,6 +167,9 @@ class CameraViewScreen(QWidget):
         w, h = self.width(), self.height()
 
         self._camera_card.setGeometry(0, 0, w, h)
+
+        # 우측 상단 중단 버튼 배치
+        self._btn_cancel.setGeometry(w - 140, 25, 120, 60)
 
         overlay_h = int(h * 0.32)
         self._gradient.setGeometry(0, h - overlay_h, w, overlay_h)
@@ -260,6 +277,11 @@ class CameraViewScreen(QWidget):
 
     # ─────────────────────────────── 콜백: auth ──────────────────────────────
 
+    def _on_cancel(self):
+        self._stop_thread()
+        if self._app:
+            self._app.show_screen("home")
+
     def _on_auth_success(self, user: str, score: float):
         self._stop_thread()
         if self._app:
@@ -277,7 +299,16 @@ class CameraViewScreen(QWidget):
     # ─────────────────────────────── 콜백: register ──────────────────────────
 
     def _on_progress(self, count: int):
-        self._sub_lbl.setText(f"촬영 중...  ({count} / 20)")
+        if count <= 5:
+            guide = "정면을 바라봐 주세요"
+        elif count <= 10:
+            guide = "고개를 왼쪽으로 살짝 돌려주세요"
+        elif count <= 15:
+            guide = "고개를 오른쪽으로 살짝 돌려주세요"
+        else:
+            guide = "고개를 위아래로 천천히 움직여주세요"
+            
+        self._sub_lbl.setText(f"{guide}  ({count} / 20)")
 
     def _on_capture_done(self, face_imgs: list):
         self._sub_lbl.setText("저장 중...")

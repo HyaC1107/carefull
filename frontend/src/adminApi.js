@@ -39,3 +39,10 @@ export async function adminRequest(path, { method = 'GET', body } = {}) {
 
   return data || {}
 }
+
+export async function sendTestPush(mem_id, title, body) {
+  return adminRequest('/api/admin/test/push', {
+    method: 'POST',
+    body: { mem_id, title, body }
+  })
+}

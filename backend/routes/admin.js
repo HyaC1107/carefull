@@ -334,4 +334,21 @@ router.delete('/test/patient/:patient_id', verifyAdminToken, async (req, res) =>
     }
 });
 
+// ── POST /api/admin/test/push ─────────────────────────────────────────────
+router.post('/test/push', verifyAdminToken, async (req, res) => {
+    const { mem_id, title, body } = req.body;
+    if (!mem_id || !title || !body)
+        return res.status(400).json({ success: false, message: 'mem_id, title, body 필수' });
+
+    try {
+        const { send_fcm_push_safe } = require('../services/notification-trigger.service');
+        // notification-trigger.service.js 에 있는 send_fcm_push_safe 함수 활용
+        await send_fcm_push_safe(mem_id, title, body);
+        return res.json({ success: true, message: '푸시 알림 전송 요청을 보냈습니다.' });
+    } catch (err) {
+        console.error('[ADMIN TEST PUSH]', err);
+        return res.status(500).json({ success: false, message: err.message });
+    }
+});
+
 module.exports = router;
