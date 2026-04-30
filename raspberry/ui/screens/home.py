@@ -154,7 +154,7 @@ class HomeScreen(QWidget):
     def _build_ui(self):
         self.setStyleSheet(f"HomeScreen {{ background-color: {_BG}; }}")
         root = QVBoxLayout(self)
-        root.setContentsMargins(28, 18, 28, 18)
+        root.setContentsMargins(80, 20, 80, 20)
         root.setSpacing(0)
 
         root.addStretch(1)
@@ -231,42 +231,42 @@ class HomeScreen(QWidget):
 
         # ── 메인 버튼 (사용자 등록 / 설정) ───────────────────────────────────
         btn_row = QHBoxLayout()
-        btn_row.setSpacing(16)
+        btn_row.setSpacing(24)
 
         self._btn_register = _MenuButton(
             "register.png", "등록", "사용자 등록",
             lambda: self._go("register"),
-            icon_size=76, font_size=42,
+            icon_size=90, font_size=42,
         )
         self._btn_register.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
-        self._btn_register.setMinimumHeight(170)
+        self._btn_register.setMinimumHeight(280)
         self._btn_register.hide()
 
         btn_settings = _MenuButton(
             "settings.png", "설정", "설정",
             lambda: self._go("settings"),
-            icon_size=76, font_size=42,
+            icon_size=90, font_size=42,
         )
         btn_settings.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
-        btn_settings.setMinimumHeight(170)
+        btn_settings.setMinimumHeight(280)
 
         btn_row.addWidget(self._btn_register)
         btn_row.addWidget(btn_settings)
         root.addLayout(btn_row)
 
-        root.addSpacing(10)
+        root.addSpacing(16)
 
         # ── 테스트 단축 버튼 1줄 ─────────────────────────────────────────────
         test_row1 = QHBoxLayout()
-        test_row1.setSpacing(10)
+        test_row1.setSpacing(12)
 
         btn_face_test = _MenuButton(
             "camera_auth.png", "얼굴", "얼굴 인증 테스트",
             lambda: self._go_auth_test(),
-            icon_size=48, font_size=28,
+            icon_size=56, font_size=28,
         )
         btn_face_test.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
-        btn_face_test.setMinimumHeight(108)
+        btn_face_test.setMinimumHeight(130)
         btn_face_test.setStyleSheet(
             "QWidget { background-color: #eff6ff; border: 2px solid #93c5fd; border-radius: 14px; }"
         )
@@ -274,10 +274,10 @@ class HomeScreen(QWidget):
         btn_reg_test = _MenuButton(
             "register.png", "등록", "사용자 등록",
             lambda: self._go("register"),
-            icon_size=48, font_size=28,
+            icon_size=56, font_size=28,
         )
         btn_reg_test.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
-        btn_reg_test.setMinimumHeight(108)
+        btn_reg_test.setMinimumHeight(130)
         btn_reg_test.setStyleSheet(
             "QWidget { background-color: #f5f0ff; border: 2px solid #c4b5fd; border-radius: 14px; }"
         )
@@ -286,19 +286,19 @@ class HomeScreen(QWidget):
         test_row1.addWidget(btn_reg_test)
         root.addLayout(test_row1)
 
-        root.addSpacing(10)
+        root.addSpacing(12)
 
         # ── 테스트 단축 버튼 2줄 ─────────────────────────────────────────────
         test_row2 = QHBoxLayout()
-        test_row2.setSpacing(10)
+        test_row2.setSpacing(12)
 
         btn_med_test = _MenuButton(
             "medication.png", "복약", "복약행위 검증",
             lambda: self._go("medication"),
-            icon_size=48, font_size=28,
+            icon_size=56, font_size=28,
         )
         btn_med_test.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
-        btn_med_test.setMinimumHeight(108)
+        btn_med_test.setMinimumHeight(130)
         btn_med_test.setStyleSheet(
             "QWidget { background-color: #f0fdf4; border: 2px solid #86efac; border-radius: 14px; }"
         )
@@ -306,10 +306,10 @@ class HomeScreen(QWidget):
         btn_fp_reg = _MenuButton(
             "fingerprint.png", "지문", "지문 등록",
             lambda: self._go("fingerprint_register"),
-            icon_size=48, font_size=28,
+            icon_size=56, font_size=28,
         )
         btn_fp_reg.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
-        btn_fp_reg.setMinimumHeight(108)
+        btn_fp_reg.setMinimumHeight(130)
         btn_fp_reg.setStyleSheet(
             "QWidget { background-color: #fdf4ff; border: 2px solid #e9d5ff; border-radius: 14px; }"
         )
@@ -317,10 +317,10 @@ class HomeScreen(QWidget):
         btn_fp_test = _MenuButton(
             "fingerprint.png", "지문", "지문 인증 테스트",
             lambda: self._go_fp_test(),
-            icon_size=48, font_size=28,
+            icon_size=56, font_size=28,
         )
         btn_fp_test.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
-        btn_fp_test.setMinimumHeight(108)
+        btn_fp_test.setMinimumHeight(130)
         btn_fp_test.setStyleSheet(
             "QWidget { background-color: #fff7ed; border: 2px solid #fed7aa; border-radius: 14px; }"
         )
@@ -330,7 +330,7 @@ class HomeScreen(QWidget):
         test_row2.addWidget(btn_fp_test)
         root.addLayout(test_row2)
 
-        root.addSpacing(10)
+        root.addStretch(1)
 
         # ── 기기 UID ──────────────────────────────────────────────────────────
         uid_text = DEVICE_UID or "(UID 미생성)"

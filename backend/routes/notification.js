@@ -27,10 +27,19 @@ router.post('/fcm-token', verifyToken, async (req, res) => {
 
     try {
         await pool.query(
-            'UPDATE members SET fcm_token = $1 WHERE mem_id = $2',
-            [String(fcm_token).trim(), mem_id]
+            `
+            INSERT INTO push_tokens (mem_id, fcm_token)
+            VALUES ($1, $2)
+            ON CONFLICT (fcm_token)
+            DO UPDATE SET
+                mem_id = EXCLUDED.mem_id,
+                is_active = true,
+                updated_at = CURRENT_TIMESTAMP
+            `,
+            [mem_id, String(fcm_token).trim()]
         );
-        return sendSuccess(res, 200, { message: 'FCM token updated.' });
+
+        return sendSuccess(res, 200, { message: 'FCM token registered.' });
     } catch (err) {
         console.error('FCM token update error:', err);
         return sendError(res, 500, 'Server error while updating FCM token.');
