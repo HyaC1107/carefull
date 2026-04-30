@@ -86,30 +86,28 @@ class Gimbal:
         error_y = face_center_y - frame_center_y
         
         # 데드존 (불필요한 미세 떨림 방지)
-        threshold = 30 
+        self.threshold = 40 
         
-        # 이동 단계 (각도)
-        pan_step = 1.5
-        tilt_step = 1.0
+        # 이동 단계 (각도 크기 하향 조정: 1.5 -> 0.8, 1.0 -> 0.5)
+        self.pan_step = 0.8
+        self.tilt_step = 0.5
         
         new_pan = self.pan_angle
         new_tilt = self.tilt_angle
         
         # Pan 조정 (좌우 회전)
-        if abs(error_x) > threshold:
-            # error_x > 0 이면 얼굴이 중앙보다 오른쪽에 있음
+        if abs(error_x) > self.threshold:
             if error_x > 0:
-                new_pan -= pan_step  # 카메라를 오른쪽으로 회전
+                new_pan -= self.pan_step
             else:
-                new_pan += pan_step  # 카메라를 왼쪽으로 회전
+                new_pan += self.pan_step
                 
         # Tilt 조정 (상하 회전)
-        if abs(error_y) > threshold:
-            # error_y > 0 이면 얼굴이 중앙보다 아래쪽에 있음
+        if abs(error_y) > self.threshold:
             if error_y > 0:
-                new_tilt += tilt_step # 카메라를 아래로 숙임
+                new_tilt += self.tilt_step
             else:
-                new_tilt -= tilt_step # 카메라를 위로 들어올림
+                new_tilt -= self.tilt_step
                 
         self.set_angles(new_pan, new_tilt)
 
