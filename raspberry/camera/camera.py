@@ -10,36 +10,47 @@ _USE_WEBCAM = os.getenv("CAREFULL_USE_WEBCAM", "0") == "1"
 
 _picam2 = None
 _webcam: cv2.VideoCapture | None = None
+_picam2_available = True # Picamera2 가동 가능 여부 플래그
 
 
 # ──────────────────────────────── Picamera2 ───────────────────────────────────
 
 def _init_picamera():
-    global _picam2
+    global _picam2, _picam2_available
     if _picam2 is not None:
         return _picam2
-    from picamera2 import Picamera2
-    cam = Picamera2()
-    cam.configure(
-        cam.create_preview_configuration(
-            main={"size": (CAMERA_WIDTH, CAMERA_HEIGHT), "format": "RGB888"}
+    if not _picam2_available:
+        return None
+        
+    try:
+        from picamera2 import Picamera2
+        cam = Picamera2()
+        cam.configure(
+            cam.create_preview_configuration(
+                main={"size": (CAMERA_WIDTH, CAMERA_HEIGHT), "format": "RGB888"}
+            )
         )
-    )
-    cam.start()
-    time.sleep(CAMERA_WARMUP_SECONDS)
-    _picam2 = cam
-    return _picam2
+        cam.start()
+        time.sleep(CAMERA_WARMUP_SECONDS)
+        _picam2 = cam
+        return _picam2
+    except Exception as e:
+        _picam2_available = False # 한 번 실패하면 해당 세션에서는 다시 시도하지 않음
+        print(f"[CAMERA/PICAM ERROR] {e} - Picamera2 disabled, falling back to webcam.")
+        return None
 
 
 def _get_frame_picamera() -> "cv2.ndarray | None":
+    cam = _init_picamera()
+    if cam is None:
+        return None
     try:
-        cam = _init_picamera()
         frame = cam.capture_array()
         if frame is None:
             return None
         return cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
     except Exception as e:
-        print(f"[CAMERA/PICAM ERROR] {e}")
+        print(f"[CAMERA/PICAM CAPTURE ERROR] {e}")
         return None
 
 
