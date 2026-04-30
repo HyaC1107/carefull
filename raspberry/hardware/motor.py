@@ -33,8 +33,9 @@ def dispense_medicine(user=None):
     logger.info(f"Dispensing medicine for user: {user}")
     
     try:
-        # 1. 스텝 모터 회전 (예: 512단계 = 90도 정도)
-        _run_step_motor(steps=512, delay=0.002)
+        # 1. 스텝 모터 회전 (-256단계)
+        # 4/30 : 스텝모터 시계방향 수정 및 delay 0.002 -> 0.005로 변경
+        _run_step_motor(steps=-256, delay=0.005)
         
         # 2. 펌프 모터 제어 (일단 비워둠)
         _run_pump_motor(duration=2)
