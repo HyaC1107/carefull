@@ -159,6 +159,28 @@ GitHub main push ≠ 자동 배포 보장
 
 ---
 
+## Merge Conflict 해결 원칙
+
+- Accept Current / Accept Incoming / Accept Both를 기계적으로 선택하지 않는다.
+- HEAD 기능과 incoming 기능을 비교해서 둘 다 필요한 경우 제3의 병합 코드를 작성한다.
+- HEAD는 현재 작업 브랜치, incoming은 병합해오는 브랜치다.
+- 한쪽 전체 파일 선택 금지.
+- 중복 import, 중복 함수, 중복 useEffect, 중복 route mount 제거.
+- 환경변수 기반 수정은 유지한다.
+- main의 기존 서비스 기능은 삭제하지 않는다.
+- FCM/PWA/service worker/vite.config 충돌은 반드시 양쪽 의도를 비교한다.
+- 충돌 해결 후 `git grep -n "<<<<<<<"`로 마커 잔여 확인.
+- 충돌 해결 후 최소 `npm run build` 또는 해당 서버 실행 검증.
+
+## 환경변수 파일 보호 규칙
+
+- `.env`, `.env.*`, `frontend/.env`, `backend/.env` 실파일은 절대 삭제/초기화/덮어쓰기 금지.
+- 환경변수 기반으로 코드를 수정할 때도 기존 `.env` 파일의 존재와 값을 보존해야 한다.
+- `.env` 파일이 없거나 비어 있으면 임의 생성/초기화하지 말고 사용자에게 보고한다.
+- 실제 비밀값, API 키, 도메인 값은 임의로 작성하지 않는다.
+- 예시가 필요하면 `.env.example` 또는 문서에만 작성한다.
+- 작업 후 `.env` 파일 존재 여부와 크기 변경 여부를 반드시 보고한다.
+
 ## 1. 프로젝트 목적
 
 AI 기반 복약 관리 시스템
