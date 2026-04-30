@@ -34,13 +34,9 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(levelname)s] %(me
 logger = logging.getLogger("GimbalTest")
 
 class StandaloneGimbal:
-    """
-    독립형 일반 버전 짐벌 클래스
-    표준적인 이동 속도와 데드존 설정 적용
-    """
     def __init__(self):
-        self.pan_pin = PAN_PIN   # 13
-        self.tilt_pin = TILT_PIN # 19
+        self.pan_pin = PAN_PIN
+        self.tilt_pin = TILT_PIN
         self.pan_angle = 90
         self.tilt_angle = 90
         
@@ -54,9 +50,8 @@ class StandaloneGimbal:
         self.pan_pwm.start(self._angle_to_duty(self.pan_angle))
         self.tilt_pwm.start(self._angle_to_duty(self.tilt_angle))
         
-        # 일반 버전 설정
-        self.threshold = 35      # 표준 데드존
-        self.pan_step = 1.2      # 표준 이동 속도
+        self.threshold = 35
+        self.pan_step = 1.2
         self.tilt_step = 0.8
 
     def _angle_to_duty(self, angle):
@@ -88,43 +83,60 @@ class StandaloneGimbal:
         self.pan_pwm.stop()
         self.tilt_pwm.stop()
 
+def _show_frame_with_info(gimbal, title="Gimbal Test"):
+    """화면을 가져와서 현재 각도 정보를 입혀서 보여줌"""
+    frame = get_frame()
+    if frame is not None:
+        cv2.line(frame, (CAMERA_WIDTH//2, 0), (CAMERA_WIDTH//2, CAMERA_HEIGHT), (255,0,0), 1)
+        cv2.line(frame, (0, CAMERA_HEIGHT//2), (CAMERA_WIDTH, CAMERA_HEIGHT//2), (255,0,0), 1)
+        cv2.putText(frame, f"PAN: {gimbal.pan_angle:.1f} TILT: {gimbal.tilt_angle:.1f}", 
+                    (20, 40), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
+        cv2.imshow(title, frame)
+        cv2.waitKey(1)
+    return frame
+
 def test_gimbal_movement_general():
-    """일반 가동 범위 테스트 (0 ~ 180도)"""
-    logger.info("--- [일반] 짐벌 전체 가동 범위 테스트 시작 ---")
+    """일반 가동 범위 테스트 (화면 동시 출력)"""
+    logger.info("--- [일반] 짐벌 가동 테스트 및 화면 출력 시작 ---")
     gimbal = StandaloneGimbal()
     try:
-        # 중앙 -> 최소 -> 최대 -> 중앙
-        logger.info("Pan 테스트 중...")
+        # Pan 테스트
+        logger.info("Pan 테스트 중 (화면 확인)...")
         for angle in range(90, -1, -5):
             gimbal.set_angles(angle, 90)
-            time.sleep(0.05)
+            _show_frame_with_info(gimbal, "Movement Test")
+            time.sleep(0.02)
         for angle in range(0, 181, 5):
             gimbal.set_angles(angle, 90)
-            time.sleep(0.05)
-        gimbal.set_angles(90, 90)
-        time.sleep(0.5)
-
-        logger.info("Tilt 테스트 중...")
-        for angle in range(90, -1, -5):
-            gimbal.set_angles(90, angle)
-            time.sleep(0.05)
-        for angle in range(0, 181, 5):
-            gimbal.set_angles(90, angle)
-            time.sleep(0.05)
+            _show_frame_with_info(gimbal, "Movement Test")
+            time.sleep(0.02)
         gimbal.set_angles(90, 90)
         
-        logger.info("테스트 완료")
+        # Tilt 테스트
+        logger.info("Tilt 테스트 중 (화면 확인)...")
+        for angle in range(90, -1, -5):
+            gimbal.set_angles(90, angle)
+            _show_frame_with_info(gimbal, "Movement Test")
+            time.sleep(0.02)
+        for angle in range(0, 181, 5):
+            gimbal.set_angles(90, angle)
+            _show_frame_with_info(gimbal, "Movement Test")
+            time.sleep(0.02)
+        gimbal.set_angles(90, 90)
+        
+        logger.info("테스트 완료 (창을 닫으려면 'q' 또는 아무 키나 누르세요)")
+        cv2.waitKey(0) # 결과 화면 잠시 유지
     finally:
+        cv2.destroyAllWindows()
         gimbal.stop()
+        release_camera()
 
 def test_gimbal_tracking_general():
     """일반 실시간 추적 테스트"""
     logger.info("--- [일반] 실시간 얼굴 추적 테스트 시작 ---")
     gimbal = StandaloneGimbal()
     try:
-        # 시작 시 중앙 정렬 (선택 사항이나 일반 버전이므로 포함)
         gimbal.set_angles(90, 90)
-        
         while True:
             frame = get_frame()
             if frame is None: continue
@@ -136,13 +148,11 @@ def test_gimbal_tracking_general():
                 x,y,w,h = faces[0]
                 cv2.rectangle(frame, (x,y), (x+w,y+h), (0, 255, 0), 2)
             
-            # 중앙 가이드라인
             cv2.line(frame, (CAMERA_WIDTH//2, 0), (CAMERA_WIDTH//2, CAMERA_HEIGHT), (255,0,0), 1)
             cv2.line(frame, (0, CAMERA_HEIGHT//2), (CAMERA_WIDTH, CAMERA_HEIGHT//2), (255,0,0), 1)
-            
             cv2.putText(frame, f"PAN: {gimbal.pan_angle:.1f} TILT: {gimbal.tilt_angle:.1f}", 
                         (20, 40), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 255, 255), 2)
-            cv2.imshow("General Gimbal Test", frame)
+            cv2.imshow("Tracking Test", frame)
             
             if cv2.waitKey(1) & 0xFF == ord('q'): break
     finally:
@@ -151,10 +161,7 @@ def test_gimbal_tracking_general():
         gimbal.stop()
 
 if __name__ == "__main__":
-    print("========================================")
-    print("   CareFull Gimbal General Test Tool    ")
-    print("========================================")
-    print("1. 일반 가동 범위 테스트 (0~180도)")
+    print("1. 일반 가동 범위 테스트 (화면 포함)")
     print("2. 일반 실시간 추적 테스트")
     print("q. 종료")
     
