@@ -191,6 +191,20 @@
   color: #6b7280;
 }
 
+/* 섹션 내부 액션 영역 */
+.settings-section-actions {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 6px;
+}
+
+.settings-row--action {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
 /* 액션 버튼 */
 .settings-action-button {
   min-width: 58px;

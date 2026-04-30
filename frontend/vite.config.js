@@ -15,7 +15,6 @@ export default defineConfig(({ mode }) => {
       react(),
       VitePWA({
         registerType: 'autoUpdate',
-        filename: 'manifest.json',
         devOptions: {
           enabled: true,
         },
@@ -36,28 +35,28 @@ export default defineConfig(({ mode }) => {
           scope: '/',
           icons: [
             {
-              src: 'favicons/android-chrome-192x192.png',
+              src: '/favicons/android-chrome-192x192.png',
               sizes: '192x192',
               type: 'image/png',
-              purpose: 'any',
+              purpose: 'any maskable',
             },
             {
-              src: 'favicons/android-chrome-512x512.png',
+              src: '/favicons/android-chrome-512x512.png',
               sizes: '512x512',
               type: 'image/png',
-              purpose: 'any',
+              purpose: 'any maskable',
             },
           ],
           screenshots: [
             {
-              src: 'favicons/android-chrome-512x512.png',
+              src: '/favicons/android-chrome-512x512.png',
               sizes: '512x512',
               type: 'image/png',
               form_factor: 'wide',
               label: 'Care-full 대시보드',
             },
             {
-              src: 'favicons/android-chrome-512x512.png',
+              src: '/favicons/android-chrome-512x512.png',
               sizes: '512x512',
               type: 'image/png',
               label: 'Care-full 모바일',

@@ -75,6 +75,7 @@ const ACCOUNT_ACTION_ITEMS = [
 
 const TABS = [
   { key: 'general', label: '일반 설정' },
+  { key: 'notification', label: '알림 설정' },
   { key: 'alarm', label: '알림음' },
   { key: 'voice', label: '보호자 목소리' },
 ]
@@ -300,31 +301,17 @@ function SettingsPage() {
 )}
 
             {activeTab === 'general' && (
-              <>
-                <SettingsSectionCard title="알림 수신 설정">
-                  {NOTIF_TOGGLE_ITEMS.map((item) => (
-                    <SettingToggleRow
-                      key={item.key}
-                      title={item.title}
-                      description={item.description}
-                      checked={notifPrefs[item.key]}
-                      onChange={() => handleToggleNotif(item.key)}
-                    />
-                  ))}
-                </SettingsSectionCard>
-
-                <SettingsSectionCard title="계정 설정">
-                  {ACCOUNT_ACTION_ITEMS.map((item) => (
-                    <SettingActionRow
-                      key={item.id}
-                      title={item.title}
-                      description={item.description}
-                      buttonLabel={item.buttonLabel}
-                      onClick={() => handleAccountAction(item.id)}
-                    />
-                  ))}
-                </SettingsSectionCard>
-              </>
+              <SettingsSectionCard title="계정 설정">
+                {ACCOUNT_ACTION_ITEMS.map((item) => (
+                  <SettingActionRow
+                    key={item.id}
+                    title={item.title}
+                    description={item.description}
+                    buttonLabel={item.buttonLabel}
+                    onClick={() => handleAccountAction(item.id)}
+                  />
+                ))}
+              </SettingsSectionCard>
             )}
 
             {activeTab === 'alarm' && (
