@@ -2,7 +2,7 @@ import json
 import os
 
 import numpy as np
-from PyQt5.QtCore import Qt, QTimer
+from PyQt5.QtCore import Qt, QThread, QTimer, pyqtSignal
 from PyQt5.QtGui import QColor, QFont, QLinearGradient, QPainter
 from PyQt5.QtWidgets import QLabel, QWidget
 
@@ -12,6 +12,51 @@ from ui.threads.face_thread import AUTH_TIMEOUT_SEC, FaceThread, MODE_AUTH, MODE
 _DB_PATH = os.path.normpath(
     os.path.join(os.path.dirname(__file__), "..", "..", "db", "user_db.json")
 )
+
+
+class _EmbeddingSaveWorker(QThread):
+    """TFLite 추론 + 서버 업로드를 백그라운드에서 처리."""
+    done = pyqtSignal(bool)   # True = 업로드 성공
+
+    def __init__(self, face_imgs: list, parent=None):
+        super().__init__(parent)
+        self._face_imgs = face_imgs
+
+    def run(self):
+        try:
+            from face_recognition.embedding import get_embedding
+            embeddings = []
+            for img in self._face_imgs:
+                try:
+                    embeddings.append(get_embedding(img))
+                except Exception:
+                    pass
+            if not embeddings:
+                self.done.emit(False)
+                return
+
+            mean_emb = np.mean(np.array(embeddings), axis=0).tolist()
+
+            # 로컬 캐시 저장
+            try:
+                with open(_DB_PATH, "r", encoding="utf-8") as f:
+                    db = json.load(f)
+            except Exception:
+                db = {}
+            db["_latest"] = mean_emb
+            with open(_DB_PATH, "w", encoding="utf-8") as f:
+                json.dump(db, f, ensure_ascii=False, indent=2)
+
+            # 서버 업로드
+            from api.client import upload_face_embedding
+            ok = upload_face_embedding(mean_emb)
+            if not ok:
+                print("[REGISTER] face embedding upload failed")
+            self.done.emit(ok)
+
+        except Exception as e:
+            print(f"[REGISTER ERROR] {e}")
+            self.done.emit(False)
 
 # 얼굴 인증 가이드 메시지 순환 (2초마다 교체)
 _AUTH_GUIDES = [
@@ -63,6 +108,7 @@ class CameraViewScreen(QWidget):
         self._app             = parent
         self._mode            = MODE_AUTH
         self._thread          = None
+        self._save_worker     = None
         self._countdown_timer = None
         self._guide_timer     = None
         self._remaining       = 0
@@ -236,33 +282,13 @@ class CameraViewScreen(QWidget):
     def _on_capture_done(self, face_imgs: list):
         self._sub_lbl.setText("저장 중...")
         self._stop_thread()
-        self._save_mean_embedding(face_imgs)
-        self._app.show_screen("fingerprint_register")
+        # 백그라운드 워커에서 TFLite 추론 + 서버 업로드 (UI 블로킹 방지)
+        self._save_worker = _EmbeddingSaveWorker(face_imgs, parent=self)
+        self._save_worker.done.connect(self._on_save_done)
+        self._save_worker.start()
 
-    def _save_mean_embedding(self, face_imgs: list):
-        try:
-            from face_recognition.embedding import get_embedding
-            embeddings = []
-            for img in face_imgs:
-                try:
-                    embeddings.append(get_embedding(img))
-                except Exception:
-                    pass
-            if not embeddings:
-                return
-            mean_emb = np.mean(np.array(embeddings), axis=0).tolist()
-            try:
-                with open(_DB_PATH, "r", encoding="utf-8") as f:
-                    db = json.load(f)
-            except Exception:
-                db = {}
-            db["_latest"] = mean_emb
-            with open(_DB_PATH, "w", encoding="utf-8") as f:
-                json.dump(db, f, ensure_ascii=False, indent=2)
-            try:
-                from api.client import upload_face_embedding
-                upload_face_embedding(mean_emb)
-            except Exception:
-                pass
-        except Exception as e:
-            print(f"[REGISTER ERROR] {e}")
+    def _on_save_done(self, ok: bool):
+        if not ok:
+            print("[REGISTER] embedding save failed — proceeding to fingerprint step anyway")
+        if self._app:
+            self._app.show_screen("fingerprint_register")

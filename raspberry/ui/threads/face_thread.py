@@ -63,18 +63,25 @@ class FaceThread(QThread):
         from auth.authenticate import authenticate
 
         deadline = time.time() + AUTH_TIMEOUT_SEC
+        frame_count = 0
 
         while self._running and time.time() < deadline:
             frame = get_frame()
             if frame is None:
-                self.msleep(200)
+                self.msleep(30)
                 continue
 
+            # 항상 화면 갱신 시그널을 먼저 보냄
             self.frame_ready.emit(frame.copy())
+            frame_count += 1
+
+            # N프레임마다 한 번씩만 AI 연산 수행
+            if frame_count % _DETECT_EVERY_N != 0:
+                self.msleep(10) # CPU 부하 감소를 위한 짧은 휴식
+                continue
 
             faces = detect_face(frame)
             if not faces:
-                self.msleep(200)
                 continue
 
             x, y, w, h = faces[0]
@@ -87,8 +94,6 @@ class FaceThread(QThread):
                 if self._running:
                     self.auth_success.emit(user, float(score))
                 return
-
-            self.msleep(300)
 
         if self._running:
             self.auth_failed.emit()
