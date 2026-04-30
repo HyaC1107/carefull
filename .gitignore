@@ -59,6 +59,7 @@ datasets/
 *.jpeg
 *.png
 !frontend/public/favicons/*.png
+!frontend/public/*.png
 *.mp4
 *.avi
 
