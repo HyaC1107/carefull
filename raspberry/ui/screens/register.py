@@ -52,21 +52,21 @@ class RegisterScreen(QWidget):
     def _build_ui(self):
         self.setStyleSheet(f"RegisterScreen {{ background-color: {_BG}; }}")
         root = QVBoxLayout(self)
-        root.setContentsMargins(16, 12, 16, 20)
+        root.setContentsMargins(100, 40, 100, 50)
         root.setSpacing(0)
 
         # 뒤로가기 버튼
         back_btn = QPushButton("← 메인으로")
-        back_btn.setFont(QFont("Sans Serif", 18))
-        back_btn.setFixedHeight(44)
+        back_btn.setFont(QFont("Sans Serif", 22))
+        back_btn.setFixedHeight(60)
         back_btn.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
         back_btn.setStyleSheet("""
             QPushButton {
                 background: white;
                 color: #374151;
                 border: 2px solid #d0d5dd;
-                border-radius: 8px;
-                padding: 4px 14px;
+                border-radius: 12px;
+                padding: 4px 20px;
             }
             QPushButton:pressed { background: #f0f0f0; }
         """)
@@ -79,60 +79,61 @@ class RegisterScreen(QWidget):
         icon_lbl.setAlignment(Qt.AlignCenter)
         _icon_path = os.path.join(_ICONS_DIR, "user_register.png")
         if os.path.exists(_icon_path):
-            _pix = QPixmap(_icon_path).scaled(80, 80, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+            _pix = QPixmap(_icon_path).scaled(120, 120, Qt.KeepAspectRatio, Qt.SmoothTransformation)
             icon_lbl.setPixmap(_pix)
         else:
             icon_lbl.setText("👤")
-            icon_lbl.setFont(QFont("Sans Serif", 32))
+            icon_lbl.setFont(QFont("Sans Serif", 48))
         root.addWidget(icon_lbl)
 
-        root.addSpacing(10)
+        root.addSpacing(15)
 
         title = QLabel("사용자 등록")
-        title.setFont(QFont("Sans Serif", 46, QFont.Bold))
+        title.setFont(QFont("Sans Serif", 52, QFont.Bold))
         title.setAlignment(Qt.AlignCenter)
         title.setStyleSheet(f"color: {_DARK};")
         root.addWidget(title)
 
-        root.addSpacing(20)
+        root.addSpacing(30)
 
         # 등록 절차 카드
         card = QFrame()
         card.setStyleSheet(f"""
             QFrame {{
                 background-color: {_CARD_BG};
-                border-radius: 16px;
+                border-radius: 20px;
+                border: 2px solid #c4b5fd;
             }}
         """)
         card_lay = QVBoxLayout(card)
-        card_lay.setContentsMargins(24, 18, 24, 18)
-        card_lay.setSpacing(6)
+        card_lay.setContentsMargins(40, 30, 40, 30)
+        card_lay.setSpacing(12)
 
         card_title = QLabel("등록 절차")
-        card_title.setFont(QFont("Sans Serif", 22, QFont.Bold))
+        card_title.setFont(QFont("Sans Serif", 28, QFont.Bold))
         card_title.setAlignment(Qt.AlignCenter)
-        card_title.setStyleSheet(f"color: {_DARK};")
+        card_title.setStyleSheet(f"color: {_DARK}; border: none;")
         card_lay.addWidget(card_title)
-        card_lay.addSpacing(8)
+        card_lay.addSpacing(15)
 
         for num, text in [(1, "얼굴 촬영"), (2, "지문 등록"), (3, "저장 완료")]:
             card_lay.addWidget(_StepRow(num, text))
 
         root.addWidget(card)
 
-        root.addStretch(2)
+        root.addStretch(1)
 
         # 등록 시작 버튼
         start_btn = QPushButton("등록 시작")
-        start_btn.setMinimumHeight(70)
-        start_btn.setFont(QFont("Sans Serif", 30, QFont.Bold))
+        start_btn.setMinimumHeight(110)
+        start_btn.setFont(QFont("Sans Serif", 36, QFont.Bold))
         start_btn.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         start_btn.setStyleSheet(f"""
             QPushButton {{
                 background-color: {_PURPLE};
                 color: white;
                 border: none;
-                border-radius: 14px;
+                border-radius: 18px;
             }}
             QPushButton:pressed {{ background-color: #6d28d9; }}
         """)

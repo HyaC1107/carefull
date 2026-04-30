@@ -22,9 +22,9 @@ _ICONS_DIR = os.path.normpath(
     os.path.join(os.path.dirname(__file__), "..", "..", "assets", "icons")
 )
 
-_ICON_SIZE = 52
-_CARD_PAD_H = 28
-_CARD_PAD_V = 22
+_ICON_SIZE = 64
+_CARD_PAD_H = 40
+_CARD_PAD_V = 32
 
 
 def _icon_label(png_name: str, fallback: str, size: int = _ICON_SIZE) -> QLabel:
@@ -160,14 +160,14 @@ class _ControlCard(QFrame):
         lay.addLayout(top)
 
         restart_btn = QPushButton("재시작")
-        restart_btn.setMinimumHeight(60)
-        restart_btn.setFont(QFont("Sans Serif", 22))
+        restart_btn.setMinimumHeight(80)
+        restart_btn.setFont(QFont("Sans Serif", 24, QFont.Bold))
         restart_btn.setStyleSheet(f"""
             QPushButton {{
                 background-color: #fff3e0;
                 color: {_ORANGE};
                 border: 2px solid #fed7aa;
-                border-radius: 12px;
+                border-radius: 16px;
             }}
             QPushButton:pressed {{ background-color: #ffe0b2; }}
         """)
@@ -175,14 +175,14 @@ class _ControlCard(QFrame):
         lay.addWidget(restart_btn)
 
         exit_btn = QPushButton("앱 종료")
-        exit_btn.setMinimumHeight(60)
-        exit_btn.setFont(QFont("Sans Serif", 22))
+        exit_btn.setMinimumHeight(80)
+        exit_btn.setFont(QFont("Sans Serif", 24, QFont.Bold))
         exit_btn.setStyleSheet("""
             QPushButton {
                 background-color: #fee2e2;
                 color: #dc2626;
                 border: 2px solid #fca5a5;
-                border-radius: 12px;
+                border-radius: 16px;
             }
             QPushButton:pressed { background-color: #fecaca; }
         """)
@@ -395,22 +395,22 @@ class SettingsScreen(QWidget):
     def _build_ui(self):
         self.setStyleSheet(f"SettingsScreen {{ background-color: {_BG}; }}")
         root = QVBoxLayout(self)
-        root.setContentsMargins(20, 16, 20, 16)
+        root.setContentsMargins(80, 24, 80, 24)
         root.setSpacing(0)
 
         # 상단 헤더
         header = QHBoxLayout()
         back_btn = QPushButton("← 메인으로")
-        back_btn.setFont(QFont("Sans Serif", 18))
-        back_btn.setFixedHeight(48)
+        back_btn.setFont(QFont("Sans Serif", 22))
+        back_btn.setFixedHeight(64)
         back_btn.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
         back_btn.setStyleSheet("""
             QPushButton {
                 background: white;
                 color: #374151;
                 border: 2px solid #d0d5dd;
-                border-radius: 10px;
-                padding: 4px 18px;
+                border-radius: 14px;
+                padding: 4px 24px;
             }
             QPushButton:pressed { background: #f0f0f0; }
         """)

@@ -128,18 +128,18 @@ class CameraViewScreen(QWidget):
         self._gradient    = _GradientOverlay(parent=self)
 
         self._title_lbl = QLabel(parent=self)
-        self._title_lbl.setFont(QFont("Sans Serif", 36, QFont.Bold))
+        self._title_lbl.setFont(QFont("Sans Serif", 42, QFont.Bold))
         self._title_lbl.setAlignment(Qt.AlignCenter)
         self._title_lbl.setAttribute(Qt.WA_TransparentForMouseEvents)
 
         self._sub_lbl = QLabel(parent=self)
-        self._sub_lbl.setFont(QFont("Sans Serif", 28))
+        self._sub_lbl.setFont(QFont("Sans Serif", 34))
         self._sub_lbl.setAlignment(Qt.AlignCenter)
         self._sub_lbl.setAttribute(Qt.WA_TransparentForMouseEvents)
 
         # 카메라 준비 중 오버레이
         self._loading_lbl = QLabel("카메라 준비 중...", parent=self)
-        self._loading_lbl.setFont(QFont("Sans Serif", 32, QFont.Bold))
+        self._loading_lbl.setFont(QFont("Sans Serif", 36, QFont.Bold))
         self._loading_lbl.setAlignment(Qt.AlignCenter)
         self._loading_lbl.setStyleSheet(
             "color: white; background: rgba(0,0,0,160); border-radius: 12px; padding: 12px 24px;"
@@ -154,14 +154,14 @@ class CameraViewScreen(QWidget):
 
         self._camera_card.setGeometry(0, 0, w, h)
 
-        overlay_h = int(h * 0.27)
+        overlay_h = int(h * 0.32)
         self._gradient.setGeometry(0, h - overlay_h, w, overlay_h)
 
-        self._title_lbl.setGeometry(0, h - int(h * 0.20), w, 58)
-        self._sub_lbl.setGeometry(0, h - int(h * 0.10), w, 46)
+        self._title_lbl.setGeometry(0, h - int(h * 0.22), w, 64)
+        self._sub_lbl.setGeometry(0, h - int(h * 0.12), w, 52)
 
         # 로딩 레이블 중앙
-        lw, lh = self._loading_lbl.sizeHint().width() + 48, 56
+        lw, lh = self._loading_lbl.sizeHint().width() + 64, 72
         self._loading_lbl.setGeometry((w - lw) // 2, (h - lh) // 2, lw, lh)
 
     def _apply_theme(self):
