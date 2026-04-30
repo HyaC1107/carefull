@@ -4,6 +4,7 @@ import { firebaseApp } from '../firebase'
 import { hasStoredToken, requestJson } from '../api'
 
 const VAPID_KEY = import.meta.env.VITE_FIREBASE_VAPID_KEY
+const FCM_SW_PATH = '/firebase-messaging-sw.js'
 
 export function useFCM() {
   useEffect(() => {
@@ -16,8 +17,8 @@ export function useFCM() {
         const permission = await Notification.requestPermission()
         if (permission !== 'granted') return
 
-        // 직접 등록 대신 이미 준비된(main.jsx에서 등록한) 서비스 워커를 사용
-        const sw_reg = await navigator.serviceWorker.ready;
+        // Vite PWA sw가 아닌 Firebase 전용 sw를 명시적으로 등록해서 사용
+        const sw_reg = await navigator.serviceWorker.register(FCM_SW_PATH)
 
         const messaging = getMessaging(firebaseApp)
         const token = await getToken(messaging, {
@@ -33,7 +34,22 @@ export function useFCM() {
           })
         }
 
-        onMessage(messaging, (payload) => {
+        // 포그라운드(탭이 열려있을 때) 알림 처리
+        // FCM이 onMessage로 전달하면 서비스 워커를 거치지 않으므로 직접 띄워야 함
+        onMessage(messaging, async (payload) => {
+          const title = payload.notification?.title || 'CARE-FULL 알림'
+          const body  = payload.notification?.body  || ''
+
+          // ServiceWorker를 통해 알림 표시 (new Notification()보다 안정적)
+          const reg = await navigator.serviceWorker.getRegistration(FCM_SW_PATH)
+          if (reg) {
+            reg.showNotification(title, {
+              body,
+              icon: '/favicons/favicon.ico',
+              badge: '/favicons/favicon.ico',
+            })
+          }
+
           window.dispatchEvent(
             new CustomEvent('carefull:push-notification', { detail: payload })
           )
