@@ -35,8 +35,8 @@ logger = logging.getLogger("GimbalTest")
 
 class StandaloneGimbal:
     """
-    hardware/gimbal.py에 의존하지 않는 독립형 테스트용 짐벌 클래스
-    핀 번호: Pan=13, Tilt=19 고정
+    독립형 일반 버전 짐벌 클래스
+    표준적인 이동 속도와 데드존 설정 적용
     """
     def __init__(self):
         self.pan_pin = PAN_PIN   # 13
@@ -54,10 +54,10 @@ class StandaloneGimbal:
         self.pan_pwm.start(self._angle_to_duty(self.pan_angle))
         self.tilt_pwm.start(self._angle_to_duty(self.tilt_angle))
         
-        # 테스트용 부드러운 이동 설정 (더 천천히!)
-        self.threshold = 50      # 데드존을 넓혀서 불필요한 떨림 방지
-        self.pan_step = 0.3      # 한 번에 움직이는 각도를 매우 작게 (0.7 -> 0.3)
-        self.tilt_step = 0.2     # (0.4 -> 0.2)
+        # 일반 버전 설정
+        self.threshold = 35      # 표준 데드존
+        self.pan_step = 1.2      # 표준 이동 속도
+        self.tilt_step = 0.8
 
     def _angle_to_duty(self, angle):
         return 2.5 + (angle / 180.0) * 10.0
@@ -88,29 +88,43 @@ class StandaloneGimbal:
         self.pan_pwm.stop()
         self.tilt_pwm.stop()
 
-def test_gimbal_movement_standalone():
-    """독립형 미세 가동 테스트 (매우 천천히)"""
-    logger.info("--- [독립형] 짐벌 미세 가동 테스트 시작 ---")
+def test_gimbal_movement_general():
+    """일반 가동 범위 테스트 (0 ~ 180도)"""
+    logger.info("--- [일반] 짐벌 전체 가동 범위 테스트 시작 ---")
     gimbal = StandaloneGimbal()
     try:
-        p, t = gimbal.pan_angle, gimbal.tilt_angle
-        # 1도씩 아주 천천히 확인
-        for i in range(10):
-            gimbal.set_angles(p + i, t)
-            time.sleep(0.5) # 0.2 -> 0.5초로 대기 시간 증가
-        for i in range(10, -11, -1):
-            gimbal.set_angles(p + i, t)
-            time.sleep(0.5)
-        gimbal.set_angles(p, t)
+        # 중앙 -> 최소 -> 최대 -> 중앙
+        logger.info("Pan 테스트 중...")
+        for angle in range(90, -1, -5):
+            gimbal.set_angles(angle, 90)
+            time.sleep(0.05)
+        for angle in range(0, 181, 5):
+            gimbal.set_angles(angle, 90)
+            time.sleep(0.05)
+        gimbal.set_angles(90, 90)
+        time.sleep(0.5)
+
+        logger.info("Tilt 테스트 중...")
+        for angle in range(90, -1, -5):
+            gimbal.set_angles(90, angle)
+            time.sleep(0.05)
+        for angle in range(0, 181, 5):
+            gimbal.set_angles(90, angle)
+            time.sleep(0.05)
+        gimbal.set_angles(90, 90)
+        
         logger.info("테스트 완료")
     finally:
         gimbal.stop()
 
-def test_gimbal_tracking_standalone():
-    """독립형 실시간 추적 테스트 (부드럽게)"""
-    logger.info("--- [독립형] 실시간 얼굴 추적 테스트 시작 ---")
+def test_gimbal_tracking_general():
+    """일반 실시간 추적 테스트"""
+    logger.info("--- [일반] 실시간 얼굴 추적 테스트 시작 ---")
     gimbal = StandaloneGimbal()
     try:
+        # 시작 시 중앙 정렬 (선택 사항이나 일반 버전이므로 포함)
+        gimbal.set_angles(90, 90)
+        
         while True:
             frame = get_frame()
             if frame is None: continue
@@ -120,14 +134,15 @@ def test_gimbal_tracking_standalone():
                 faces.sort(key=lambda x: x[2]*x[3], reverse=True)
                 gimbal.track_face(faces[0], CAMERA_WIDTH, CAMERA_HEIGHT)
                 x,y,w,h = faces[0]
-                cv2.rectangle(frame, (x,y), (x+w,y+h), (255,0,0), 2)
+                cv2.rectangle(frame, (x,y), (x+w,y+h), (0, 255, 0), 2)
+            
+            # 중앙 가이드라인
+            cv2.line(frame, (CAMERA_WIDTH//2, 0), (CAMERA_WIDTH//2, CAMERA_HEIGHT), (255,0,0), 1)
+            cv2.line(frame, (0, CAMERA_HEIGHT//2), (CAMERA_WIDTH, CAMERA_HEIGHT//2), (255,0,0), 1)
             
             cv2.putText(frame, f"PAN: {gimbal.pan_angle:.1f} TILT: {gimbal.tilt_angle:.1f}", 
-                        (20, 40), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
-            cv2.imshow("Standalone Gimbal Test", frame)
-            
-            # 루프 사이클에 아주 짧은 휴식을 주어 추적 속도를 조절
-            time.sleep(0.05)
+                        (20, 40), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 255, 255), 2)
+            cv2.imshow("General Gimbal Test", frame)
             
             if cv2.waitKey(1) & 0xFF == ord('q'): break
     finally:
@@ -136,9 +151,16 @@ def test_gimbal_tracking_standalone():
         gimbal.stop()
 
 if __name__ == "__main__":
-    print("1. 독립형 미세 가동 테스트")
-    print("2. 독립형 실시간 추적 테스트")
-    c = input("선택: ")
-    if c == '1': test_gimbal_movement_standalone()
-    elif c == '2': test_gimbal_tracking_standalone()
-    GPIO.cleanup()
+    print("========================================")
+    print("   CareFull Gimbal General Test Tool    ")
+    print("========================================")
+    print("1. 일반 가동 범위 테스트 (0~180도)")
+    print("2. 일반 실시간 추적 테스트")
+    print("q. 종료")
+    
+    choice = input("\n선택: ")
+    if choice == '1': test_gimbal_movement_general()
+    elif choice == '2': test_gimbal_tracking_general()
+    
+    if GPIO:
+        GPIO.cleanup()
