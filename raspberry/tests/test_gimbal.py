@@ -34,7 +34,6 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(levelname)s] %(me
 logger = logging.getLogger("GimbalTest")
 
 class StandaloneGimbal:
-    """독립형 1축 테스트 클래스 (19번 핀 전용)"""
     def __init__(self):
         self.servo_pin = TILT_PIN # 19
         self.angle = 90
@@ -44,8 +43,8 @@ class StandaloneGimbal:
         self.pwm = GPIO.PWM(self.servo_pin, 50)
         self.pwm.start(self._angle_to_duty(self.angle))
         
-        self.threshold = 35
-        self.step = 1.2
+        self.threshold = 40
+        self.step = 1.0
 
     def _angle_to_duty(self, angle):
         return 2.5 + (angle / 180.0) * 10.0
@@ -55,7 +54,6 @@ class StandaloneGimbal:
         self.pwm.ChangeDutyCycle(self._angle_to_duty(self.angle))
 
     def track_face(self, face_bbox, frame_w, frame_h):
-        """좌우(x) 위치로 19번 핀 제어"""
         x, y, w, h = face_bbox
         error_x = (x + w/2) - (frame_w / 2)
         
@@ -63,35 +61,64 @@ class StandaloneGimbal:
         if abs(error_x) > self.threshold:
             new_angle += self.step if error_x < 0 else -self.step
         self.set_angle(new_angle)
+        return error_x
 
     def stop(self):
         self.pwm.stop()
 
-def _show_frame_with_info(gimbal, title="Single Axis Test"):
-    frame = get_frame()
-    if frame is not None:
-        cv2.line(frame, (CAMERA_WIDTH//2, 0), (CAMERA_WIDTH//2, CAMERA_HEIGHT), (255,0,0), 1)
-        cv2.putText(frame, f"SERVO(Pin19) Angle: {gimbal.angle:.1f}", 
-                    (20, 40), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
-        cv2.imshow(title, frame)
-        cv2.waitKey(1)
+def _draw_debug_info(frame, gimbal, face_bbox=None):
+    """얼굴 인식 및 중심점 정보를 화면에 그림"""
+    # 1. 화면 중앙 조준선 (Blue)
+    cx, cy = CAMERA_WIDTH // 2, CAMERA_HEIGHT // 2
+    cv2.line(frame, (cx - 20, cy), (cx + 20, cy), (255, 0, 0), 2)
+    cv2.line(frame, (cx, cy - 20), (cx, cy + 20), (255, 0, 0), 2)
+    cv2.circle(frame, (cx, cy), gimbal.threshold, (255, 0, 0), 1) # 데드존 표시
+    
+    error_x = 0
+    if face_bbox:
+        x, y, w, h = face_bbox
+        fx, fy = x + w // 2, y + h // 2
+        error_x = fx - cx
+        
+        # 2. 얼굴 박스 및 중심점 (Green/Red)
+        color = (0, 255, 0) if abs(error_x) <= gimbal.threshold else (0, 0, 255)
+        cv2.rectangle(frame, (x, y), (x + w, y + h), color, 2)
+        cv2.circle(frame, (fx, fy), 5, (0, 0, 255), -1) # 얼굴 중심점
+        
+        # 3. 연결선 (얼굴 중심 <-> 화면 중심)
+        cv2.line(frame, (cx, cy), (fx, fy), (0, 255, 255), 1)
+        
+    # 4. 상태 텍스트
+    status_color = (0, 255, 0) if abs(error_x) <= gimbal.threshold else (0, 165, 255)
+    cv2.putText(frame, f"Angle: {gimbal.angle:.1f}", (20, 40), 
+                cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
+    cv2.putText(frame, f"Error X: {error_x:.1f}", (20, 70), 
+                cv2.FONT_HERSHEY_SIMPLEX, 0.7, status_color, 2)
+    
     return frame
 
 def test_single_axis_movement():
-    """19번 핀 가동 범위 테스트 (화면 포함)"""
     logger.info("--- 19번 핀 가동 범위 테스트 시작 ---")
     gimbal = StandaloneGimbal()
     try:
         for angle in range(90, -1, -5):
             gimbal.set_angle(angle)
-            _show_frame_with_info(gimbal, "Movement Test")
+            frame = get_frame()
+            if frame is not None:
+                frame = _draw_debug_info(frame, gimbal)
+                cv2.imshow("Gimbal Visual Test", frame)
+                cv2.waitKey(1)
             time.sleep(0.05)
         for angle in range(0, 181, 5):
             gimbal.set_angle(angle)
-            _show_frame_with_info(gimbal, "Movement Test")
+            frame = get_frame()
+            if frame is not None:
+                frame = _draw_debug_info(frame, gimbal)
+                cv2.imshow("Gimbal Visual Test", frame)
+                cv2.waitKey(1)
             time.sleep(0.05)
         gimbal.set_angle(90)
-        logger.info("테스트 완료. 'q'를 누르세요.")
+        logger.info("테스트 완료. 'q'를 눌러 종료하세요.")
         while cv2.waitKey(1) & 0xFF != ord('q'): pass
     finally:
         cv2.destroyAllWindows()
@@ -99,8 +126,7 @@ def test_single_axis_movement():
         release_camera()
 
 def test_single_axis_tracking():
-    """19번 핀 좌우 얼굴 추적 테스트"""
-    logger.info("--- 19번 핀 실시간 좌우 추적 테스트 시작 ---")
+    logger.info("--- 19번 핀 실시간 시각화 추적 테스트 시작 ---")
     gimbal = StandaloneGimbal()
     try:
         while True:
@@ -108,16 +134,14 @@ def test_single_axis_tracking():
             if frame is None: continue
             
             faces = detect_face(frame)
+            main_face = None
             if faces:
                 faces.sort(key=lambda x: x[2]*x[3], reverse=True)
-                gimbal.track_face(faces[0], CAMERA_WIDTH, CAMERA_HEIGHT)
-                x,y,w,h = faces[0]
-                cv2.rectangle(frame, (x,y), (x+w,y+h), (0, 255, 0), 2)
+                main_face = faces[0]
+                gimbal.track_face(main_face, CAMERA_WIDTH, CAMERA_HEIGHT)
             
-            cv2.line(frame, (CAMERA_WIDTH//2, 0), (CAMERA_WIDTH//2, CAMERA_HEIGHT), (255,0,0), 1)
-            cv2.putText(frame, f"SERVO(Pin19) Angle: {gimbal.angle:.1f}", 
-                        (20, 40), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 255, 255), 2)
-            cv2.imshow("Tracking Test", frame)
+            frame = _draw_debug_info(frame, gimbal, main_face)
+            cv2.imshow("Gimbal Visual Tracking", frame)
             
             if cv2.waitKey(1) & 0xFF == ord('q'): break
     finally:
@@ -127,10 +151,10 @@ def test_single_axis_tracking():
 
 if __name__ == "__main__":
     print("========================================")
-    print("   Pin 19 Single Axis Gimbal Test      ")
+    print("   Visual Gimbal Test (Pin 19 Only)    ")
     print("========================================")
-    print("1. 19번 핀 가동 범위 테스트 (화면 포함)")
-    print("2. 19번 핀 좌우 얼굴 추적 테스트")
+    print("1. 가동 범위 테스트 (중심선 확인)")
+    print("2. 실시간 추적 테스트 (얼굴 중심점 확인)")
     print("q. 종료")
     
     choice = input("\n선택: ")
