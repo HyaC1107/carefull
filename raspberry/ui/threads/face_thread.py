@@ -62,14 +62,21 @@ class FaceThread(QThread):
         from face_detection.mediapipe_detector import detect_face
         from auth.authenticate import authenticate
 
-        deadline = time.time() + AUTH_TIMEOUT_SEC
+        # 카메라 워밍업 시간을 인증 시간으로 소모하지 않도록
+        # 첫 프레임이 도착한 시점부터 AUTH_TIMEOUT_SEC 카운트다운 시작
+        deadline = None
         frame_count = 0
 
-        while self._running and time.time() < deadline:
+        while self._running:
             frame = get_frame()
             if frame is None:
                 self.msleep(30)
                 continue
+
+            if deadline is None:
+                deadline = time.time() + AUTH_TIMEOUT_SEC
+            if time.time() > deadline:
+                break
 
             # 항상 화면 갱신 시그널을 먼저 보냄
             self.frame_ready.emit(frame.copy())

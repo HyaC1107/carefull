@@ -341,10 +341,25 @@ router.post('/test/push', verifyAdminToken, async (req, res) => {
         return res.status(400).json({ success: false, message: 'mem_id, title, body 필수' });
 
     try {
+        // push_tokens 테이블에서 해당 회원의 활성 토큰 수 먼저 확인
+        const pool = require('../db');
+        const { rows: tokenRows } = await pool.query(
+            'SELECT fcm_token FROM push_tokens WHERE mem_id = $1 AND is_active = TRUE',
+            [mem_id]
+        );
+        if (tokenRows.length === 0) {
+            return res.status(400).json({
+                success: false,
+                message: '해당 회원의 활성 FCM 토큰이 없습니다. 해당 계정으로 로그인 후 알림 권한을 허용해야 합니다.'
+            });
+        }
+
         const { send_fcm_push_safe } = require('../services/notification-trigger.service');
-        // notification-trigger.service.js 에 있는 send_fcm_push_safe 함수 활용
         await send_fcm_push_safe(mem_id, title, body);
-        return res.json({ success: true, message: '푸시 알림 전송 요청을 보냈습니다.' });
+        return res.json({
+            success: true,
+            message: `푸시 알림 전송 완료 (토큰 ${tokenRows.length}개 대상)`
+        });
     } catch (err) {
         console.error('[ADMIN TEST PUSH]', err);
         return res.status(500).json({ success: false, message: err.message });

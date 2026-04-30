@@ -298,14 +298,19 @@ const trigger_activity_notification = async (executor, payload) => {
 const send_fcm_push_safe = async (mem_id, title, body) => {
     try {
         const { rows } = await pool.query(
-            'SELECT fcm_token FROM members WHERE mem_id = $1 LIMIT 1',
+            'SELECT fcm_token FROM push_tokens WHERE mem_id = $1 AND is_active = TRUE',
             [mem_id]
         );
-        const fcm_token = rows[0]?.fcm_token;
-        if (!fcm_token) return;
+        const tokens = rows.map(r => r.fcm_token).filter(Boolean);
+        if (!tokens.length) {
+            console.log('[NOTIFICATION-TRIGGER] no active FCM tokens for mem_id:', mem_id);
+            return;
+        }
 
         const { send_push } = require('./fcm.service');
-        await send_push(fcm_token, title, body);
+        for (const token of tokens) {
+            await send_push(token, title, body);
+        }
     } catch (e) {
         console.error('[NOTIFICATION-TRIGGER] FCM push failed:', e.message);
     }
