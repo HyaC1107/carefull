@@ -246,7 +246,6 @@ router.get('/kakao/callback', async (req, res) => {
 
             }
         });
-        console.log('[KAKAO USER RESPONSE]', user_response.data);
         const login_result = await handle_social_login({
             id: user_response.data.id.toString(),
             nickname: user_response.data.properties?.nickname
@@ -263,15 +262,11 @@ router.get('/kakao/callback', async (req, res) => {
             }));
         }
 
-        console.log('[LOGIN RESULT]', login_result);
-
         const redirect_url = build_frontend_callback_url(req, {
             provider: 'kakao',
             token: login_result.token,
             is_new_user: login_result.is_new_user
         });
-
-        console.log('[FINAL REDIRECT URL]', redirect_url);
 
         return res.redirect(redirect_url);
     } catch (error) {
