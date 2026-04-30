@@ -18,11 +18,11 @@ _SCHEDULE_PATH = os.path.normpath(
     os.path.join(os.path.dirname(__file__), "..", "..", "db", "schedule.json")
 )
 
-_BG = "#f2f3f7"
-_DARK = "#1e293b"
-_GRAY = "#64748b"
+_BG    = "#f2f3f7"
+_DARK  = "#1e293b"
+_GRAY  = "#64748b"
 _GREEN = "#22c55e"
-_BLUE = "#3b82f6"
+_BLUE  = "#3b82f6"
 
 
 class _DeviceStatusWorker(QThread):
@@ -57,9 +57,8 @@ def _next_medication() -> str:
     now_min = now.hour * 60 + now.minute
     times = []
     for e in schedules:
-        # API 포맷(time_to_take) 및 레거시 포맷(time) 모두 지원
         t = e.get("time_to_take") or e.get("time", "")
-        t = str(t)[:5]  # "HH:MM:SS" → "HH:MM"
+        t = str(t)[:5]
         try:
             h, m = map(int, t.split(":"))
             times.append(h * 60 + m)
@@ -77,54 +76,42 @@ def _next_medication() -> str:
 
 
 class _MenuButton(QWidget):
-    """아이콘(PNG 또는 텍스트) + 텍스트 세로 배치 아웃라인 버튼."""
+    """아이콘(PNG 또는 텍스트) + 레이블 세로 배치 버튼.
+    icon_size, font_size 파라미터로 메인/테스트 버튼 크기를 분리."""
 
-    _STYLE_NORMAL = """
-        QWidget {
-            background-color: white;
-            border: 2px solid #d0d5dd;
-            border-radius: 14px;
-        }
-    """
-    _STYLE_PRESS = """
-        QWidget {
-            background-color: #f0f4ff;
-            border: 2px solid #aab0bb;
-            border-radius: 14px;
-        }
-    """
-    _STYLE_DISABLED = """
-        QWidget {
-            background-color: #f1f5f9;
-            border: 2px solid #e2e8f0;
-            border-radius: 14px;
-        }
-    """
+    _STYLE_NORMAL   = "QWidget { background-color: white; border: 2px solid #d0d5dd; border-radius: 16px; }"
+    _STYLE_PRESS    = "QWidget { background-color: #f0f4ff; border: 2px solid #aab0bb; border-radius: 16px; }"
+    _STYLE_DISABLED = "QWidget { background-color: #f1f5f9; border: 2px solid #e2e8f0; border-radius: 16px; }"
 
-    def __init__(self, png_name: str, fallback: str, text: str, callback, parent=None):
+    def __init__(self, png_name: str, fallback: str, text: str, callback,
+                 icon_size: int = 76, font_size: int = 42, parent=None):
         super().__init__(parent)
         self._callback = callback
-        self._enabled = True
+        self._enabled  = True
+        self._icon_size = icon_size
+        self._font_size = font_size
         self.setCursor(Qt.PointingHandCursor)
         self.setStyleSheet(self._STYLE_NORMAL)
 
         lay = QVBoxLayout(self)
-        lay.setContentsMargins(16, 18, 16, 18)
-        lay.setSpacing(6)
+        lay.setContentsMargins(18, 20, 18, 20)
+        lay.setSpacing(10)
 
         icon_lbl = QLabel()
         icon_lbl.setAlignment(Qt.AlignCenter)
         icon_lbl.setStyleSheet("background: transparent; border: none;")
         png_path = os.path.join(_ICONS_DIR, png_name)
         if os.path.exists(png_path):
-            pix = QPixmap(png_path).scaled(36, 36, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+            pix = QPixmap(png_path).scaled(
+                icon_size, icon_size, Qt.KeepAspectRatio, Qt.SmoothTransformation
+            )
             icon_lbl.setPixmap(pix)
         else:
             icon_lbl.setText(fallback)
-            icon_lbl.setFont(QFont("Sans Serif", 22))
+            icon_lbl.setFont(QFont("Sans Serif", font_size))
 
         self._text_lbl = QLabel(text)
-        self._text_lbl.setFont(QFont("Sans Serif", 24))
+        self._text_lbl.setFont(QFont("Sans Serif", font_size, QFont.Bold))
         self._text_lbl.setAlignment(Qt.AlignCenter)
         self._text_lbl.setStyleSheet(f"background: transparent; border: none; color: {_DARK};")
 
@@ -167,30 +154,34 @@ class HomeScreen(QWidget):
     def _build_ui(self):
         self.setStyleSheet(f"HomeScreen {{ background-color: {_BG}; }}")
         root = QVBoxLayout(self)
-        root.setContentsMargins(24, 16, 24, 16)
+        root.setContentsMargins(28, 18, 28, 18)
         root.setSpacing(0)
 
-        root.addStretch(2)
+        root.addStretch(1)
 
+        # ── 현재 시간 레이블 ──────────────────────────────────────────────────
         time_row = QHBoxLayout()
-        time_row.setSpacing(6)
+        time_row.setSpacing(8)
         time_row.setAlignment(Qt.AlignCenter)
+
         clock_icon = QLabel()
         clock_icon.setStyleSheet("background: transparent; border: none;")
         _clock_path = os.path.join(_ICONS_DIR, "clock.png")
         if os.path.exists(_clock_path):
-            _pix = QPixmap(_clock_path).scaled(20, 20, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+            _pix = QPixmap(_clock_path).scaled(40, 40, Qt.KeepAspectRatio, Qt.SmoothTransformation)
             clock_icon.setPixmap(_pix)
+
         time_label = QLabel("현재 시간")
-        time_label.setFont(QFont("Sans Serif", 20))
+        time_label.setFont(QFont("Sans Serif", 36))
         time_label.setStyleSheet(f"color: {_GRAY}; background-color: {_BG}; border: none;")
+
         time_row.addWidget(clock_icon)
         time_row.addWidget(time_label)
         root.addLayout(time_row)
 
         root.addSpacing(6)
 
-        # 큰 시계
+        # ── 대형 시계 ─────────────────────────────────────────────────────────
         self._clock_lbl = QLabel()
         self._clock_lbl.setAlignment(Qt.AlignCenter)
         self._clock_lbl.setFont(QFont("Sans Serif", 96, QFont.Bold))
@@ -198,58 +189,66 @@ class HomeScreen(QWidget):
             color: {_DARK};
             background-color: {_BG};
             border-radius: 16px;
-            padding: 8px 16px;
+            padding: 6px 16px;
         """)
         root.addWidget(self._clock_lbl)
 
-        root.addSpacing(14)
+        root.addSpacing(12)
 
-        # 다음 복약 뱃지
+        # ── 다음 복약 뱃지 ────────────────────────────────────────────────────
         self._badge_lbl = QLabel()
         self._badge_lbl.setAlignment(Qt.AlignCenter)
-        self._badge_lbl.setFont(QFont("Sans Serif", 28))
+        self._badge_lbl.setFont(QFont("Sans Serif", 50, QFont.Bold))
         self._badge_lbl.setStyleSheet(f"""
             color: #1d4ed8;
             background-color: white;
-            border: 2px solid #93c5fd;
-            border-radius: 20px;
-            padding: 6px 24px;
+            border: 3px solid #93c5fd;
+            border-radius: 24px;
+            padding: 8px 32px;
         """)
         root.addWidget(self._badge_lbl, alignment=Qt.AlignCenter)
 
-        root.addSpacing(14)
+        root.addSpacing(12)
 
-        # 상태 뱃지
+        # ── 상태 뱃지 ─────────────────────────────────────────────────────────
         status_row = QHBoxLayout()
-        status_row.setSpacing(6)
+        status_row.setSpacing(8)
         status_row.setAlignment(Qt.AlignCenter)
 
         dot = QLabel("●")
-        dot.setFont(QFont("Sans Serif", 11))
+        dot.setFont(QFont("Sans Serif", 22))
         dot.setStyleSheet(f"color: {_GREEN};")
 
         status_text = QLabel("정상 작동 중")
-        status_text.setFont(QFont("Sans Serif", 22))
+        status_text.setFont(QFont("Sans Serif", 42, QFont.Bold))
         status_text.setStyleSheet(f"color: {_GREEN};")
 
         status_row.addWidget(dot)
         status_row.addWidget(status_text)
         root.addLayout(status_row)
 
-        root.addStretch(2)
+        root.addStretch(1)
 
-        # 버튼 2개 (가로 배치)
+        # ── 메인 버튼 (사용자 등록 / 설정) ───────────────────────────────────
         btn_row = QHBoxLayout()
-        btn_row.setSpacing(14)
+        btn_row.setSpacing(16)
 
-        self._btn_register = _MenuButton("register.png", "등록", "사용자 등록", lambda: self._go("register"))
+        self._btn_register = _MenuButton(
+            "register.png", "등록", "사용자 등록",
+            lambda: self._go("register"),
+            icon_size=76, font_size=42,
+        )
         self._btn_register.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
-        self._btn_register.setMinimumHeight(140)
-        self._btn_register.hide()  # 기기 페어링 확인 전까지 숨김
+        self._btn_register.setMinimumHeight(170)
+        self._btn_register.hide()
 
-        btn_settings = _MenuButton("settings.png", "설정", "설정", lambda: self._go("settings"))
+        btn_settings = _MenuButton(
+            "settings.png", "설정", "설정",
+            lambda: self._go("settings"),
+            icon_size=76, font_size=42,
+        )
         btn_settings.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
-        btn_settings.setMinimumHeight(140)
+        btn_settings.setMinimumHeight(170)
 
         btn_row.addWidget(self._btn_register)
         btn_row.addWidget(btn_settings)
@@ -257,23 +256,31 @@ class HomeScreen(QWidget):
 
         root.addSpacing(10)
 
-        # ── 테스트 단축 버튼 (1줄: 얼굴인증 / 사용자등록) ──────────────────
+        # ── 테스트 단축 버튼 1줄 ─────────────────────────────────────────────
         test_row1 = QHBoxLayout()
         test_row1.setSpacing(10)
 
-        btn_face_test = _MenuButton("camera_auth.png", "얼굴", "얼굴 인증 테스트", lambda: self._go_auth_test())
+        btn_face_test = _MenuButton(
+            "camera_auth.png", "얼굴", "얼굴 인증 테스트",
+            lambda: self._go_auth_test(),
+            icon_size=48, font_size=28,
+        )
         btn_face_test.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
-        btn_face_test.setMinimumHeight(96)
-        btn_face_test.setStyleSheet("""
-            QWidget { background-color: #eff6ff; border: 2px solid #93c5fd; border-radius: 14px; }
-        """)
+        btn_face_test.setMinimumHeight(108)
+        btn_face_test.setStyleSheet(
+            "QWidget { background-color: #eff6ff; border: 2px solid #93c5fd; border-radius: 14px; }"
+        )
 
-        btn_reg_test = _MenuButton("register.png", "등록", "사용자 등록", lambda: self._go("register"))
+        btn_reg_test = _MenuButton(
+            "register.png", "등록", "사용자 등록",
+            lambda: self._go("register"),
+            icon_size=48, font_size=28,
+        )
         btn_reg_test.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
-        btn_reg_test.setMinimumHeight(96)
-        btn_reg_test.setStyleSheet("""
-            QWidget { background-color: #f5f0ff; border: 2px solid #c4b5fd; border-radius: 14px; }
-        """)
+        btn_reg_test.setMinimumHeight(108)
+        btn_reg_test.setStyleSheet(
+            "QWidget { background-color: #f5f0ff; border: 2px solid #c4b5fd; border-radius: 14px; }"
+        )
 
         test_row1.addWidget(btn_face_test)
         test_row1.addWidget(btn_reg_test)
@@ -281,30 +288,42 @@ class HomeScreen(QWidget):
 
         root.addSpacing(10)
 
-        # ── 테스트 단축 버튼 (2줄: 복약행위검증 / 지문등록 / 지문인증테스트) ──
+        # ── 테스트 단축 버튼 2줄 ─────────────────────────────────────────────
         test_row2 = QHBoxLayout()
         test_row2.setSpacing(10)
 
-        btn_med_test = _MenuButton("medication.png", "복약", "복약행위 검증", lambda: self._go("medication"))
+        btn_med_test = _MenuButton(
+            "medication.png", "복약", "복약행위 검증",
+            lambda: self._go("medication"),
+            icon_size=48, font_size=28,
+        )
         btn_med_test.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
-        btn_med_test.setMinimumHeight(96)
-        btn_med_test.setStyleSheet("""
-            QWidget { background-color: #f0fdf4; border: 2px solid #86efac; border-radius: 14px; }
-        """)
+        btn_med_test.setMinimumHeight(108)
+        btn_med_test.setStyleSheet(
+            "QWidget { background-color: #f0fdf4; border: 2px solid #86efac; border-radius: 14px; }"
+        )
 
-        btn_fp_reg = _MenuButton("fingerprint.png", "지문", "지문 등록", lambda: self._go("fingerprint_register"))
+        btn_fp_reg = _MenuButton(
+            "fingerprint.png", "지문", "지문 등록",
+            lambda: self._go("fingerprint_register"),
+            icon_size=48, font_size=28,
+        )
         btn_fp_reg.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
-        btn_fp_reg.setMinimumHeight(96)
-        btn_fp_reg.setStyleSheet("""
-            QWidget { background-color: #fdf4ff; border: 2px solid #e9d5ff; border-radius: 14px; }
-        """)
+        btn_fp_reg.setMinimumHeight(108)
+        btn_fp_reg.setStyleSheet(
+            "QWidget { background-color: #fdf4ff; border: 2px solid #e9d5ff; border-radius: 14px; }"
+        )
 
-        btn_fp_test = _MenuButton("fingerprint.png", "지문", "지문 인증 테스트", lambda: self._go_fp_test())
+        btn_fp_test = _MenuButton(
+            "fingerprint.png", "지문", "지문 인증 테스트",
+            lambda: self._go_fp_test(),
+            icon_size=48, font_size=28,
+        )
         btn_fp_test.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
-        btn_fp_test.setMinimumHeight(96)
-        btn_fp_test.setStyleSheet("""
-            QWidget { background-color: #fff7ed; border: 2px solid #fed7aa; border-radius: 14px; }
-        """)
+        btn_fp_test.setMinimumHeight(108)
+        btn_fp_test.setStyleSheet(
+            "QWidget { background-color: #fff7ed; border: 2px solid #fed7aa; border-radius: 14px; }"
+        )
 
         test_row2.addWidget(btn_med_test)
         test_row2.addWidget(btn_fp_reg)
@@ -313,16 +332,16 @@ class HomeScreen(QWidget):
 
         root.addSpacing(10)
 
-        # ── 기기 UID 표시 (보호자가 웹 대시보드 기기 등록 시 입력) ──────────
+        # ── 기기 UID ──────────────────────────────────────────────────────────
         uid_text = DEVICE_UID or "(UID 미생성)"
         uid_lbl = QLabel(f"기기 UID:  {uid_text}")
-        uid_lbl.setFont(QFont("Monospace", 15))
+        uid_lbl.setFont(QFont("Monospace", 22))
         uid_lbl.setAlignment(Qt.AlignCenter)
         uid_lbl.setStyleSheet("""
             color: #64748b;
             background-color: #e2e8f0;
             border-radius: 8px;
-            padding: 5px 16px;
+            padding: 6px 20px;
         """)
         root.addWidget(uid_lbl)
 
