@@ -54,10 +54,10 @@ class StandaloneGimbal:
         self.pan_pwm.start(self._angle_to_duty(self.pan_angle))
         self.tilt_pwm.start(self._angle_to_duty(self.tilt_angle))
         
-        # 테스트용 부드러운 이동 설정
-        self.threshold = 45
-        self.pan_step = 0.7
-        self.tilt_step = 0.4
+        # 테스트용 부드러운 이동 설정 (더 천천히!)
+        self.threshold = 50      # 데드존을 넓혀서 불필요한 떨림 방지
+        self.pan_step = 0.3      # 한 번에 움직이는 각도를 매우 작게 (0.7 -> 0.3)
+        self.tilt_step = 0.2     # (0.4 -> 0.2)
 
     def _angle_to_duty(self, angle):
         return 2.5 + (angle / 180.0) * 10.0
@@ -89,25 +89,25 @@ class StandaloneGimbal:
         self.tilt_pwm.stop()
 
 def test_gimbal_movement_standalone():
-    """독립형 미세 가동 테스트"""
+    """독립형 미세 가동 테스트 (매우 천천히)"""
     logger.info("--- [독립형] 짐벌 미세 가동 테스트 시작 ---")
     gimbal = StandaloneGimbal()
     try:
         p, t = gimbal.pan_angle, gimbal.tilt_angle
-        # 아주 미세하게만 움직임 확인
-        for i in range(5):
-            gimbal.set_angles(p + (i*2), t)
-            time.sleep(0.2)
-        for i in range(5, -6, -1):
-            gimbal.set_angles(p + (i*2), t)
-            time.sleep(0.2)
+        # 1도씩 아주 천천히 확인
+        for i in range(10):
+            gimbal.set_angles(p + i, t)
+            time.sleep(0.5) # 0.2 -> 0.5초로 대기 시간 증가
+        for i in range(10, -11, -1):
+            gimbal.set_angles(p + i, t)
+            time.sleep(0.5)
         gimbal.set_angles(p, t)
         logger.info("테스트 완료")
     finally:
         gimbal.stop()
 
 def test_gimbal_tracking_standalone():
-    """독립형 실시간 추적 테스트"""
+    """독립형 실시간 추적 테스트 (부드럽게)"""
     logger.info("--- [독립형] 실시간 얼굴 추적 테스트 시작 ---")
     gimbal = StandaloneGimbal()
     try:
@@ -125,6 +125,10 @@ def test_gimbal_tracking_standalone():
             cv2.putText(frame, f"PAN: {gimbal.pan_angle:.1f} TILT: {gimbal.tilt_angle:.1f}", 
                         (20, 40), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
             cv2.imshow("Standalone Gimbal Test", frame)
+            
+            # 루프 사이클에 아주 짧은 휴식을 주어 추적 속도를 조절
+            time.sleep(0.05)
+            
             if cv2.waitKey(1) & 0xFF == ord('q'): break
     finally:
         cv2.destroyAllWindows()
