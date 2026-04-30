@@ -16,10 +16,8 @@ export function useFCM() {
         const permission = await Notification.requestPermission()
         if (permission !== 'granted') return
 
-        const sw_reg = await navigator.serviceWorker.register(
-          '/firebase-messaging-sw.js',
-          { scope: '/' }
-        )
+        // 직접 등록 대신 이미 준비된(main.jsx에서 등록한) 서비스 워커를 사용
+        const sw_reg = await navigator.serviceWorker.ready;
 
         const messaging = getMessaging(firebaseApp)
         const token = await getToken(messaging, {
