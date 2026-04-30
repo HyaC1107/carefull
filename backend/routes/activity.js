@@ -19,6 +19,9 @@ const {
 const {
     get_low_stock_snapshot_for_schedule_safe
 } = require('../services/stock-calc.service');
+const {
+    buildKstDateTimeString
+} = require('../utils/dashboard-helpers');
 
 const ALLOWED_ACTIVITY_STATUSES = [
     ACTIVITY_STATUS.SUCCESS,
@@ -81,13 +84,29 @@ const resolve_device_event_payload = (body) => ({
 });
 
 const build_schedule_timestamp = (time_to_take, base_date) => {
-    const target = new Date(base_date);
-    const [hours = 0, minutes = 0, seconds = 0] = String(time_to_take)
-        .split(':')
-        .map(Number);
+    return buildKstDateTimeString(base_date, time_to_take);
+};
 
-    target.setHours(hours, minutes, seconds || 0, 0);
-    return target;
+const normalize_kst_datetime_input = (value) => {
+    if (!value || typeof value !== 'string') {
+        return value;
+    }
+
+    const trimmed = value.trim();
+
+    if (/[zZ]$|[+-]\d{2}:\d{2}$/.test(trimmed)) {
+        return trimmed;
+    }
+
+    if (/^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}(:\d{2})?$/.test(trimmed)) {
+        const normalized = trimmed.includes('T')
+            ? trimmed
+            : trimmed.replace(' ', 'T');
+
+        return `${normalized.length === 16 ? `${normalized}:00` : normalized}+09:00`;
+    }
+
+    return trimmed;
 };
 
 const insert_activity = async (client, payload) => {
@@ -247,6 +266,7 @@ router.post('/', verifyToken, async (req, res) => {
     }
 
     const normalized_status = String(status).trim().toUpperCase();
+    console.log('[ACTIVITY] normalized_status:', normalized_status);
 
     if (!ALLOWED_ACTIVITY_STATUSES.includes(normalized_status)) {
         return sendError(
@@ -291,8 +311,8 @@ router.post('/', verifyToken, async (req, res) => {
         const inserted_activity = await insert_activity(client, {
             patient_id,
             sche_id: parsed_sche_id,
-            sche_time,
-            actual_time: actual_time || null,
+            sche_time: normalize_kst_datetime_input(sche_time),
+            actual_time: normalize_kst_datetime_input(actual_time) || null,
             status: normalized_status,
             is_face_auth: is_face_auth ?? false,
             is_ai_check: is_ai_check ?? false,
@@ -308,7 +328,9 @@ router.post('/', verifyToken, async (req, res) => {
 
         let notification = null;
 
+        console.log('[ACTIVITY] trigger check:', normalized_status);
         if (normalized_status === ACTIVITY_STATUS.SUCCESS) {
+            console.log('[ACTIVITY] trigger firing');
             const medication_query = `
                 SELECT m.medi_name
                 FROM schedules s
@@ -493,7 +515,7 @@ router.post('/device-event', async (req, res) => {
         const activity_payload = {
             patient_id: schedule_row.patient_id,
             sche_id: schedule_row.sche_id,
-            sche_time: sche_time.toISOString(),
+            sche_time,
             actual_time: parsed_event_time.toISOString(),
             status: normalized_status,
             is_face_auth: parsed_face_verified ?? false,
@@ -592,23 +614,23 @@ router.get('/', verifyToken, async (req, res) => {
         const offset = parse_optional_non_negative_integer(req.query.offset);
 
         if (from_date) {
-            params.push(from_date.toISOString());
-            where_clauses.push(`sche_time >= $${params.length}`);
+            if (is_date_only_string(req.query.from)) {
+                params.push(String(req.query.from).trim());
+                where_clauses.push(`(sche_time AT TIME ZONE 'Asia/Seoul')::date >= $${params.length}::date`);
+            } else {
+                params.push(from_date.toISOString());
+                where_clauses.push(`sche_time >= $${params.length}`);
+            }
         }
 
         if (to_date) {
-            const normalized_to_date = new Date(to_date);
-
             if (is_date_only_string(req.query.to)) {
-                normalized_to_date.setDate(normalized_to_date.getDate() + 1);
+                params.push(String(req.query.to).trim());
+                where_clauses.push(`(sche_time AT TIME ZONE 'Asia/Seoul')::date <= $${params.length}::date`);
+            } else {
+                params.push(to_date.toISOString());
+                where_clauses.push(`sche_time <= $${params.length}`);
             }
-
-            params.push(normalized_to_date.toISOString());
-            where_clauses.push(
-                is_date_only_string(req.query.to)
-                    ? `sche_time < $${params.length}`
-                    : `sche_time <= $${params.length}`
-            );
         }
 
         const limit_clause = limit && limit > 0

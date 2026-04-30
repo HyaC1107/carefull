@@ -279,12 +279,6 @@ router.post('/register', verifyToken, async (req, res) => {
                 });
             }
 
-            console.log('[DEVICE-REGISTER] creating new device row:', {
-                mem_id,
-                patient_id,
-                device_uid: normalized_device_uid
-            });
-
             const insert_query = `
                 INSERT INTO devices (
                     device_uid,

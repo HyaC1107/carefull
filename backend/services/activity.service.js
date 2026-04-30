@@ -14,6 +14,9 @@ const {
 const {
     get_low_stock_snapshot_for_schedule_safe
 } = require('./stock-calc.service');
+const {
+    buildKstDateTimeString
+} = require('../utils/dashboard-helpers');
 
 const ALLOWED_ACTIVITY_STATUSES = [
     ACTIVITY_STATUS.SUCCESS,
@@ -83,13 +86,7 @@ const resolve_device_event_payload = (body) => ({
 });
 
 const build_schedule_timestamp = (time_to_take, base_date) => {
-    const target = new Date(base_date);
-    const [hours = 0, minutes = 0, seconds = 0] = String(time_to_take)
-        .split(':')
-        .map(Number);
-
-    target.setHours(hours, minutes, seconds || 0, 0);
-    return target;
+    return buildKstDateTimeString(base_date, time_to_take);
 };
 
 const insert_activity = async (executor, payload) => {
@@ -451,7 +448,7 @@ const create_device_activity = async ({ body }) => {
         const activity_payload = {
             patient_id: schedule_row.patient_id,
             sche_id: schedule_row.sche_id,
-            sche_time: sche_time.toISOString(),
+            sche_time,
             actual_time: parsed_event_time.toISOString(),
             status: normalized_status,
             is_face_auth: parsed_face_verified ?? false,

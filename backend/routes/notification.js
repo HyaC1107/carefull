@@ -5,6 +5,7 @@ const pool = require('../db');
 const { verifyToken } = require('../middleware/auth');
 const { sendSuccess, sendError } = require('../utils/response');
 const { parseNumericValue } = require('../utils/validators');
+const { register_push_token } = require('../services/push.service');
 
 const to_notification_response = (row) => ({
     noti_id: row.noti_id,
@@ -19,17 +20,19 @@ const to_notification_response = (row) => ({
 
 router.post('/fcm-token', verifyToken, async (req, res) => {
     const mem_id = req.user.mem_id;
-    const { fcm_token } = req.body;
+    const fcm_token = String(req.body?.fcm_token || '').trim();
+    const device_type = String(req.body?.device_type || 'web').trim() || 'web';
 
-    if (!fcm_token || !String(fcm_token).trim()) {
+    if (!fcm_token) {
         return sendError(res, 400, 'fcm_token is required.');
     }
 
     try {
-        await pool.query(
-            'UPDATE members SET fcm_token = $1 WHERE mem_id = $2',
-            [String(fcm_token).trim(), mem_id]
-        );
+        await register_push_token({
+            mem_id,
+            fcm_token,
+            device_type
+        });
         return sendSuccess(res, 200, { message: 'FCM token updated.' });
     } catch (err) {
         console.error('FCM token update error:', err);

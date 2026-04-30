@@ -17,11 +17,9 @@ const pool = new Pool({
     connectionTimeoutMillis: 5_000,
 });
 
-pool.query('SELECT NOW()', (err, res) => {
+pool.query('SELECT NOW()', (err) => {
     if (err) {
         console.error('❌ DB 연결 실패:', err.message);
-    } else {
-        console.log('✅ DB 연결 성공:', res.rows[0].now);
     }
 });
 

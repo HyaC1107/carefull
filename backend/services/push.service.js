@@ -59,6 +59,58 @@ const build_activity_push_message = (row) => {
     return null;
 };
 
+const get_token_prefixes = (tokens) => (
+    tokens.map((token) => String(token).slice(0, 30))
+);
+
+const summarize_firebase_failures = (responses = []) => (
+    responses
+        .map((response) => response.error)
+        .filter(Boolean)
+        .map((error) => ({
+            code: error.code,
+            message: error.message
+        }))
+);
+
+const INVALID_FCM_TOKEN_CODES = new Set([
+    'messaging/registration-token-not-registered',
+    'messaging/invalid-registration-token'
+]);
+
+const deactivate_invalid_push_tokens = async (tokens, responses = []) => {
+    const invalid_tokens = responses
+        .map((response, index) => (
+            response.error && INVALID_FCM_TOKEN_CODES.has(response.error.code)
+                ? tokens[index]
+                : null
+        ))
+        .filter(Boolean);
+
+    if (!invalid_tokens.length) {
+        return 0;
+    }
+
+    const { rowCount } = await pool.query(
+        `
+            UPDATE push_tokens
+            SET
+                is_active = FALSE,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE fcm_token = ANY($1::text[])
+              AND is_active = TRUE
+        `,
+        [invalid_tokens]
+    );
+
+    console.warn('[PUSH] invalid tokens deactivated:', {
+        token_count: rowCount,
+        token_prefixes: get_token_prefixes(invalid_tokens)
+    });
+
+    return rowCount;
+};
+
 const get_active_push_tokens_by_mem_id = async (mem_id) => {
     const query = `
         SELECT fcm_token
@@ -71,8 +123,20 @@ const get_active_push_tokens_by_mem_id = async (mem_id) => {
     return rows.map((row) => row.fcm_token).filter(Boolean);
 };
 
-const send_to_tokens = async ({ tokens, title, body, data = {} }) => {
+const send_to_tokens = async ({ mem_id, tokens, title, body, data = {}, context = 'unknown' }) => {
+    console.info('[PUSH] send request:', {
+        mem_id,
+        context,
+        token_count: tokens.length,
+        token_prefixes: get_token_prefixes(tokens)
+    });
+
     if (!tokens.length) {
+        console.warn('[PUSH] skipped: active push token not found', {
+            mem_id,
+            context
+        });
+
         return {
             success_count: 0,
             failure_count: 0
@@ -88,9 +152,23 @@ const send_to_tokens = async ({ tokens, title, body, data = {} }) => {
         data
     });
 
+    const failures = summarize_firebase_failures(response.responses);
+    const deactivated_count = await deactivate_invalid_push_tokens(tokens, response.responses);
+
+    console.info('[PUSH] send result:', {
+        mem_id,
+        context,
+        success_count: response.successCount,
+        failure_count: response.failureCount,
+        deactivated_count,
+        failures
+    });
+
     return {
         success_count: response.successCount,
-        failure_count: response.failureCount
+        failure_count: response.failureCount,
+        deactivated_count,
+        failures
     };
 };
 
@@ -121,17 +199,34 @@ const register_push_token = async ({ mem_id, fcm_token, device_type = 'web' }) =
             updated_at
     `;
 
-    const { rows } = await pool.query(query, [mem_id, fcm_token, device_type]);
-    return rows[0] || null;
+    const client = await pool.connect();
+
+    try {
+        await client.query('BEGIN');
+
+        const { rows } = await client.query(query, [mem_id, fcm_token, device_type]);
+        const push_token = rows[0] || null;
+
+        await client.query('COMMIT');
+
+        return push_token;
+    } catch (error) {
+        await client.query('ROLLBACK');
+        throw error;
+    } finally {
+        client.release();
+    }
 };
 
 const send_test_push = async (mem_id) => {
     const tokens = await get_active_push_tokens_by_mem_id(mem_id);
 
     return send_to_tokens({
+        mem_id,
         tokens,
         title: '푸시 테스트',
         body: 'Carefull 푸시 알림 테스트입니다.',
+        context: 'test',
         data: {
             type: 'TEST'
         }
@@ -142,6 +237,12 @@ const send_schedule_created_push = async (mem_id) => {
     const tokens = await get_active_push_tokens_by_mem_id(mem_id);
 
     if (tokens.length === 0) {
+        console.warn('[PUSH] skipped: active push token not found', {
+            mem_id,
+            context: 'schedule_created',
+            token_count: 0
+        });
+
         return {
             sent: false,
             reason: 'active push token not found'
@@ -149,9 +250,11 @@ const send_schedule_created_push = async (mem_id) => {
     }
 
     const result = await send_to_tokens({
+        mem_id,
         tokens,
         title: '복약 스케줄 등록 완료',
         body: '새 복약 스케줄이 등록되었습니다.',
+        context: 'schedule_created',
         data: {
             type: 'SCHEDULE_CREATED'
         }
@@ -190,6 +293,11 @@ const send_medication_activity_push = async (activity_id) => {
     const activity = rows[0] || null;
 
     if (!activity) {
+        console.warn('[PUSH] skipped: activity not found', {
+            activity_id,
+            context: 'medication_activity'
+        });
+
         return {
             sent: false,
             reason: 'activity not found'
@@ -199,6 +307,12 @@ const send_medication_activity_push = async (activity_id) => {
     const message = build_activity_push_message(activity);
 
     if (!message) {
+        console.warn('[PUSH] skipped: unsupported activity status', {
+            activity_id,
+            status: activity.status,
+            context: 'medication_activity'
+        });
+
         return {
             sent: false,
             reason: 'unsupported activity status'
@@ -208,6 +322,12 @@ const send_medication_activity_push = async (activity_id) => {
     const tokens = rows.map((row) => row.fcm_token).filter(Boolean);
 
     if (tokens.length === 0) {
+        console.warn('[PUSH] skipped: active push token not found', {
+            mem_id: activity.mem_id,
+            context: 'medication_activity',
+            token_count: 0
+        });
+
         return {
             sent: false,
             reason: 'active push token not found'
@@ -215,8 +335,10 @@ const send_medication_activity_push = async (activity_id) => {
     }
 
     const result = await send_to_tokens({
+        mem_id: activity.mem_id,
         tokens,
         ...message,
+        context: 'medication_activity',
         data: {
             type: resolve_push_event_type(activity.status),
             activity_id: String(activity.activity_id),

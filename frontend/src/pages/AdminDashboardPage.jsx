@@ -17,6 +17,18 @@ const fmt = (iso) => {
   return new Date(iso).toLocaleString('ko-KR', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })
 }
 
+const getKstTodayDateString = () => {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Asia/Seoul',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(new Date())
+  const getPart = (type) => parts.find((part) => part.type === type)?.value
+
+  return `${getPart('year')}-${getPart('month')}-${getPart('day')}`
+}
+
 const STATUS_COLOR = {
   SUCCESS: { bg: '#dcfce7', color: '#16a34a' },
   FAILED:  { bg: '#fee2e2', color: '#dc2626' },
@@ -91,7 +103,7 @@ function TestManagement({ onRefreshStats }) {
   const [devForm,  setDevForm]  = useState({ device_uid: '', patient_id: '' })
   const [scheForm, setScheForm] = useState({
     patient_id: '', medi_id: '', time_to_take: '',
-    start_date: new Date().toISOString().split('T')[0], end_date: '', dose_interval: '1',
+    start_date: getKstTodayDateString(), end_date: '', dose_interval: '1',
   })
 
   useEffect(() => { loadAll() }, [])
