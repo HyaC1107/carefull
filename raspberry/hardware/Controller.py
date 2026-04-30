@@ -69,13 +69,13 @@ class Controller(threading.Thread):
             logger.error(f"Error during hardware cleanup: {e}")
 
     @staticmethod
-    def self_test():
+    def self_test(camera_ok: bool = False):
         """모든 하드웨어 구성 요소가 정상인지 테스트"""
         logger.info("Running hardware self-test...")
         results = {
             "gpio": True,
             "motor": "ready",
-            "camera": check_camera_health(),
+            "camera": "ok" if camera_ok else "failed",
             "alarm_speaker": "ready"
         }
         return results

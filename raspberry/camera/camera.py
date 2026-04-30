@@ -19,19 +19,29 @@ def _init_picamera():
     if _picam2 is not None:
         return _picam2
     from picamera2 import Picamera2
-    cam = Picamera2()
-    cam.configure(
-        cam.create_preview_configuration(
-            main={"size": (CAMERA_WIDTH, CAMERA_HEIGHT), "format": "RGB888"}
+    cam = None
+    try:
+        cam = Picamera2()
+        cam.configure(
+            cam.create_preview_configuration(
+                main={"size": (CAMERA_WIDTH, CAMERA_HEIGHT), "format": "RGB888"}
+            )
         )
-    )
-    cam.start()
+        cam.start()
+    except Exception:
+        if cam is not None:
+            try:
+                cam.close()
+            except Exception:
+                pass
+        raise
     time.sleep(CAMERA_WARMUP_SECONDS)
     _picam2 = cam
     return _picam2
 
 
 def _get_frame_picamera() -> "cv2.ndarray | None":
+    global _picam2
     try:
         cam = _init_picamera()
         frame = cam.capture_array()
@@ -40,6 +50,14 @@ def _get_frame_picamera() -> "cv2.ndarray | None":
         return cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
     except Exception as e:
         print(f"[CAMERA/PICAM ERROR] {e}")
+        # 실패 시 상태 초기화 — 다음 호출에서 fresh init 가능하도록
+        if _picam2 is not None:
+            try:
+                _picam2.stop()
+                _picam2.close()
+            except Exception:
+                pass
+            _picam2 = None
         return None
 
 
@@ -72,18 +90,27 @@ def _get_frame_webcam() -> "cv2.ndarray | None":
 def release_camera():
     """사용 중인 카메라 리소스 해제"""
     global _picam2, _webcam
-    try:
-        if _picam2 is not None:
+    if _picam2 is not None:
+        try:
             _picam2.stop()
-            _picam2 = None
-            print("[CAMERA] Picamera2 stopped.")
-        
-        if _webcam is not None:
+        except Exception:
+            pass
+        try:
+            # close()까지 호출해야 HAL 리소스가 "Available" 상태로 돌아옴
+            # stop()만 하면 "Configured" 상태로 남아 다음 Picamera2() 초기화 실패
+            _picam2.close()
+        except Exception:
+            pass
+        _picam2 = None
+        print("[CAMERA] Picamera2 stopped.")
+
+    if _webcam is not None:
+        try:
             _webcam.release()
-            _webcam = None
-            print("[CAMERA] Webcam released.")
-    except Exception as e:
-        print(f"[CAMERA RELEASE ERROR] {e}")
+        except Exception:
+            pass
+        _webcam = None
+        print("[CAMERA] Webcam released.")
 
 def check_camera_health():
     """카메라가 정상적으로 프레임을 가져오는지 확인"""
