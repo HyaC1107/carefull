@@ -45,10 +45,10 @@ def init_gpio():
 def test_stepper_motor():
     """스텝 모터 단독 테스트 (회전 확인)"""
     init_gpio()
-    logger.info("--- 스텝 모터 테스트 시작 (512 steps) ---")
+    logger.info("--- 스텝 모터 테스트 시작 (-256 steps) ---")
     try:
-        # 512단계 회전 테스트
-        _run_step_motor(512, delay=0.002)
+        # -256단계 회전 테스트
+        _run_step_motor(-256, delay=0.005)
         logger.info("스텝 모터 테스트 완료")
     except Exception as e:
         logger.error(f"스텝 모터 테스트 실패: {e}")
