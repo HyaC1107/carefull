@@ -19,104 +19,59 @@ except ImportError:
             def stop(self): pass
     GPIO = MockGPIO()
 
-from config.settings import PAN_PIN, TILT_PIN
+from config.settings import TILT_PIN # 19번 핀 사용
 
 logger = logging.getLogger("Gimbal")
 
 class Gimbal:
     """
-    2축(Pan, Tilt) 서보 모터를 제어하여 얼굴을 추적하는 클래스
-    SG90 서보 모터 기준 (50Hz, Duty Cycle 2.5~12.5)
-    
-    [모터 구성]
-    1. Pan (좌우): 카메라를 수평 방향으로 회전시킴 (PAN_PIN: 13)
-    2. Tilt (상하): 카메라를 수직 방향으로 회전시킴 (TILT_PIN: 19)
+    1축 서보 모터 제어 (19번 핀 전용)
+    사용자의 요청에 따라 19번 핀 하나로 '좌우' 추적을 수행하도록 최적화
     """
     def __init__(self):
-        self.pan_pin = PAN_PIN    # 좌우 회전용 GPIO 핀
-        self.tilt_pin = TILT_PIN  # 상하 회전용 GPIO 핀
+        self.servo_pin = TILT_PIN  # 19번 핀
+        self.angle = 90            # 초기 각도 (중앙)
         
-        # 초기 각도 (중앙 90도 정렬)
-        self.pan_angle = 90
-        self.tilt_angle = 90
+        GPIO.setup(self.servo_pin, GPIO.OUT)
+        self.pwm = GPIO.PWM(self.servo_pin, 50)
+        self.pwm.start(self._angle_to_duty(self.angle))
         
-        # GPIO 설정 (이미 메인에서 setmode가 되었다고 가정하지만 안전을 위해)
-        # GPIO.setmode(GPIO.BCM) 
-        GPIO.setup(self.pan_pin, GPIO.OUT)
-        GPIO.setup(self.tilt_pin, GPIO.OUT)
+        # 추적 설정
+        self.threshold = 40        # 데드존
+        self.step = 1.0            # 이동 크기
         
-        # PWM 설정 (50Hz)
-        self.pan_pwm = GPIO.PWM(self.pan_pin, 50)
-        self.tilt_pwm = GPIO.PWM(self.tilt_pin, 50)
-        
-        self.pan_pwm.start(self._angle_to_duty(self.pan_angle))
-        self.tilt_pwm.start(self._angle_to_duty(self.tilt_angle))
-        
-        logger.info(f"Gimbal initialized on Pins: Pan={self.pan_pin}, Tilt={self.tilt_pin}")
+        logger.info(f"Single-axis Gimbal initialized on Pin: {self.servo_pin} (좌우 추적 모드)")
 
     def _angle_to_duty(self, angle):
-        """각도(0~180)를 Duty Cycle(2.5~12.5)로 변환"""
         return 2.5 + (angle / 180.0) * 10.0
 
-    def set_angles(self, pan, tilt):
-        """
-        Pan(좌우), Tilt(상하) 각도 직접 설정
-        pan: 0(왼쪽) ~ 180(오른쪽)
-        tilt: 0(아래) ~ 180(위)
-        """
-        self.pan_angle = max(0, min(180, pan))
-        self.tilt_angle = max(0, min(180, tilt))
-        
-        self.pan_pwm.ChangeDutyCycle(self._angle_to_duty(self.pan_angle))
-        self.tilt_pwm.ChangeDutyCycle(self._angle_to_duty(self.tilt_angle))
+    def set_angle(self, angle):
+        """각도 설정 (0~180)"""
+        self.angle = max(0, min(180, angle))
+        self.pwm.ChangeDutyCycle(self._angle_to_duty(self.angle))
 
     def track_face(self, face_bbox, frame_w, frame_h):
-        """
-        얼굴 위치에 따라 짐벌 각도 조정
-        face_bbox: (x, y, w, h)
-        """
+        """얼굴의 좌우 위치(x)에 따라 19번 핀 모터 제어"""
         x, y, w, h = face_bbox
         face_center_x = x + w / 2
-        face_center_y = y + h / 2
-        
         frame_center_x = frame_w / 2
-        frame_center_y = frame_h / 2
         
         error_x = face_center_x - frame_center_x
-        error_y = face_center_y - frame_center_y
         
-        # 데드존 (불필요한 미세 떨림 방지)
-        self.threshold = 40 
+        new_angle = self.angle
         
-        # 이동 단계 (각도 크기 하향 조정: 1.5 -> 0.8, 1.0 -> 0.5)
-        self.pan_step = 0.8
-        self.tilt_step = 0.5
-        
-        new_pan = self.pan_angle
-        new_tilt = self.tilt_angle
-        
-        # Pan 조정 (좌우 회전)
         if abs(error_x) > self.threshold:
+            # 얼굴이 중앙보다 오른쪽에 있으면(error_x > 0) 각도를 줄여서 오른쪽으로 회전
             if error_x > 0:
-                new_pan -= self.pan_step
+                new_angle -= self.step
             else:
-                new_pan += self.pan_step
+                new_angle += self.step
                 
-        # Tilt 조정 (상하 회전)
-        if abs(error_y) > self.threshold:
-            if error_y > 0:
-                new_tilt += self.tilt_step
-            else:
-                new_tilt -= self.tilt_step
-                
-        self.set_angles(new_pan, new_tilt)
+        self.set_angle(new_angle)
 
     def reset(self):
-        """중앙 정렬"""
-        self.set_angles(90, 90)
+        self.set_angle(90)
 
     def stop(self):
-        """PWM 정지"""
-        self.pan_pwm.stop()
-        self.tilt_pwm.stop()
+        self.pwm.stop()
         logger.info("Gimbal PWM stopped.")
