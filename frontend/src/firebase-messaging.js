@@ -71,9 +71,7 @@ export async function registerFcmTokenForCurrentUser() {
   }
 
   try {
-    const registration = await navigator.serviceWorker.register(
-      '/firebase-messaging-sw.js',
-    )
+    const registration = await navigator.serviceWorker.ready
     const messaging = getMessaging(getFirebaseApp())
     const fcmToken = await getToken(messaging, {
       vapidKey: import.meta.env.VITE_FIREBASE_VAPID_KEY,

@@ -15,8 +15,12 @@ export default defineConfig(({ mode }) => {
       react(),
       VitePWA({
         registerType: 'autoUpdate',
+        strategies: 'injectManifest',
+        srcDir: 'src',
+        filename: 'sw.js',
         devOptions: {
           enabled: true,
+          type: 'module',
         },
         includeAssets: [
           'favicons/favicon.ico',
@@ -63,41 +67,9 @@ export default defineConfig(({ mode }) => {
             },
           ],
         },
-        workbox: {
+        injectManifest: {
           globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
-          navigateFallback: 'index.html',
-          runtimeCaching: [
-            {
-              urlPattern: ({ request }) => request.destination === 'document',
-              handler: 'NetworkFirst',
-              options: {
-                cacheName: 'pages-cache',
-                expiration: {
-                  maxEntries: 10,
-                  maxAgeSeconds: 60 * 60 * 24,
-                },
-              },
-            },
-            {
-              urlPattern: ({ request }) =>
-                ['style', 'script', 'worker'].includes(request.destination),
-              handler: 'StaleWhileRevalidate',
-              options: {
-                cacheName: 'assets-cache',
-              },
-            },
-            {
-              urlPattern: ({ request }) => request.destination === 'image',
-              handler: 'StaleWhileRevalidate',
-              options: {
-                cacheName: 'image-cache',
-                expiration: {
-                  maxEntries: 50,
-                  maxAgeSeconds: 60 * 60 * 24 * 30,
-                },
-              },
-            },
-          ],
+          globIgnores: ['firebase-messaging-sw.js'],
         },
       }),
     ],
