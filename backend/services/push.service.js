@@ -71,11 +71,72 @@ const get_active_push_tokens_by_mem_id = async (mem_id) => {
     return rows.map((row) => row.fcm_token).filter(Boolean);
 };
 
-const send_to_tokens = async ({ tokens, title, body, data = {} }) => {
+const get_token_prefixes = (tokens) => (
+    tokens.map((token) => String(token || '').slice(0, 12)).filter(Boolean)
+);
+
+const INVALID_FCM_TOKEN_CODES = new Set([
+    'messaging/registration-token-not-registered',
+    'messaging/invalid-registration-token'
+]);
+
+const summarize_firebase_failures = (responses = []) => {
+    const failures = {};
+
+    responses.forEach((response) => {
+        if (response.success) return;
+
+        const code = response.error?.code || 'unknown';
+        failures[code] = (failures[code] || 0) + 1;
+    });
+
+    return failures;
+};
+
+const deactivate_invalid_push_tokens = async (tokens, responses = []) => {
+    const invalid_tokens = responses
+        .map((response, index) => (
+            INVALID_FCM_TOKEN_CODES.has(response.error?.code) ? tokens[index] : null
+        ))
+        .filter(Boolean);
+
+    if (invalid_tokens.length === 0) {
+        return 0;
+    }
+
+    const { rowCount } = await pool.query(
+        `
+            UPDATE push_tokens
+            SET
+                is_active = FALSE,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE fcm_token = ANY($1::text[])
+        `,
+        [invalid_tokens]
+    );
+
+    return rowCount;
+};
+
+const send_to_tokens = async ({ mem_id, tokens, title, body, data = {}, context = 'unknown' }) => {
+    const token_count = tokens.length;
+    const token_prefixes = get_token_prefixes(tokens);
+
+    console.info('[PUSH] send request:', {
+        mem_id,
+        context,
+        token_count,
+        token_prefixes
+    });
+
     if (!tokens.length) {
+        console.warn('[PUSH] skipped: active push token not found', { mem_id, context });
+
         return {
             success_count: 0,
-            failure_count: 0
+            failure_count: 0,
+            deactivated_count: 0,
+            failures: {}
         };
     }
 
@@ -88,13 +149,28 @@ const send_to_tokens = async ({ tokens, title, body, data = {} }) => {
         data
     });
 
+    const failures = summarize_firebase_failures(response.responses);
+    const deactivated_count = await deactivate_invalid_push_tokens(tokens, response.responses);
+
+    console.info('[PUSH] send result:', {
+        mem_id,
+        context,
+        success_count: response.successCount,
+        failure_count: response.failureCount,
+        deactivated_count,
+        failures
+    });
+
     return {
         success_count: response.successCount,
-        failure_count: response.failureCount
+        failure_count: response.failureCount,
+        deactivated_count,
+        failures
     };
 };
 
 const register_push_token = async ({ mem_id, fcm_token, device_type = 'web' }) => {
+    const client = await pool.connect();
     const query = `
         INSERT INTO push_tokens (
             mem_id,
@@ -121,15 +197,26 @@ const register_push_token = async ({ mem_id, fcm_token, device_type = 'web' }) =
             updated_at
     `;
 
-    const { rows } = await pool.query(query, [mem_id, fcm_token, device_type]);
-    return rows[0] || null;
+    try {
+        await client.query('BEGIN');
+        const { rows } = await client.query(query, [mem_id, fcm_token, device_type]);
+        await client.query('COMMIT');
+        return rows[0] || null;
+    } catch (error) {
+        await client.query('ROLLBACK');
+        throw error;
+    } finally {
+        client.release();
+    }
 };
 
 const send_test_push = async (mem_id) => {
     const tokens = await get_active_push_tokens_by_mem_id(mem_id);
 
     return send_to_tokens({
+        mem_id,
         tokens,
+        context: 'test',
         title: '푸시 테스트',
         body: 'Carefull 푸시 알림 테스트입니다.',
         data: {
@@ -142,6 +229,11 @@ const send_schedule_created_push = async (mem_id) => {
     const tokens = await get_active_push_tokens_by_mem_id(mem_id);
 
     if (tokens.length === 0) {
+        console.warn('[PUSH] skipped: active push token not found', {
+            mem_id,
+            context: 'schedule_created'
+        });
+
         return {
             sent: false,
             reason: 'active push token not found'
@@ -149,7 +241,9 @@ const send_schedule_created_push = async (mem_id) => {
     }
 
     const result = await send_to_tokens({
+        mem_id,
         tokens,
+        context: 'schedule_created',
         title: '복약 스케줄 등록 완료',
         body: '새 복약 스케줄이 등록되었습니다.',
         data: {
@@ -190,6 +284,8 @@ const send_medication_activity_push = async (activity_id) => {
     const activity = rows[0] || null;
 
     if (!activity) {
+        console.warn('[PUSH] skipped: activity not found', { activity_id });
+
         return {
             sent: false,
             reason: 'activity not found'
@@ -199,6 +295,11 @@ const send_medication_activity_push = async (activity_id) => {
     const message = build_activity_push_message(activity);
 
     if (!message) {
+        console.warn('[PUSH] skipped: unsupported activity status', {
+            activity_id,
+            status: activity.status
+        });
+
         return {
             sent: false,
             reason: 'unsupported activity status'
@@ -208,6 +309,12 @@ const send_medication_activity_push = async (activity_id) => {
     const tokens = rows.map((row) => row.fcm_token).filter(Boolean);
 
     if (tokens.length === 0) {
+        console.warn('[PUSH] skipped: active push token not found', {
+            mem_id: activity.mem_id,
+            context: 'medication_activity',
+            activity_id
+        });
+
         return {
             sent: false,
             reason: 'active push token not found'
@@ -215,7 +322,9 @@ const send_medication_activity_push = async (activity_id) => {
     }
 
     const result = await send_to_tokens({
+        mem_id: activity.mem_id,
         tokens,
+        context: 'medication_activity',
         ...message,
         data: {
             type: resolve_push_event_type(activity.status),

@@ -5,6 +5,7 @@ const {
     MISSED_STATUSES,
     TEN_MINUTES_IN_MS,
     LOW_MEDICATION_THRESHOLD,
+    getKstWallClockDate,
     getTodayDateString,
     getProjectDayOfWeek,
     getSummaryStatus,
@@ -20,7 +21,7 @@ const {
 } = require('./stock-calc.service');
 
 const get_today_context = () => {
-    const current_date = new Date();
+    const current_date = getKstWallClockDate();
 
     return {
         current_date,
@@ -352,10 +353,10 @@ const get_dashboard_summary = async (patient_id) => {
           AND start_date <= $2::date
           AND (end_date IS NULL OR end_date >= $2::date)
           AND (
-              $2::date > created_at::date
+              $2::date > (created_at AT TIME ZONE 'Asia/Seoul')::date
               OR (
-                  $2::date = created_at::date
-                  AND ($2::date + time_to_take) >= created_at
+                  $2::date = (created_at AT TIME ZONE 'Asia/Seoul')::date
+                  AND ($2::date + time_to_take) >= (created_at AT TIME ZONE 'Asia/Seoul')
               )
           )
     `;
@@ -370,7 +371,7 @@ const get_dashboard_summary = async (patient_id) => {
             )::int AS missed_count
         FROM activities
         WHERE patient_id = $1
-          AND sche_time::date = $4::date
+          AND (sche_time AT TIME ZONE 'Asia/Seoul')::date = $4::date
     `;
 
     const total_scheduled_result = await pool.query(total_scheduled_query, [
@@ -466,10 +467,10 @@ const get_next_schedule_time_today = async (patient_id) => {
           AND start_date <= $2::date
           AND (end_date IS NULL OR end_date >= $2::date)
           AND (
-              $2::date > created_at::date
+              $2::date > (created_at AT TIME ZONE 'Asia/Seoul')::date
               OR (
-                  $2::date = created_at::date
-                  AND ($2::date + time_to_take) >= created_at
+                  $2::date = (created_at AT TIME ZONE 'Asia/Seoul')::date
+                  AND ($2::date + time_to_take) >= (created_at AT TIME ZONE 'Asia/Seoul')
               )
           )
         ORDER BY time_to_take ASC, sche_id ASC
@@ -593,16 +594,16 @@ const get_today_schedules = async (patient_id) => {
         LEFT JOIN activities a
             ON a.sche_id = s.sche_id
            AND a.patient_id = s.patient_id
-           AND a.sche_time::date = $2::date
+           AND (a.sche_time AT TIME ZONE 'Asia/Seoul')::date = $2::date
         WHERE s.patient_id = $1
           AND s.status = 'ACTIVE'
           AND s.start_date <= $2::date
           AND (s.end_date IS NULL OR s.end_date >= $2::date)
           AND (
-              $2::date > s.created_at::date
+              $2::date > (s.created_at AT TIME ZONE 'Asia/Seoul')::date
               OR (
-                  $2::date = s.created_at::date
-                  AND ($2::date + s.time_to_take) >= s.created_at
+                  $2::date = (s.created_at AT TIME ZONE 'Asia/Seoul')::date
+                  AND ($2::date + s.time_to_take) >= (s.created_at AT TIME ZONE 'Asia/Seoul')
               )
           )
         ORDER BY s.time_to_take ASC, s.sche_id ASC, a.activity_id DESC

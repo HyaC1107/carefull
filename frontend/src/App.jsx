@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { Navigate, Route, Routes } from 'react-router-dom'
+import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import LoginPage from './pages/LoginPage'
 import SocialCallbackPage from './pages/SocialCallbackPage'
 import DashboardPage from './pages/DashboardPage'
@@ -19,7 +19,17 @@ import AdminDashboardPage from './pages/AdminDashboardPage'
 import { hasAdminToken } from './adminApi'
 
 function App() {
+  const location = useLocation()
+
   useFCM()
+
+  useEffect(() => {
+    if (!hasStoredToken()) {
+      return
+    }
+
+    registerFcmTokenForCurrentUser()
+  }, [location.pathname])
 
   return (
     <HeaderDataProvider>
@@ -60,10 +70,6 @@ function App() {
 }
 
 function ProtectedRoute({ children }) {
-  useEffect(() => {
-    registerFcmTokenForCurrentUser()
-  }, [])
-
   if (!hasStoredToken()) {
     return <Navigate to="/login" replace />
   }
