@@ -1,0 +1,9 @@
+﻿backend/carefull_ohs_db.md
+backend/services/elevenlabs.service.js
+"backend/\354\227\240\355\201\220\355\213\260\355\213\260.js"
+frontend/.env
+frontend/inject-fcm-env.js
+frontend/public/yakssok-logo.png
+frontend/src/sw.js
+temp_diff.txt
+temp_untracked.txt
