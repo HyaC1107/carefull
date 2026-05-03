@@ -175,7 +175,7 @@ const handle_social_login = async (social_data, provider) => {
         const access_token = jwt.sign(
             { mem_id, nick },
             JWT_SECRET,
-            { expiresIn: '2h' }
+            { expiresIn: '30d' }
         );
 
         return {

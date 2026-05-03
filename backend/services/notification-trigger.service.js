@@ -1,9 +1,5 @@
 const pool = require('../db');
 const { ACTIVITY_STATUS } = require('../utils/activity-status');
-const { COMPLETED_STATUSES, MISSED_STATUSES } = require('../utils/dashboard-helpers');
-const {
-    send_medication_activity_push_safe
-} = require('./push.service');
 
 const NOTIFICATION_TYPE = {
     SUCCESS: ACTIVITY_STATUS.SUCCESS,
@@ -278,12 +274,6 @@ const create_notification = async (executor, {
         notification_content.noti_msg,
         notification_content.noti_type
     ]);
-
-    if (
-        [...COMPLETED_STATUSES, ...MISSED_STATUSES].includes(notification_content.noti_type)
-    ) {
-        await send_medication_activity_push_safe(activity_id);
-    }
 
     return {
         notification: to_notification_response(rows[0]),

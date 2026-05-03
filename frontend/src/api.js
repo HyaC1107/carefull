@@ -13,7 +13,18 @@ export function getStoredToken() {
 }
 
 export function hasStoredToken() {
-  return Boolean(getStoredToken())
+  const token = getStoredToken()
+  if (!token) return false
+
+  try {
+    const payload = getStoredAuthPayload()
+    if (payload?.exp && payload.exp * 1000 < Date.now()) {
+      localStorage.removeItem(TOKEN_STORAGE_KEY)
+      return false
+    }
+  } catch {}
+
+  return true
 }
 
 export function getDeviceStatus(device) {
@@ -89,6 +100,13 @@ export async function requestJson(
   })
 
   const data = await response.json().catch(() => null)
+
+  if (response.status === 401) {
+    localStorage.removeItem(TOKEN_STORAGE_KEY)
+    sessionStorage.removeItem('carefull_fcm_registered')
+    window.location.href = '/login'
+    throw new Error('Session expired. Please log in again.')
+  }
 
   if (!response.ok || data?.success === false) {
     const error = new Error(data?.message || 'Request failed.')
