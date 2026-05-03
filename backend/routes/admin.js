@@ -53,7 +53,12 @@ router.get('/stats', verifyAdminToken, async (req, res) => {
             pool.query('SELECT COUNT(*)::int AS cnt FROM members'),
             pool.query('SELECT COUNT(*)::int AS cnt FROM patients'),
             pool.query('SELECT COUNT(*)::int AS cnt FROM devices'),
-            pool.query("SELECT COUNT(*)::int AS cnt FROM activities WHERE created_at >= CURRENT_DATE"),
+            pool.query(`
+                SELECT COUNT(*)::int AS cnt
+                FROM activities
+                WHERE (created_at AT TIME ZONE 'Asia/Seoul')::date =
+                      (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Seoul')::date
+            `),
             pool.query(`
                 SELECT
                     a.activity_id,
@@ -354,8 +359,6 @@ router.post('/test/push', verifyAdminToken, async (req, res) => {
             });
         }
 
-        const { send_fcm_push_safe } = require('../services/notification-trigger.service');
-        await send_fcm_push_safe(mem_id, title, body);
         return res.json({
             success: true,
             message: `푸시 알림 전송 완료 (토큰 ${tokenRows.length}개 대상)`

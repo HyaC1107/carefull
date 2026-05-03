@@ -19,7 +19,6 @@ const _init = () => {
             projectId: project_id,
         });
         _initialized = true;
-        console.log('[FCM] Firebase Admin SDK initialized.');
         return true;
     } catch (e) {
         console.error('[FCM] init failed:', e.message);

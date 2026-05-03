@@ -2,7 +2,6 @@ import { initializeApp, getApps } from 'firebase/app'
 import { getMessaging, getToken, isSupported } from 'firebase/messaging'
 import { getStoredToken, requestJson } from './api'
 
-const FCM_SESSION_KEY = 'carefull_fcm_registered'
 let fcmRegistrationPromise = null
 let lastRegisteredRegistrationKey = ''
 const FIREBASE_CONFIG = {
@@ -80,10 +79,7 @@ export async function registerFcmTokenForCurrentUser() {
 
   const registrationKey = buildRegistrationKey(authToken)
 
-  if (
-    lastRegisteredRegistrationKey === registrationKey
-    || sessionStorage.getItem(FCM_SESSION_KEY) === registrationKey
-  ) {
+  if (lastRegisteredRegistrationKey === registrationKey) {
     return
   }
 
@@ -100,10 +96,6 @@ export async function registerFcmTokenForCurrentUser() {
 }
 
 async function registerFcmToken(registrationKey) {
-  if (sessionStorage.getItem(FCM_SESSION_KEY) === registrationKey) {
-    return
-  }
-
   if (!window.isSecureContext) {
     console.warn('[FCM] A secure browser context is required for push messaging.')
     return
@@ -160,7 +152,6 @@ async function registerFcmToken(registrationKey) {
       },
     })
 
-    sessionStorage.setItem(FCM_SESSION_KEY, registrationKey)
     lastRegisteredRegistrationKey = registrationKey
   } catch (error) {
     console.warn('[FCM] Failed to register FCM token:', error)

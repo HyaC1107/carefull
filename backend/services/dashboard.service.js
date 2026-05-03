@@ -5,8 +5,9 @@ const {
     MISSED_STATUSES,
     TEN_MINUTES_IN_MS,
     LOW_MEDICATION_THRESHOLD,
-    getKstWallClockDate,
     getTodayDateString,
+    getKstWallClockDate,
+    buildKstDateTimeString,
     getProjectDayOfWeek,
     getSummaryStatus,
     buildScheduleTimestamp,
@@ -30,27 +31,16 @@ const get_today_context = () => {
     };
 };
 
-const log_dashboard_duration = (step_name, started_at) => {
-    console.log(`[dashboard] ${step_name}:`, Date.now() - started_at);
-};
-
-const measure_dashboard_step = async (step_name, callback) => {
-    const started_at = Date.now();
-    const result = await callback();
-    log_dashboard_duration(step_name, started_at);
-
-    return result;
+const measure_dashboard_step = async (_step_name, callback) => {
+    return callback();
 };
 
 const get_dashboard_data_by_mem_id = async (mem_id) => {
-    const dashboard_started_at = Date.now();
     const member = await measure_dashboard_step('get_member_header', () =>
         get_member_header(mem_id)
     );
 
     if (!member) {
-        log_dashboard_duration('before_response', dashboard_started_at);
-        log_dashboard_duration('total', dashboard_started_at);
         return null;
     }
 
@@ -75,9 +65,6 @@ const get_dashboard_data_by_mem_id = async (mem_id) => {
             recent_notifications: await get_recent_notifications(mem_id),
             recent_activities: []
         });
-
-        log_dashboard_duration('before_response', dashboard_started_at);
-        log_dashboard_duration('total', dashboard_started_at);
 
         return dashboard_data;
     }
@@ -135,9 +122,6 @@ const get_dashboard_data_by_mem_id = async (mem_id) => {
         recent_notifications,
         recent_activities
     });
-
-    log_dashboard_duration('before_response', dashboard_started_at);
-    log_dashboard_duration('total', dashboard_started_at);
 
     return dashboard_data;
 };
@@ -310,9 +294,6 @@ const trigger_low_stock_notifications_for_estimated_stock = async (
 ) => {
     for (const medication of low_stock_medications) {
         if (!medication.activity_id) {
-            console.log(
-                `[LOW-STOCK] skipped notification because no activity_id is available for medi_id: ${medication.medi_id}`
-            );
             continue;
         }
 
@@ -482,7 +463,7 @@ const get_next_schedule_time_today = async (patient_id) => {
         const schedule_date = buildScheduleTimestamp(row.time_to_take, current_date);
 
         if (schedule_date && schedule_date.getTime() >= current_date.getTime()) {
-            return schedule_date.toISOString();
+            return buildKstDateTimeString(new Date(), row.time_to_take);
         }
     }
 

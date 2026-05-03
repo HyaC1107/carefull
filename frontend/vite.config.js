@@ -10,7 +10,7 @@ export default defineConfig(({ mode }) => {
 
   const devServerPort = env.VITE_DEV_PORT
     ? Number(env.VITE_DEV_PORT)
-    : 5173
+    : undefined
 
   const resolveEnvPath = (value) => (
     value && (path.isAbsolute(value) ? value : path.resolve(process.cwd(), value))
@@ -27,9 +27,9 @@ export default defineConfig(({ mode }) => {
   )
 
   const devServer = {
-    host: env.VITE_DEV_HOST || '0.0.0.0',
-    port: devServerPort,
-    strictPort: true,
+    strictPort: Boolean(devServerPort),
+    ...(env.VITE_DEV_HOST ? { host: env.VITE_DEV_HOST } : {}),
+    ...(devServerPort ? { port: devServerPort } : {}),
     ...(env.VITE_ALLOWED_HOSTS
       ? { allowedHosts: env.VITE_ALLOWED_HOSTS.split(',').map((host) => host.trim()).filter(Boolean) }
       : {}),

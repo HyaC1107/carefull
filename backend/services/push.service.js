@@ -111,6 +111,7 @@ const deactivate_invalid_push_tokens = async (tokens, responses = []) => {
                 is_active = FALSE,
                 updated_at = CURRENT_TIMESTAMP
             WHERE fcm_token = ANY($1::text[])
+              AND is_active = TRUE
         `,
         [invalid_tokens]
     );
