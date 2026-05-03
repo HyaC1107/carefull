@@ -58,7 +58,7 @@ DB 컬럼명 / API 요청 키 / API 응답 키 / SQL alias는 기본적으로 `s
 | `activities` | 복약 로그 |
 | `devices` | 디스펜서 기기 (알림음 파일 포함) |
 | `face_embeddings` | 얼굴 벡터 (pgvector) |
-| `fingerprints` | 지문 슬롯 (R307 센서) |
+| `fingerprints` | 사용하지 않음. 지문 공식 저장 기준은 `patients.fingerprint_slots` |
 | `voice_samples` | 보호자 목소리 파일 |
 | `notifications` | FCM 알림 이력 |
 | `push_tokens` | FCM 푸시 토큰 |
@@ -80,7 +80,7 @@ members ──< patients ──< schedules >── medications
    │            │                                      │
    │            ├──< devices                    members ┘
    │            ├──< face_embeddings
-   │            ├──< fingerprints
+   │            ├──< fingerprints (미사용, 공식 지문 저장소 아님)
    │            └──< voice_samples
    │
    └──< push_tokens
@@ -409,9 +409,11 @@ CREATE INDEX ix_face_embeddings_patient_id
 
 ---
 
-## 8. fingerprints
+## 8. fingerprints (미사용/레거시)
 
-R307 센서 기준 지문 슬롯 테이블.
+이 테이블 방식은 현재 공식 지문 저장 기준으로 사용하지 않는다.
+R307 지문 조회/등록/삭제는 `patients.fingerprint_slots` JSONB 기준으로 처리한다.
+아래 DDL은 과거 참고용이며, 신규 코드나 `backend/routes/device.js`에서 `fingerprints` 테이블로 전환하지 않는다.
 
 | 컬럼 | 타입 | 필수 | 설명 |
 |---|---|---|---|
@@ -440,9 +442,9 @@ CREATE INDEX ix_fingerprints_patient_id
 - `patient_id + slot_id` 조합은 UNIQUE다.
 - `patients.fingerprint_slots`는 환자 테이블의 신규 다중 지문 슬롯 컬럼이다.
 - `patients.fingerprint_id`는 현재 DDL에 남아 있는 레거시 단일 지문 ID 컬럼이다.
-- R307 슬롯 관리 기준은 실제 사용처에 따라 `fingerprints` 테이블 또는 `patients.fingerprint_slots` 중 하나를 확인해야 하며, 임의로 `fingerprint_id` 단일값 방식으로 되돌리지 않는다.
-- AI 작업자는 지문 방식을 임의로 하나로 통합하거나 DB 스키마를 변경하지 않는다.
-- `device.js` 병합 시 `/fingerprints` 라우트가 `fingerprints` 테이블 방식인지 `patients.fingerprint_slots` 방식인지 반드시 사용처를 확인한다.
+- R307 슬롯 관리 기준은 `patients.fingerprint_slots`만 공식으로 사용한다.
+- AI 작업자는 지문 방식을 `fingerprints` 테이블로 변경하거나 DB 스키마를 변경하지 않는다.
+- `device.js` 병합 시 `/fingerprints` 라우트는 `patients.fingerprint_slots` 방식으로 유지한다.
 
 ---
 
@@ -695,3 +697,20 @@ CREATE TABLE public.admins (
 주의:
 - `log`, `title`, `message`, `type`은 일반 단어로도 쓰일 수 있으므로 무조건 치환하지 않는다.
 - 코드 맥락이 DB/API 네이밍과 관련될 때만 수정 여부를 판단한다.
+
+---
+
+## 지문 저장 기준 최종 확정
+
+현재 프로젝트의 공식 지문 저장 기준은 `patients.fingerprint_slots`이다.
+
+- 지문 데이터는 별도 `fingerprints` 테이블에 저장하지 않는다.
+- `fingerprint_slots`는 여러 지문 슬롯을 담는 JSONB 배열이며 기본값은 빈 배열 `[]`이다.
+- `/api/device/fingerprints` 조회/등록/삭제 라우트는 `patients.fingerprint_slots` 기준으로 동작한다.
+- `fingerprint_slots` 항목 구조는 `{ slot_id, label, registered_at }`를 유지한다.
+- `fingerprints` 테이블 기반 `SELECT` / `INSERT` / `DELETE` / `UPDATE` 전환은 사용하지 않는다.
+- `fp_id` 요청/응답 key 전환은 사용하지 않는다.
+- `backend/routes/device.js`는 `fingerprints` 테이블/컬럼/쿼리를 참조하지 않아야 한다.
+- 향후 AI/Codex 작업 시 지문 흐름을 `fingerprints` 테이블 방식으로 변경하지 않는다.
+- DB 스키마 변경 없이 기존 `fingerprint_slots` 구조를 유지한다.
+- 이 문단은 문서 내 과거 `fingerprints` 테이블 DDL 또는 관계도 언급보다 우선하는 최종 기준이다.

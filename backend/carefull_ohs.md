@@ -233,15 +233,15 @@ DB 관련 작업 원칙:
 - patients.fingerprint_id는 DDL에 남아 있는 레거시 단일 지문 ID 컬럼이다.
 - 신규 R307 다중 슬롯 등록/삭제 로직을 작성할 때 fingerprint_id 단일값 전제로 되돌리지 않는다.
 - fingerprint_id는 DB에서 실제 제거되기 전까지 존재하지 않는 컬럼처럼 취급하지 않는다.
-- fingerprints 테이블도 존재하므로 /api/device/fingerprints 병합·수정 시 실제 사용처를 확인한다.
-- 지문 저장 방식을 임의로 하나로 통합하거나 DB 스키마를 변경하지 않는다.
+- fingerprints 테이블 방식은 더 이상 사용하지 않는다.
+- 지문 저장 방식은 patients.fingerprint_slots 기준으로 유지하며 DB 스키마를 변경하지 않는다.
 ```
 
 `device.js` 병합 시 특히 확인할 것:
 
 ```text
 - /api/device/fingerprint 는 patients.fingerprint_id 기반 레거시 단일 지문 저장 라우트일 수 있으므로 임의 삭제 금지
-- /api/device/fingerprints 는 다중 지문 슬롯 라우트이므로 patients.fingerprint_slots 방식인지 fingerprints 테이블 방식인지 사용처 확인 후 병합
+- /api/device/fingerprints 는 다중 지문 슬롯 라우트이므로 patients.fingerprint_slots 방식만 유지하고 fingerprints 테이블 방식으로 전환하지 않는다.
 - 응답 key 변경 금지
 - 라즈베리파이/R307 연동 코드가 기대하는 slot_id, label, registered_at 구조 유지
 ```
@@ -336,15 +336,15 @@ LOW_STOCK:
 - device 상태: last_ping 기준
 - patients.fingerprint_slots: 현재 신규 다중 지문 슬롯 기준 컬럼
 - patients.fingerprint_id: 레거시 단일 지문 ID 컬럼
-- fingerprints: R307 지문 슬롯 테이블
+- fingerprints: 사용하지 않음. 지문 공식 저장 기준은 patients.fingerprint_slots
 ```
 
 주의:
 
 ```text
 - fingerprint_id 단일값 방식으로 신규 다중 지문 로직을 되돌리지 않는다.
-- fingerprint_slots와 fingerprints 테이블 중 어떤 저장소를 쓰는지는 실제 사용처를 확인한 뒤 결정한다.
-- 둘 중 하나를 임의 삭제하거나 통합하지 않는다.
+- 지문 저장소는 patients.fingerprint_slots만 공식으로 사용한다.
+- fingerprints 테이블 방식으로 변경하지 않는다.
 ```
 
 ---
@@ -458,3 +458,19 @@ LOW_STOCK:
 ```
 
 반드시 **로컬 + 배포 환경 모두 만족**하도록 구현해야 한다.
+
+---
+
+## 지문 저장 기준 최종 확정
+
+현재 프로젝트의 공식 지문 저장 기준은 `patients.fingerprint_slots`이다.
+
+- 지문 데이터는 별도 `fingerprints` 테이블에 저장하지 않는다.
+- `fingerprint_slots`는 여러 지문 슬롯을 담는 JSONB 배열이다.
+- `/api/device/fingerprints` 조회/등록/삭제 라우트는 `patients.fingerprint_slots` 기준으로 동작한다.
+- `fingerprint_slots` 항목 구조는 `{ slot_id, label, registered_at }`를 유지한다.
+- `fingerprints` 테이블 기반 `SELECT` / `INSERT` / `DELETE` / `UPDATE` 전환은 사용하지 않는다.
+- `fp_id` 응답 key 전환은 사용하지 않는다.
+- 향후 AI/Codex 작업 시 지문 흐름을 `fingerprints` 테이블 방식으로 변경하지 않는다.
+- DB 스키마 변경 없이 기존 `fingerprint_slots` 구조를 유지한다.
+- 이 문단은 문서 내 과거 `fingerprints` 테이블 언급보다 우선하는 최종 기준이다.

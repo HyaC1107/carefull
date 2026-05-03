@@ -14,56 +14,59 @@ export function useFCM() {
 
     async function bindForegroundListener() {
       if (!('Notification' in window)) {
-        console.warn('[FCM] Notification API is not supported.')
+        console.warn('[FCM] foreground listener skipped: Notification API is not supported.')
         return
       }
 
       if (!('serviceWorker' in navigator)) {
-        console.warn('[FCM] Service Worker is not supported.')
+        console.warn('[FCM] foreground listener skipped: Service Worker is not supported.')
         return
       }
 
       if (!VAPID_KEY) {
-        console.warn('[FCM] Firebase VAPID key is missing.')
+        console.warn('[FCM] foreground listener skipped: VAPID key is missing.')
         return
       }
 
       const supported = await isSupported().catch(() => false)
 
       if (!supported) {
-        console.warn('[FCM] Firebase Messaging is not supported in this browser.')
+        console.warn('[FCM] foreground listener skipped: Firebase Messaging is not supported.')
         return
       }
 
-      if (cancelled) return
+      if (cancelled) {
+        return
+      }
 
       try {
         const messaging = getMessaging(firebaseApp)
 
         unsubscribe = onMessage(messaging, (payload) => {
-          const title = payload?.notification?.title || payload?.data?.title || 'Carefull'
-          const body = payload?.notification?.body || payload?.data?.body || ''
-          const data = payload?.data || {}
-
           console.info('[FCM] foreground message received:', {
-            title,
-            body,
-            data,
+            title: payload?.notification?.title,
+            body: payload?.notification?.body,
+            data: payload?.data,
           })
 
           if (Notification.permission === 'granted') {
+            const title = payload?.notification?.title || payload?.data?.title || 'Carefull'
+            const body = payload?.notification?.body || payload?.data?.body || ''
+
             navigator.serviceWorker.ready
-              .then((registration) => registration.showNotification(title, {
-                body,
-                icon: '/favicons/favicon.ico',
-                badge: '/favicons/favicon.ico',
-                data,
-              }))
+              .then((registration) =>
+                registration.showNotification(title, {
+                  body,
+                  icon: '/favicons/favicon.ico',
+                  badge: '/favicons/favicon.ico',
+                  data: payload?.data || {},
+                })
+              )
               .catch((error) => {
-                console.warn('[FCM] Failed to show foreground notification:', error)
+                console.warn('[FCM] foreground notification failed:', error)
               })
           } else {
-            console.warn('[FCM] Notification permission is not granted.')
+            console.warn('[FCM] foreground notification skipped:', Notification.permission)
           }
 
           window.dispatchEvent(
@@ -71,7 +74,7 @@ export function useFCM() {
           )
         })
       } catch (e) {
-        console.warn('[FCM] onMessage setup failed:', e.message)
+        console.warn('[FCM] foreground listener failed:', e.message)
       }
     }
 
