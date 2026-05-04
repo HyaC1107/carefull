@@ -1,5 +1,6 @@
 const pool = require('../db');
 const { ACTIVITY_STATUS } = require('../utils/activity-status');
+const { COMPLETED_STATUSES, MISSED_STATUSES } = require('../utils/dashboard-helpers');
 
 const NOTIFICATION_TYPE = {
     SUCCESS: ACTIVITY_STATUS.SUCCESS,
