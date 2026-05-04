@@ -4,227 +4,152 @@ import time
 import cv2
 import numpy as np
 
-# 프로젝트 루트 경로 추가 (기본 설정 로드를 위해)
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# 프로젝트 루트 경로 추가 (모듈 임포트를 위해)
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.append(PROJECT_ROOT)
 
-# GPIO 라이브러리 예외 처리
+# 프로젝트 모듈 임포트
+from face_detection.mediapipe_detector import detect_face
+from hardware.gimbal import Gimbal
+from config.settings import CAMERA_WIDTH as WIDTH, CAMERA_HEIGHT as HEIGHT
+
+# GPIO 및 카메라 라이브러리 예외 처리 (설치 여부 확인)
 try:
     import RPi.GPIO as GPIO
 except ImportError:
-    class MockGPIO:
-        BCM = "BCM"
-        OUT = "OUT"
-        def setmode(self, mode): pass
-        def setwarnings(self, flag): pass
-        def setup(self, pin, mode): pass
-        def output(self, pin, state): pass
-        def cleanup(self): pass
-        class PWM:
-            def __init__(self, pin, freq): pass
-            def start(self, dc): pass
-            def ChangeDutyCycle(self, dc): pass
-            def stop(self): pass
-    GPIO = MockGPIO()
+    print("[WARN] RPi.GPIO를 찾을 수 없습니다. 시뮬레이션 모드로 작동합니다.")
 
-# MediaPipe 예외 처리
-try:
-    import mediapipe as mp
-    HAS_MEDIAPIPE = True
-except ImportError:
-    HAS_MEDIAPIPE = False
-
-# 필수 설정값 직접 정의 (의존성 최소화)
-WIDTH = 640
-HEIGHT = 480
-SERVO_PIN = 19  # 사용자의 요청에 따른 19번 핀 고정
-
-class FinalStandaloneGimbalTester:
+class GimbalFaceTracker:
     def __init__(self):
-        # 1. 카메라 및 인식기 설정
         self._picam2 = None
         self._webcam = None
-        self._face_detection = None
         
-        # 2. 서보 모터 설정
-        self.angle = 90
-        self.threshold = 40  # 데드존
-        self.step = 1.0      # 이동 크기
-        
-        # 3. GPIO 초기화
-        GPIO.setmode(GPIO.BCM)
-        GPIO.setup(SERVO_PIN, GPIO.OUT)
-        self.pwm = GPIO.PWM(SERVO_PIN, 50)
-        self.pwm.start(self._angle_to_duty(self.angle))
-        
-        # 4. 얼굴 인식기 초기화
-        if HAS_MEDIAPIPE:
-            mp_face = mp.solutions.face_detection
-            self._face_detection = mp_face.FaceDetection(
-                model_selection=0, 
-                min_detection_confidence=0.5
-            )
-            print("[INFO] MediaPipe Face Detection initialized.")
+        # 1. 짐벌 초기화
+        try:
+            GPIO.setmode(GPIO.BCM)
+            self.gimbal = Gimbal()
+            print("[INFO] Gimbal (Pin 19) 초기화 완료.")
+        except Exception as e:
+            print(f"[ERROR] Gimbal 초기화 실패: {e}")
+            self.gimbal = None
 
-    # --- 서보 제어 로직 ---
-    def _angle_to_duty(self, angle):
-        return 2.5 + (angle / 180.0) * 10.0
+        # 디스플레이 환경 확인
+        if "DISPLAY" not in os.environ:
+            print("[WARN] 디스플레이 환경 변수가 없습니다. 창이 뜨지 않을 수 있습니다.")
 
-    def set_angle(self, angle):
-        self.angle = max(0, min(180, angle))
-        self.pwm.ChangeDutyCycle(self._angle_to_duty(self.angle))
-
-    def track_face_logic(self, face_bbox):
-        x, y, w, h = face_bbox
-        face_center_x = x + w / 2
-        frame_center_x = WIDTH / 2
-        error_x = face_center_x - frame_center_x
-        
-        new_angle = self.angle
-        if abs(error_x) > self.threshold:
-            # 얼굴이 중앙보다 오른쪽에 있으면(error_x > 0) 각도를 줄여서 오른쪽으로 회전
-            if error_x > 0:
-                new_angle -= self.step
-            else:
-                new_angle += self.step
-        self.set_angle(new_angle)
-        return error_x
-
-    # --- 카메라 로직 (test_camera.py 방식 통합) ---
     def _init_camera(self):
+        print("[INFO] 카메라 초기화 시도 중...")
+        
+        # 1. Picamera2 시도
         try:
             from picamera2 import Picamera2
-            cam = Picamera2()
-            cam.configure(cam.create_preview_configuration(
+            print("[INFO] Picamera2 라이브러리 로드 성공. 카메라 객체 생성 중...")
+            self._picam2 = Picamera2()
+            
+            config = self._picam2.create_preview_configuration(
                 main={"size": (WIDTH, HEIGHT), "format": "RGB888"}
-            ))
-            cam.start()
-            self._picam2 = cam
-            print("[INFO] Picamera2 initialized.")
+            )
+            self._picam2.configure(config)
+            self._picam2.start()
+            
+            print("[SUCCESS] Picamera2 가동 성공!")
             return True
-        except Exception:
+        except Exception as e:
+            print(f"[WARN] Picamera2 실패 사유: {e}")
+            self._picam2 = None
+
+        # 2. 일반 OpenCV 웹캠 시도 (폴백)
+        print("[INFO] USB 웹캠 모드로 전환하여 시도 중...")
+        try:
             self._webcam = cv2.VideoCapture(0)
-            self._webcam.set(cv2.CAP_PROP_FRAME_WIDTH, WIDTH)
-            self._webcam.set(cv2.CAP_PROP_FRAME_HEIGHT, HEIGHT)
             if self._webcam.isOpened():
-                print("[INFO] USB Webcam initialized.")
+                self._webcam.set(cv2.CAP_PROP_FRAME_WIDTH, WIDTH)
+                self._webcam.set(cv2.CAP_PROP_FRAME_HEIGHT, HEIGHT)
+                print("[SUCCESS] USB 웹캠 가동 성공!")
                 return True
+            else:
+                print("[ERROR] 연결된 USB 웹캠을 찾을 수 없습니다.")
+        except Exception as e:
+            print(f"[ERROR] 웹캠 초기화 실패: {e}")
+        
         return False
 
     def get_frame(self):
-        if self._picam2:
-            frame = self._picam2.capture_array()
-            return cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
-        elif self._webcam:
-            ok, frame = self._webcam.read()
-            return frame if ok else None
+        try:
+            if self._picam2:
+                frame = self._picam2.capture_array()
+                return cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
+            elif self._webcam:
+                ok, frame = self._webcam.read()
+                return frame if ok else None
+        except Exception as e:
+            print(f"[ERROR] 프레임 획득 실패: {e}")
         return None
 
-    def detect_faces(self, frame):
-        if not self._face_detection or frame is None:
-            return []
-        rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        results = self._face_detection.process(rgb_frame)
-        faces = []
-        if results.detections:
-            for detection in results.detections:
-                bbox = detection.location_data.relative_bounding_box
-                x, y, w, h = int(bbox.xmin*WIDTH), int(bbox.ymin*HEIGHT), int(bbox.width*WIDTH), int(bbox.height*HEIGHT)
-                faces.append((x, y, w, h))
-        return faces
-
-    # --- 시각화 로직 ---
-    def draw_visuals(self, frame, faces, error_x):
-        # 중앙 가이드라인
-        cx, cy = WIDTH // 2, HEIGHT // 2
-        cv2.line(frame, (cx, 0), (cx, HEIGHT), (255, 0, 0), 1)
-        cv2.circle(frame, (cx, cy), self.threshold, (255, 0, 0), 1)
-        
-        if faces:
-            faces.sort(key=lambda f: f[2]*f[3], reverse=True)
-            x, y, w, h = faces[0]
-            fx = x + w // 2
-            
-            # 얼굴 박스 및 중심점
-            color = (0, 255, 0) if abs(error_x) <= self.threshold else (0, 0, 255)
-            cv2.rectangle(frame, (x, y), (x + w, y + h), color, 2)
-            cv2.circle(frame, (fx, y + h // 2), 5, (0, 0, 255), -1)
-            cv2.line(frame, (cx, cy), (fx, y + h // 2), (0, 255, 255), 2)
-
-        # 정보 텍스트 표시
-        cv2.putText(frame, f"Angle: {self.angle:.1f}", (20, 40), 
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
-        cv2.putText(frame, f"Error X: {error_x:.1f}", (20, 70), 
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2)
-        return frame
-
-    def run_tracking_test(self):
+    def run(self):
         if not self._init_camera():
-            print("[ERROR] Camera failed.")
+            print("[FATAL] 모든 카메라 초기화 수단이 실패했습니다.")
             return
 
-        print("\n--- Standalone Gimbal Tracking Test Start ---")
-        print("Press 'q' to exit.")
+        print("\n[작동 중] 얼굴 추적 테스트를 시작합니다. 'q'를 누르면 종료됩니다.")
+        
+        cv2.namedWindow("CareFull Gimbal Tracking Test", cv2.WINDOW_AUTOSIZE)
         
         try:
             while True:
                 frame = self.get_frame()
-                if frame is None: continue
+                if frame is None:
+                    print("[WARN] 프레임이 비어있습니다. 재시도 중...")
+                    time.sleep(0.1)
+                    continue
                 
-                faces = self.detect_faces(frame)
-                error_x = 0
+                # 얼굴 인식 (mediapipe_detector 활용)
+                faces = detect_face(frame)
+                
+                # 중앙 조준선 (시각화)
+                cv2.line(frame, (WIDTH//2, 0), (WIDTH//2, HEIGHT), (255, 0, 0), 1)
+                
+                # 추적할 대상 선정 (가장 큰 얼굴)
+                target_face = None
                 if faces:
-                    faces.sort(key=lambda f: f[2]*f[3], reverse=True)
-                    error_x = self.track_face_logic(faces[0])
+                    # 면적이 가장 큰 얼굴 선택
+                    faces.sort(key=lambda f: f[2] * f[3], reverse=True)
+                    target_face = faces[0]
+                    
+                    # 짐벌 추적 (hardware/gimbal.py 활용)
+                    if self.gimbal:
+                        self.gimbal.track_face(target_face, WIDTH, HEIGHT)
                 
-                frame = self.draw_visuals(frame, faces, error_x)
-                cv2.imshow("Standalone Gimbal Tracking", frame)
-                
-                if cv2.waitKey(1) & 0xFF == ord('q'):
-                    break
-        finally:
-            self.pwm.stop()
-            if self._picam2: self._picam2.stop()
-            if self._webcam: self._webcam.release()
-            cv2.destroyAllWindows()
-            GPIO.cleanup()
-            print("--- Test Finished ---")
+                # 시각화
+                for i, (x, y, w, h) in enumerate(faces):
+                    color = (0, 255, 0) if i == 0 else (255, 255, 0) # 타겟은 녹색, 나머지는 하늘색계열
+                    cv2.rectangle(frame, (x, y), (x + w, y + h), color, 2)
+                    cv2.circle(frame, (x + w // 2, y + h // 2), 5, (0, 0, 255), -1)
 
-    def run_movement_test(self):
-        """19번 핀 가동 범위 테스트 (0~180도)"""
-        if not self._init_camera(): return
-        print("\n--- Gimbal Range Test (0 -> 180) ---")
-        try:
-            for angle in range(90, -1, -5):
-                self.set_angle(angle)
-                frame = self.get_frame()
-                if frame is not None:
-                    frame = self.draw_visuals(frame, [], 0)
-                    cv2.imshow("Standalone Gimbal Range Test", frame)
-                cv2.waitKey(1)
-                time.sleep(0.05)
-            for angle in range(0, 181, 5):
-                self.set_angle(angle)
-                frame = self.get_frame()
-                if frame is not None:
-                    frame = self.draw_visuals(frame, [], 0)
-                    cv2.imshow("Standalone Gimbal Range Test", frame)
-                cv2.waitKey(1)
-                time.sleep(0.05)
-            self.set_angle(90)
-            print("Range test complete. Press any key on window to finish.")
-            cv2.waitKey(0)
+                # 상태 정보 표시
+                if self.gimbal:
+                    cv2.putText(frame, f"Gimbal Angle: {self.gimbal.angle:.1f}", (20, 40), 
+                                cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
+                
+                cv2.imshow("CareFull Gimbal Tracking Test", frame)
+                
+                # 'q' 키를 누르거나 창을 닫으면 종료
+                key = cv2.waitKey(1) & 0xFF
+                if key == ord('q'):
+                    break
+                if cv2.getWindowProperty("CareFull Gimbal Tracking Test", cv2.WND_PROP_VISIBLE) < 1:
+                    break
+        except KeyboardInterrupt:
+            print("\n[STOP] 사용자에 의해 중단되었습니다.")
         finally:
-            self.pwm.stop()
+            if self.gimbal:
+                self.gimbal.stop()
             if self._picam2: self._picam2.stop()
             if self._webcam: self._webcam.release()
-            cv2.destroyAllWindows()
             GPIO.cleanup()
+            cv2.destroyAllWindows()
+            print("[INFO] 리소스가 해제되었습니다.")
 
 if __name__ == "__main__":
-    tester = FinalStandaloneGimbalTester()
-    print("1. 짐벌 가동 범위 테스트 (0~180도)")
-    print("2. 실시간 얼굴 추적 테스트 (카메라 화면 포함)")
-    choice = input("선택: ")
-    
-    if choice == '1': tester.run_movement_test()
-    elif choice == '2': tester.run_tracking_test()
+    tracker = GimbalFaceTracker()
+    tracker.run()
