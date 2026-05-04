@@ -127,7 +127,7 @@ router.get('/patients', verifyAdminToken, async (req, res) => {
                 p.gender,
                 p.phone,
                 p.bloodtype,
-                p.fingerprint_id,
+                p.fingerprint_slots,
                 p.created_at,
                 m.nick  AS member_nick,
                 m.email AS member_email,

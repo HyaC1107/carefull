@@ -172,6 +172,7 @@ const send_to_tokens = async ({ mem_id, tokens, title, body, data = {}, context 
 
 const register_push_token = async ({ mem_id, fcm_token, device_type = 'web' }) => {
     const client = await pool.connect();
+    const normalized_device_type = 'web';
     const query = `
         INSERT INTO push_tokens (
             mem_id,
@@ -200,7 +201,20 @@ const register_push_token = async ({ mem_id, fcm_token, device_type = 'web' }) =
 
     try {
         await client.query('BEGIN');
-        const { rows } = await client.query(query, [mem_id, fcm_token, device_type]);
+        const { rows } = await client.query(query, [mem_id, fcm_token, normalized_device_type]);
+        await client.query(
+            `
+                UPDATE push_tokens
+                SET
+                    is_active = FALSE,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE mem_id = $1
+                  AND device_type = $2
+                  AND fcm_token <> $3
+                  AND is_active = TRUE
+            `,
+            [mem_id, normalized_device_type, fcm_token]
+        );
         await client.query('COMMIT');
         return rows[0] || null;
     } catch (error) {

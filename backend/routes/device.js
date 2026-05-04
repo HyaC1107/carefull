@@ -214,17 +214,27 @@ router.post('/fingerprint', async (req, res) => {
     }
 
     try {
+        const new_entry = {
+            slot_id: parsed_id,
+            label: '지문',
+            registered_at: new Date().toISOString(),
+        };
+
         const { rows } = await pool.query(`
             UPDATE patients
-            SET fingerprint_id = $1
+            SET fingerprint_slots = (
+                SELECT COALESCE(jsonb_agg(elem ORDER BY (elem->>'registered_at')), '[]'::jsonb)
+                FROM jsonb_array_elements(fingerprint_slots) AS elem
+                WHERE (elem->>'slot_id')::int != $1
+            ) || $2::jsonb
             WHERE patient_id = (
                 SELECT patient_id FROM devices
-                WHERE device_uid = $2
+                WHERE device_uid = $3
                   AND patient_id IS NOT NULL
                 LIMIT 1
             )
-            RETURNING patient_id, fingerprint_id
-        `, [parsed_id, String(device_uid).trim()]);
+            RETURNING patient_id, fingerprint_slots
+        `, [parsed_id, JSON.stringify([new_entry]), String(device_uid).trim()]);
 
         if (rows.length === 0) {
             return sendError(res, 404, 'Device not found or not assigned to a patient.');
@@ -233,7 +243,8 @@ router.post('/fingerprint', async (req, res) => {
         return sendSuccess(res, 200, {
             message: 'Fingerprint ID saved successfully.',
             patient_id: rows[0].patient_id,
-            fingerprint_id: rows[0].fingerprint_id
+            fingerprint: new_entry,
+            fingerprints: rows[0].fingerprint_slots
         });
     } catch (error) {
         console.error('Fingerprint update error:', error);
