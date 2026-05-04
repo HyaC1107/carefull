@@ -1,6 +1,7 @@
 const pool = require('../db');
 const { ACTIVITY_STATUS } = require('../utils/activity-status');
 const { COMPLETED_STATUSES, MISSED_STATUSES } = require('../utils/dashboard-helpers');
+const { send_medication_activity_push_safe } = require('./push.service');
 
 const NOTIFICATION_TYPE = {
     SUCCESS: ACTIVITY_STATUS.SUCCESS,
