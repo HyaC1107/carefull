@@ -67,21 +67,24 @@ class FaceThread(QThread):
     # ──────────────────────────────── auth ───────────────────────────────────
 
     def _run_auth(self):
+        """
+        [변경] 실시간 추론 대신 3초 동안 얼굴 프레임을 수집만 함.
+        수집 완료 후 capture_done 시그널로 프레임 리스트 전달.
+        """
         from camera.camera import get_frame
         from face_detection.mediapipe_detector import detect_face
-        from auth.authenticate import authenticate
+        import cv2
 
         deadline = None
-        frame_count = 0
-        inference_count = 0
         start_time = time.time()
-        
-        # AI 상태 관리
-        is_ai_busy = False
-        last_ai_time = 0
-        ai_interval = 0.3  # AI 연산 간격 (초)
+        face_imgs = []
+        max_capture = 10  # 인증용으로 수집할 최대 프레임 수
+        last_capture_time = 0
+        capture_interval = 0.3 # 0.3초마다 1장씩
 
-        while self._running:
+        logger.info("[FACE_THREAD] Starting auth capture (3s window)")
+
+        while self._running and len(face_imgs) < max_capture:
             frame = get_frame()
             if frame is None:
                 self.msleep(10)
@@ -90,70 +93,36 @@ class FaceThread(QThread):
             now = time.time()
             if deadline is None:
                 deadline = now + AUTH_TIMEOUT_SEC
-                
             if now > deadline:
-                logger.info(f"[FACE_THREAD] Auth timeout reached ({AUTH_TIMEOUT_SEC}s)")
                 break
 
-            # 1. 화면 갱신은 어떤 경우에도 멈추지 않음 (High FPS 유지)
+            # 화면 갱신은 계속함
             self.frame_ready.emit(frame.copy())
-            frame_count += 1
 
-            # 2. AI 연산 조건 체크 (진행 중이 아니고, 간격이 지났을 때만)
-            if not is_ai_busy and (now - last_ai_time > ai_interval):
-                # AI 로직을 블로킹 없이 실행하기 위해 별도의 처리가 필요하지만,
-                # Python 스레드 특성상 루프 안에서 실행하되, 
-                # 이번 루프에서 AI를 수행하더라도 다음 루프는 즉시 돌아가게끔 구조화는 어려우므로
-                # 연산 자체를 최적화하여 멈춤 현상을 최소화함
-                
-                is_ai_busy = True
-                inference_count += 1
-                
-                # AI용 저해상도 복사본 생성 (속도 향상 핵심)
+            # AI용 저해상도 검출
+            if now - last_capture_time > capture_interval:
                 small_frame = cv2.resize(frame, (320, 240))
-                
-                t1 = time.time()
-                # 1. Face Detection (저해상도에서 수행)
                 faces = detect_face(small_frame)
-                det_time = time.time() - t1
                 
                 if faces:
-                    # 검출된 좌표를 원본 해상도로 복구
                     sx, sy, sw, sh = faces[0]
                     x, y, w, h = sx*2, sy*2, sw*2, sh*2
                     
                     face_img = frame[max(0,y):min(480,y+h), max(0,x):min(640,x+w)]
-                    
                     if face_img.size > 0:
-                        t2 = time.time()
-                        # 2. Face Authentication
-                        user, score = authenticate(face_img)
-                        auth_time = time.time() - t2
-                        
-                        logger.debug(f"[AUTH] Det: {det_time*1000:.1f}ms, Auth: {auth_time*1000:.1f}ms, Score: {score:.4f}")
+                        face_imgs.append(face_img)
+                        last_capture_time = now
+                        logger.debug(f"[AUTH_CAPTURE] Collected {len(face_imgs)}/{max_capture}")
 
-                        if user:
-                            total_dur = time.time() - start_time
-                            avg_fps = frame_count / total_dur
-                            logger.info(f"[FACE_THREAD] Auth Success: {user} (Score: {score:.4f})")
-                            logger.info(f"  - Total Frames: {frame_count}, Avg FPS: {avg_fps:.1f}")
-                            
-                            if self._running:
-                                self.auth_success.emit(user, float(score))
-                            return
+            self.msleep(10)
 
-                last_ai_time = time.time()
-                is_ai_busy = False
-
-            # CPU 점유율을 너무 높이지 않기 위해 아주 짧은 휴식
-            self.msleep(1)
-
-        total_dur = time.time() - start_time
-        avg_fps = frame_count / total_dur if total_dur > 0 else 0
-        logger.info(f"[FACE_THREAD] Auth Finished. Frames: {frame_count}, Avg FPS: {avg_fps:.1f}")
-        
         if self._running:
-            self.auth_failed.emit()
+            if face_imgs:
+                logger.info(f"[FACE_THREAD] Capture done. Total: {len(face_imgs)}")
+                self.capture_done.emit(face_imgs)
+            else:
+                logger.info("[FACE_THREAD] No face captured during timeout")
+                self.auth_failed.emit()
 
     # ─────────────────────────────── register ────────────────────────────────
 
