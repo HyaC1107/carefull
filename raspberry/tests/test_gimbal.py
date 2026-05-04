@@ -77,7 +77,10 @@ class GimbalFaceTracker:
     def get_frame(self):
         try:
             if self._picam2:
+                # Picamera2는 기본적으로 RGB를 반환할 수 있음
                 frame = self._picam2.capture_array()
+                # 화면 출력이 파랗게 나온다면 여기서 BGR로의 변환이 필요하거나, 
+                # 혹은 이미 BGR인데 또 변환해서 생기는 문제일 수 있음.
                 return cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
             elif self._webcam:
                 ok, frame = self._webcam.read()
@@ -91,26 +94,39 @@ class GimbalFaceTracker:
             print("[FATAL] 모든 카메라 초기화 수단이 실패했습니다.")
             return
 
-        print("\n[작동 중] 얼굴 추적 테스트를 시작합니다. 'q'를 누르면 종료됩니다.")
+        # 화면 색상이 이상할 경우 (파란색 등) 실행 중 's' 키를 눌러 토글하거나 
+        # 아래 기본값을 True/False로 조절하세요.
+        self.swap_color = True 
+
+        print(f"\n[INFO] 카메라 소스: {'Picamera2' if self._picam2 else 'USB 웹캠'}")
+        print(f"[INFO] 초기 색상 보정(SWAP): {'ON' if self.swap_color else 'OFF'}")
+        print("[작동 중] 's': 색상 보정 토글, 'q': 종료")
         
         cv2.namedWindow("CareFull Gimbal Tracking Test", cv2.WINDOW_AUTOSIZE)
         
         try:
             while True:
-                frame = self.get_frame()
-                if frame is None:
-                    print("[WARN] 프레임이 비어있습니다. 재시도 중...")
-                    time.sleep(0.1)
+                frame_bgr = self.get_frame()
+                if frame_bgr is None:
                     continue
                 
-                # 얼굴 인식 (mediapipe_detector 활용)
-                faces = detect_face(frame)
+                # 1. 얼굴 인식 수행 (항상 BGR 원본 사용)
+                # mediapipe_detector.detect_face는 내부에서 BGR -> RGB 변환을 수행함
+                faces = detect_face(frame_bgr)
                 
-                # 중앙 조준선 (시각화)
-                cv2.line(frame, (WIDTH//2, 0), (WIDTH//2, HEIGHT), (255, 0, 0), 1)
+                # 2. 화면 출력용 프레임 준비 (원본 복사)
+                display_frame = frame_bgr.copy()
+                
+                # 색상 채널 교정 (R <-> B) - 화면 표시용으로만 적용
+                if self.swap_color:
+                    display_frame = cv2.cvtColor(display_frame, cv2.COLOR_BGR2RGB)
+                
+                # 중앙 조준선 (시각화 - display_frame에 그림)
+                cv2.line(display_frame, (WIDTH//2, 0), (WIDTH//2, HEIGHT), (255, 0, 0), 1)
                 
                 # 추적할 대상 선정 (가장 큰 얼굴)
                 target_face = None
+                error_x = 0
                 if faces:
                     # 면적이 가장 큰 얼굴 선택
                     faces.sort(key=lambda f: f[2] * f[3], reverse=True)
@@ -119,19 +135,37 @@ class GimbalFaceTracker:
                     # 짐벌 추적 (hardware/gimbal.py 활용)
                     if self.gimbal:
                         self.gimbal.track_face(target_face, WIDTH, HEIGHT)
+                    
+                    # 오차값 계산 (화면 표시용)
+                    fx = target_face[0] + target_face[2] // 2
+                    error_x = fx - (WIDTH // 2)
                 
-                # 시각화
+                # 시각화 (display_frame에 그림)
                 for i, (x, y, w, h) in enumerate(faces):
-                    color = (0, 255, 0) if i == 0 else (255, 255, 0) # 타겟은 녹색, 나머지는 하늘색계열
-                    cv2.rectangle(frame, (x, y), (x + w, y + h), color, 2)
-                    cv2.circle(frame, (x + w // 2, y + h // 2), 5, (0, 0, 255), -1)
+                    color = (0, 255, 0) if i == 0 else (255, 255, 0)
+                    cv2.rectangle(display_frame, (x, y), (x + w, y + h), color, 2)
+                    cv2.circle(display_frame, (x + w // 2, y + h // 2), 5, (0, 0, 255), -1)
 
                 # 상태 정보 표시
                 if self.gimbal:
-                    cv2.putText(frame, f"Gimbal Angle: {self.gimbal.angle:.1f}", (20, 40), 
+                    cv2.putText(display_frame, f"Angle: {self.gimbal.angle:.1f}", (20, 40), 
                                 cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
+                cv2.putText(display_frame, f"Error X: {error_x}", (20, 70), 
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2)
+                cv2.putText(display_frame, f"SWAP: {'ON' if self.swap_color else 'OFF'}", (20, 100), 
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 0, 255), 2)
                 
-                cv2.imshow("CareFull Gimbal Tracking Test", frame)
+                cv2.imshow("CareFull Gimbal Tracking Test", display_frame)
+                
+                key = cv2.waitKey(1) & 0xFF
+                if key == ord('q'):
+                    break
+                elif key == ord('s'): # 's' 키를 누르면 실시간으로 색상 반전 토글
+                    self.swap_color = not self.swap_color
+                    print(f"[INFO] 색상 보정 토글: {'ON' if self.swap_color else 'OFF'}")
+                
+                if cv2.getWindowProperty("CareFull Gimbal Tracking Test", cv2.WND_PROP_VISIBLE) < 1:
+                    break
                 
                 # 'q' 키를 누르거나 창을 닫으면 종료
                 key = cv2.waitKey(1) & 0xFF
