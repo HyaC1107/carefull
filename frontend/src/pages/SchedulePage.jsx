@@ -9,6 +9,7 @@ import ScheduleSummaryCard from '../components/schedule/ScheduleSummaryCard'
 import ScheduleList from '../components/schedule/ScheduleList'
 import ScheduleInfoBanner from '../components/schedule/ScheduleInfoBanner'
 import { hasStoredToken, requestJson } from '../api'
+import { useUnreadCount } from '../hooks/useUnreadCount'
 import '../styles/SchedulePage.css'
 import '../styles/MobileBottomNav.css'
 
@@ -18,6 +19,7 @@ const SCHEDULE_INFO_BANNER = {
 }
 
 function SchedulePage() {
+  const unreadCount = useUnreadCount()
   const [calendarState, setCalendarState] = useState(createInitialCalendarState)
   const [schedules, setSchedules] = useState([])
   const [backendCompletedKeys, setBackendCompletedKeys] = useState(new Set())
@@ -183,7 +185,7 @@ function SchedulePage() {
   return (
     <div className="schedule-page">
       <div className="schedule-layout">
-        <Sidebar activeMenu="schedule" />
+        <Sidebar activeMenu="schedule" alertCount={unreadCount} />
 
         <div className="schedule-main">
           <TopHeader />

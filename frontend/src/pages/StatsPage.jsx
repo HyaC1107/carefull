@@ -15,6 +15,7 @@ import {
   hasStoredToken,
   requestJson,
 } from '../api'
+import { useUnreadCount } from '../hooks/useUnreadCount'
 import '../styles/StatsPage.css'
 import '../styles/MobileBottomNav.css'
 
@@ -22,6 +23,7 @@ const PIE_COLORS = ['#10b981', '#0ea5e9', '#f59e0b', '#ef4444', '#8b5cf6']
 const PATIENT_REGISTRATION_LABEL = '환자를 등록해주세요.'
 
 function StatsPage() {
+  const unreadCount = useUnreadCount()
   const [activities, setActivities] = useState([])
   const [dashboardData, setDashboardData] = useState(null)
   const [dashboardSummary, setDashboardSummary] = useState(null)
@@ -90,7 +92,7 @@ function StatsPage() {
   return (
     <div className="stats-page">
       <div className="stats-layout">
-        <Sidebar activeMenu="stats" />
+        <Sidebar activeMenu="stats" alertCount={unreadCount} />
 
         <div className="stats-main">
           <TopHeader

@@ -11,6 +11,7 @@ import PatientEditModal from '../components/settings/PatientEditModal'
 import VoiceUploadTab from '../components/settings/VoiceUploadTab'
 import AlarmSoundTab from '../components/settings/AlarmSoundTab'
 import { hasStoredToken, requestJson, TOKEN_STORAGE_KEY } from '../api'
+import { useUnreadCount } from '../hooks/useUnreadCount'
 import '../styles/SettingsPage.css'
 import '../styles/MobileBottomNav.css'
 
@@ -91,6 +92,7 @@ function loadNotifPrefs() {
 }
 
 function SettingsPage() {
+  const unreadCount = useUnreadCount()
   const [activeTab, setActiveTab] = useState('general')
   const [notifPrefs, setNotifPrefs] = useState(loadNotifPrefs)
   const [notificationPermission, setNotificationPermission] = useState(
@@ -224,7 +226,7 @@ function SettingsPage() {
   return (
     <div className="settings-page">
       <div className="settings-layout">
-        <Sidebar activeMenu="settings" />
+        <Sidebar activeMenu="settings" alertCount={unreadCount} />
 
         <div className="settings-main">
           <TopHeader />

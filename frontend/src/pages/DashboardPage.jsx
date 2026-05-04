@@ -13,6 +13,7 @@ import {
   hasStoredToken,
   requestJson,
 } from '../api'
+import { useUnreadCount } from '../hooks/useUnreadCount'
 import '../styles/DashboardPage.css'
 import '../styles/MobileBottomNav.css'
 
@@ -42,6 +43,7 @@ const DEFAULT_NEXT_MEDICATION = {
 const PATIENT_REGISTRATION_LABEL = '환자를 등록해주세요.'
 
 function DashboardPage() {
+  const unreadCount = useUnreadCount()
   const [dashboardData, setDashboardData] = useState(null)
 
   useEffect(() => {
@@ -121,7 +123,7 @@ function DashboardPage() {
   return (
     <div className="dashboard-page">
       <div className="dashboard-layout">
-        <Sidebar activeMenu="dashboard" />
+        <Sidebar activeMenu="dashboard" alertCount={unreadCount} />
 
         <div className="dashboard-main">
           <TopHeader
