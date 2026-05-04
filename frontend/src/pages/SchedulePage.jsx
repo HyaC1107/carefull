@@ -9,7 +9,7 @@ import ScheduleSummaryCard from '../components/schedule/ScheduleSummaryCard'
 import ScheduleList from '../components/schedule/ScheduleList'
 import ScheduleInfoBanner from '../components/schedule/ScheduleInfoBanner'
 import { useUnreadCount } from '../hooks/useUnreadCount'
-import { API_BASE_URL, getStoredToken, hasStoredToken, requestJson } from '../api'
+import { hasStoredToken, requestJson } from '../api'
 import '../styles/SchedulePage.css'
 import '../styles/MobileBottomNav.css'
 
@@ -160,7 +160,7 @@ function SchedulePage() {
             ? newSchedule.time_to_take_list.map(ensureSeconds)
             : undefined,
           start_date: newSchedule.start_date || selectedDate,
-          end_date: newSchedule.end_date || null,
+          end_date: newSchedule.end_date || newSchedule.start_date || selectedDate,
           dose_interval:
             newSchedule.repeatType === 'interval'
               ? Number(newSchedule.dose_interval)
@@ -181,49 +181,6 @@ function SchedulePage() {
       console.error('schedule create error:', error)
       alert(error.message || '복약 일정 추가에 실패했습니다.')
     }
-  }
-
-  const refreshSchedules = async () => {
-    const refreshedSchedules = await requestJson('/api/schedule', { auth: true })
-    setSchedules(
-      Array.isArray(refreshedSchedules?.schedules)
-        ? refreshedSchedules.schedules
-        : [],
-    )
-  }
-
-  const handlePreviewPrescription = async (file) => {
-    if (!hasStoredToken()) {
-      throw new Error('Authentication token is missing.')
-    }
-
-    const formData = new FormData()
-    formData.append('prescription', file)
-
-    const response = await fetch(new URL('/api/prescription/preview', API_BASE_URL), {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${getStoredToken()}`,
-      },
-      body: formData,
-    })
-    const data = await response.json().catch(() => null)
-
-    if (!response.ok || data?.success === false) {
-      throw new Error(data?.message || 'Prescription preview failed.')
-    }
-
-    return data?.data || { medications: [], warnings: [] }
-  }
-
-  const handleConfirmPrescription = async (payload) => {
-    await requestJson('/api/prescription/confirm', {
-      method: 'POST',
-      auth: true,
-      body: payload,
-    })
-    await refreshSchedules()
-    setIsAddModalOpen(false)
   }
 
   return (
@@ -272,8 +229,6 @@ function SchedulePage() {
           selectedDateLabel={selectedDateLabel}
           onClose={() => setIsAddModalOpen(false)}
           onSubmit={handleCreateSchedule}
-          onPreviewPrescription={handlePreviewPrescription}
-          onConfirmPrescription={handleConfirmPrescription}
         />
       ) : null}
     </div>
