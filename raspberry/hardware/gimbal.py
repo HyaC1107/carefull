@@ -34,13 +34,13 @@ class Gimbal:
         self.reverse = GIMBAL_REVERSE
         
         # 떨림 방지 파라미터
-        self.threshold = 30        # 데드존 확대 (중앙 부근 떨림 원천 차단)
+        self.threshold = 80        # 데드존 확대 (중앙 부근 떨림 원천 차단)
         self.alpha = 0.1           # 매우 강력한 좌표 평활화
         self.smooth_error_x = 0
         
         # 반동 및 흔들림 제어
-        self.step_size = 0.5       # 한 번 이동 시 보폭 (너무 크면 반동 생김)
-        self.move_interval = 0.15  # 이동 간격 (물리적 진동이 가라앉을 시간)
+        self.step_size = 2       # 한 번 이동 시 보폭 (너무 크면 반동 생김)
+        self.move_interval = 0.05  # 이동 간격 (물리적 진동이 가라앉을 시간)
         self.last_move_time = 0
         
         try:
