@@ -28,7 +28,7 @@ import numpy as np
 from picamera2 import Picamera2
 
 # ── 설정 ──────────────────────────────────────────────────────────────────────
-INTAKE_DISTANCE_THRESHOLD = 0.20
+INTAKE_DISTANCE_THRESHOLD = 0.30
 SUCCESS_REQUIRED_FRAMES   = 5
 _WIN = "MP Pose | Intake Detection"
 
