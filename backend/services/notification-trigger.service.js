@@ -314,16 +314,20 @@ const create_notification = async (executor, {
             noti_type: notification_content.noti_type
         });
 
-        const push_result = await send_medication_activity_push_safe(activity_id);
-
-        console.info('[NOTIFICATION-TRIGGER] push result:', {
-            activity_id,
-            noti_type: notification_content.noti_type,
-            sent: push_result?.sent,
-            success_count: push_result?.success_count,
-            failure_count: push_result?.failure_count,
-            reason: push_result?.reason
-        });
+        send_medication_activity_push_safe(activity_id)
+            .then((push_result) => {
+                console.info('[NOTIFICATION-TRIGGER] push result:', {
+                    activity_id,
+                    noti_type: notification_content.noti_type,
+                    sent: push_result?.sent,
+                    success_count: push_result?.success_count,
+                    failure_count: push_result?.failure_count,
+                    reason: push_result?.reason
+                });
+            })
+            .catch((error) => {
+                console.error('[NOTIFICATION-TRIGGER] async push failed:', error);
+            });
     }
 
     return {

@@ -496,7 +496,7 @@ const get_device_status = async (patient_id) => {
 
     const next_schedule_time = await get_next_schedule_time_today(patient_id);
 
-    const is_connected = is_device_online(device.last_ping, current_date);
+    const is_connected = is_device_online(device.last_ping);
     const connection_status = is_connected ? 'connected' : 'disconnected';
 
     const medication_level = device.medication_level;
