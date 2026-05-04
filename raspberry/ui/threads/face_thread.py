@@ -70,6 +70,7 @@ class FaceThread(QThread):
         deadline = None
         frame_count = 0
         last_faces = []
+        consecutive_face_count = 0
 
         while self._running:
             frame = get_frame()
@@ -90,14 +91,21 @@ class FaceThread(QThread):
 
             # N프레임마다 한 번씩만 AI 연산 수행
             if frame_count % _DETECT_EVERY_N == 0:
-                last_faces = detect_face(frame)
+                new_faces = detect_face(frame)
+                if new_faces:
+                    consecutive_face_count += 1
+                    last_faces = new_faces
+                else:
+                    consecutive_face_count = 0
+                    last_faces = []
             
-            if last_faces:
+            # 최소 2번 연속(약 6프레임)으로 얼굴이 감지되어야 짐벌 작동 (오인식 방지)
+            if last_faces and consecutive_face_count >= 2:
                 # 가장 큰 얼굴 기준 추적
                 last_faces.sort(key=lambda b: b[2] * b[3], reverse=True)
                 main_face = last_faces[0]
                 
-                # 짐벌 추적 실행 (매 프레임 호출하여 부드러움 유지)
+                # 짐벌 추적 실행
                 gimbal.track_face(main_face, fw, fh)
 
                 # 인증은 AI가 새로 갱신되었을 때만 수행
