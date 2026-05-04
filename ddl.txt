@@ -1,3 +1,23 @@
+-- public.admins definition
+
+-- Drop table
+
+-- DROP TABLE public.admins;
+
+CREATE TABLE public.admins (
+	admin_id serial4 NOT NULL,
+	login_id varchar(50) NOT NULL,
+	"password" varchar(255) NOT NULL,
+	"name" varchar(50) NOT NULL,
+	"role" varchar(20) DEFAULT 'admin'::character varying NOT NULL,
+	is_active bool DEFAULT true NOT NULL,
+	created_at timestamptz DEFAULT CURRENT_TIMESTAMP NOT NULL,
+	last_login_at timestamptz NULL,
+	CONSTRAINT admins_pkey PRIMARY KEY (admin_id),
+	CONSTRAINT uq_admins_login_id UNIQUE (login_id)
+);
+
+
 -- public.medications definition
 
 -- Drop table
@@ -33,6 +53,7 @@ CREATE TABLE public.members (
 );
 CREATE INDEX ix_members_1 ON public.members USING btree (joined_at);
 CREATE UNIQUE INDEX uq_members_1 ON public.members USING btree (email, nick);
+CREATE UNIQUE INDEX uq_members_social ON public.members USING btree (social_id, provider);
 
 
 -- public.patients definition
@@ -51,16 +72,57 @@ CREATE TABLE public.patients (
 	bloodtype varchar(5) NOT NULL,
 	height numeric(5, 2) NOT NULL,
 	weight numeric(5, 2) NOT NULL,
-	fingerprint_id int4 NOT NULL,
 	guardian_name varchar(100) NOT NULL,
 	guardian_phone varchar(20) NOT NULL,
 	created_at timestamptz DEFAULT CURRENT_TIMESTAMP NOT NULL,
 	updated_at timestamptz NULL,
 	deleted_at timestamptz NULL,
 	patient_name varchar(100) NULL,
+	fingerprint_slots jsonb DEFAULT '[]'::jsonb NOT NULL,
 	CONSTRAINT patients_pkey PRIMARY KEY (patient_id),
 	CONSTRAINT fk_patients_mem_id_members_mem_id FOREIGN KEY (mem_id) REFERENCES public.members(mem_id)
 );
+
+
+-- public.set_push_tokens_updated_at function
+
+CREATE OR REPLACE FUNCTION public.set_push_tokens_updated_at()
+ RETURNS trigger
+ LANGUAGE plpgsql
+AS $function$
+BEGIN
+  NEW.updated_at = CURRENT_TIMESTAMP;
+  RETURN NEW;
+END;
+$function$;
+
+
+-- public.push_tokens definition
+
+-- Drop table
+
+-- DROP TABLE public.push_tokens;
+
+CREATE TABLE public.push_tokens (
+	push_token_id serial4 NOT NULL,
+	mem_id int4 NOT NULL,
+	fcm_token text NOT NULL,
+	device_type varchar(20) DEFAULT 'web'::character varying NOT NULL,
+	is_active bool DEFAULT true NOT NULL,
+	created_at timestamptz DEFAULT CURRENT_TIMESTAMP NOT NULL,
+	updated_at timestamptz DEFAULT CURRENT_TIMESTAMP NOT NULL,
+	CONSTRAINT push_tokens_pkey PRIMARY KEY (push_token_id),
+	CONSTRAINT uq_push_tokens_fcm_token UNIQUE (fcm_token),
+	CONSTRAINT fk_push_tokens_mem_id_members_mem_id FOREIGN KEY (mem_id) REFERENCES public.members(mem_id)
+);
+CREATE INDEX ix_push_tokens_mem_id_is_active ON public.push_tokens USING btree (mem_id, is_active);
+
+-- Table Triggers
+
+create trigger trg_push_tokens_updated_at before
+update
+    on
+    public.push_tokens for each row execute function set_push_tokens_updated_at();
 
 
 -- public.schedules definition
@@ -76,7 +138,7 @@ CREATE TABLE public.schedules (
 	start_date date NOT NULL,
 	end_date date NULL,
 	time_to_take time NOT NULL,
-	dose_interval int4 NULL,
+	dose_interval int4 DEFAULT 1 NOT NULL,
 	status varchar(20) NOT NULL,
 	created_at timestamptz DEFAULT CURRENT_TIMESTAMP NOT NULL,
 	updated_at timestamptz NULL,
@@ -85,6 +147,30 @@ CREATE TABLE public.schedules (
 	CONSTRAINT fk_schedules_patient_id_patients_patient_id FOREIGN KEY (patient_id) REFERENCES public.patients(patient_id)
 );
 CREATE INDEX ix_schedules_1 ON public.schedules USING btree (created_at);
+
+
+-- public.voice_samples definition
+
+-- Drop table
+
+-- DROP TABLE public.voice_samples;
+
+CREATE TABLE public.voice_samples (
+	voice_id bigserial NOT NULL,
+	patient_id int4 NOT NULL,
+	file_name varchar(255) NOT NULL,
+	file_path varchar(500) NOT NULL,
+	file_size int4 NOT NULL,
+	mime_type varchar(100) NOT NULL,
+	status varchar(20) DEFAULT 'pending'::character varying NOT NULL,
+	elevenlabs_voice_id varchar(255) NULL,
+	uploaded_at timestamptz DEFAULT now() NOT NULL,
+	updated_at timestamptz DEFAULT now() NOT NULL,
+	CONSTRAINT voice_samples_pkey PRIMARY KEY (voice_id),
+	CONSTRAINT uq_voice_samples_patient_id UNIQUE (patient_id),
+	CONSTRAINT voice_samples_status_check CHECK (((status)::text = ANY ((ARRAY['pending'::character varying, 'processing'::character varying, 'ready'::character varying, 'error'::character varying])::text[]))),
+	CONSTRAINT voice_samples_patient_id_fkey FOREIGN KEY (patient_id) REFERENCES public.patients(patient_id) ON DELETE CASCADE
+);
 
 
 -- public.activities definition
@@ -102,7 +188,7 @@ CREATE TABLE public.activities (
 	status varchar(20) NOT NULL,
 	is_face_auth bool NOT NULL,
 	is_ai_check bool NOT NULL,
-	similarity_score numeric(5, 4) NOT NULL,
+	similarity_score numeric(5, 4) NULL,
 	created_at timestamptz DEFAULT CURRENT_TIMESTAMP NOT NULL,
 	CONSTRAINT activities_pkey PRIMARY KEY (activity_id),
 	CONSTRAINT fk_activities_patient_id_patients_patient_id FOREIGN KEY (patient_id) REFERENCES public.patients(patient_id),
@@ -126,6 +212,10 @@ CREATE TABLE public.devices (
 	last_ping timestamptz NULL,
 	registered_at timestamptz DEFAULT CURRENT_TIMESTAMP NOT NULL,
 	device_name varchar(100) DEFAULT 'UNKNOWN'::character varying NOT NULL,
+	alarm_sound_path text NULL,
+	alarm_sound_name text NULL,
+	alarm_sound_updated_at timestamptz NULL,
+	CONSTRAINT devices_device_uid_key UNIQUE (device_uid),
 	CONSTRAINT devices_pkey PRIMARY KEY (device_id),
 	CONSTRAINT fk_devices_patient_id_patients_patient_id FOREIGN KEY (patient_id) REFERENCES public.patients(patient_id)
 );
@@ -141,13 +231,13 @@ CREATE INDEX ix_devices_1 ON public.devices USING btree (registered_at);
 CREATE TABLE public.face_embeddings (
 	face_id serial4 NOT NULL,
 	patient_id int4 NOT NULL,
-	face_vector public.vector NOT NULL,
+	face_vector public.vector(128) NOT NULL,
 	created_at timestamptz DEFAULT CURRENT_TIMESTAMP NOT NULL,
 	CONSTRAINT face_embeddings_pkey PRIMARY KEY (face_id),
 	CONSTRAINT fk_face_embeddings_patient_id_patients_patient_id FOREIGN KEY (patient_id) REFERENCES public.patients(patient_id)
 );
 CREATE INDEX ix_face_embeddings_1 ON public.face_embeddings USING btree (created_at);
-CREATE INDEX ix_face_embeddings_2 ON public.face_embeddings USING btree (face_vector);
+CREATE INDEX ix_face_embeddings_2 ON public.face_embeddings USING hnsw (face_vector vector_cosine_ops);
 CREATE INDEX ix_face_embeddings_3 ON public.face_embeddings USING btree (patient_id);
 
 
@@ -175,16 +265,3 @@ CREATE TABLE public.notifications (
 );
 CREATE INDEX ix_notifications_1 ON public.notifications USING btree (created_at);
 CREATE INDEX ix_notifications_2 ON public.notifications USING btree (mem_id, is_received);
-
-CREATE TABLE public.admins (
-    admin_id  serial4      NOT NULL,
-    login_id  varchar(50)  NOT NULL,          -- 아이디 (예: admin01)
-    password  varchar(255) NOT NULL,          -- bcrypt 해시 저장
-    name      varchar(50)  NOT NULL,          -- 관리자 이름
-    role      varchar(20)  NOT NULL DEFAULT 'admin',  -- 'admin', 'super_admin' 등
-    is_active boolean      NOT NULL DEFAULT TRUE,
-    created_at timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    last_login_at timestamptz,
-    CONSTRAINT admins_pkey PRIMARY KEY (admin_id),
-    CONSTRAINT uq_admins_login_id UNIQUE (login_id)
-);
