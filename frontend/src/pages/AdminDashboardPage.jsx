@@ -343,7 +343,7 @@ function TestManagement({ onRefreshStats }) {
                 <td style={s.td}>{r.patient_name}</td>
                 <td style={s.td}>{r.member_nick || '-'}</td>
                 <td style={s.td}><code style={s.code}>{r.device_uid || '-'}</code></td>
-                <td style={{ ...s.td, textAlign: 'center' }}>{r.fingerprint_id ?? '-'}</td>
+                <td style={{ ...s.td, textAlign: 'center' }}>{Array.isArray(r.fingerprint_slots) ? r.fingerprint_slots.length : '-'}</td>
                 <td style={s.td}>{fmt(r.created_at)}</td>
                 <td style={s.td}>
                   <button style={s.dangerBtn} onClick={() => deletePatient(r.patient_id, r.patient_name)}>삭제</button>

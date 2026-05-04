@@ -421,7 +421,6 @@ function buildPatientUpdatePayload(currentPatient, newPatient) {
     bloodtype: newPatient.bloodtype,
     height: toNumber(newPatient.height),
     weight: toNumber(newPatient.weight),
-    fingerprint_id: currentPatient?.fingerprint_id ?? 0,
     guardian_name: newPatient.guardian_name,
     guardian_phone: newPatient.guardian_phone,
   }

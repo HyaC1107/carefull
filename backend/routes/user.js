@@ -442,13 +442,12 @@ router.post('/register-patient', verifyToken, async (req, res) => {
                     weight,
                     phone,
                     address,
-                    fingerprint_id,
                     guardian_name,
                     guardian_phone
                 )
                 VALUES (
                     $1, $2, $3, $4, $5, $6, $7,
-                    $8, $9, 0, $10, $11
+                    $8, $9, $10, $11
                 )
                 RETURNING patient_id
             `,
