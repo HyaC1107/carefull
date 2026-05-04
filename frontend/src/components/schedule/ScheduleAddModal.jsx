@@ -33,13 +33,15 @@ function ScheduleAddModal({
   const [isPrescriptionConfirming, setIsPrescriptionConfirming] = useState(false)
 
   const debounceRef = useRef(null)
+  const searchRequestSeqRef = useRef(0)
 
   useEffect(() => {
     const query = searchQuery.trim()
 
-    if (!query) {
+    if (query.length < 2) {
       setSearchResults([])
       setShowDropdown(false)
+      searchRequestSeqRef.current += 1
       return
     }
 
@@ -49,16 +51,20 @@ function ScheduleAddModal({
 
     clearTimeout(debounceRef.current)
     debounceRef.current = setTimeout(async () => {
+      const requestSeq = ++searchRequestSeqRef.current
       setIsSearching(true)
       try {
         const data = await requestJson(
           `/api/medication/search?keyword=${encodeURIComponent(query)}`,
         )
+        if (requestSeq !== searchRequestSeqRef.current) return
         setSearchResults(data?.data || [])
         setShowDropdown(true)
       } catch {
+        if (requestSeq !== searchRequestSeqRef.current) return
         setSearchResults([])
       } finally {
+        if (requestSeq !== searchRequestSeqRef.current) return
         setIsSearching(false)
       }
     }, 300)
