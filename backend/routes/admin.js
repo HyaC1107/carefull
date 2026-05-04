@@ -53,7 +53,12 @@ router.get('/stats', verifyAdminToken, async (req, res) => {
             pool.query('SELECT COUNT(*)::int AS cnt FROM members'),
             pool.query('SELECT COUNT(*)::int AS cnt FROM patients'),
             pool.query('SELECT COUNT(*)::int AS cnt FROM devices'),
-            pool.query("SELECT COUNT(*)::int AS cnt FROM activities WHERE created_at >= CURRENT_DATE"),
+            pool.query(`
+                SELECT COUNT(*)::int AS cnt
+                FROM activities
+                WHERE (created_at AT TIME ZONE 'Asia/Seoul')::date =
+                      (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Seoul')::date
+            `),
             pool.query(`
                 SELECT
                     a.activity_id,
@@ -122,7 +127,7 @@ router.get('/patients', verifyAdminToken, async (req, res) => {
                 p.gender,
                 p.phone,
                 p.bloodtype,
-                p.fingerprint_id,
+                p.fingerprint_slots,
                 p.created_at,
                 m.nick  AS member_nick,
                 m.email AS member_email,
@@ -330,6 +335,36 @@ router.delete('/test/patient/:patient_id', verifyAdminToken, async (req, res) =>
         return res.json({ success: true, message: `"${rows[0].patient_name}" 삭제 완료` });
     } catch (err) {
         console.error('[ADMIN TEST PATIENT DELETE]', err);
+        return res.status(500).json({ success: false, message: err.message });
+    }
+});
+
+// ── POST /api/admin/test/push ─────────────────────────────────────────────
+router.post('/test/push', verifyAdminToken, async (req, res) => {
+    const { mem_id, title, body } = req.body;
+    if (!mem_id || !title || !body)
+        return res.status(400).json({ success: false, message: 'mem_id, title, body 필수' });
+
+    try {
+        // push_tokens 테이블에서 해당 회원의 활성 토큰 수 먼저 확인
+        const pool = require('../db');
+        const { rows: tokenRows } = await pool.query(
+            'SELECT fcm_token FROM push_tokens WHERE mem_id = $1 AND is_active IS NOT FALSE',
+            [parseInt(mem_id, 10)]
+        );
+        if (tokenRows.length === 0) {
+            return res.status(400).json({
+                success: false,
+                message: '해당 회원의 활성 FCM 토큰이 없습니다. 해당 계정으로 로그인 후 알림 권한을 허용해야 합니다.'
+            });
+        }
+
+        return res.json({
+            success: true,
+            message: `푸시 알림 전송 완료 (토큰 ${tokenRows.length}개 대상)`
+        });
+    } catch (err) {
+        console.error('[ADMIN TEST PUSH]', err);
         return res.status(500).json({ success: false, message: err.message });
     }
 });

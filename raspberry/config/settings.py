@@ -29,6 +29,7 @@ FULLSCREEN    = os.getenv("CAREFULL_FULLSCREEN",   "1") == "1"
 API_BASE_URL = os.getenv("CAREFULL_API_BASE_URL", "http://localhost:3000")
 DEVICE_UID   = get_device_uid()
 API_TIMEOUT  = int(os.getenv("CAREFULL_API_TIMEOUT", "10"))
+FINGERPRINT_SCAN_TIMEOUT = int(os.getenv("CAREFULL_FINGERPRINT_SCAN_TIMEOUT", "30"))
 
 # Voice & TTS Settings
 VOICES_DIR = os.path.join(BASE_DIR, "voices")

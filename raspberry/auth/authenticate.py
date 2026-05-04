@@ -2,7 +2,7 @@ import json
 import logging
 import os
 
-from config.settings import DB_DIR
+from config.settings import DB_DIR, FACE_MATCH_THRESHOLD
 from face_recognition.embedding import get_embedding
 from face_recognition.similarity import cosine_similarity
 
@@ -56,7 +56,7 @@ def invalidate_embedding_cache():
     _embedding_cache_ts = 0.0
 
 
-def authenticate(face_img, threshold=0.5, expected_user=None):
+def authenticate(face_img, threshold=FACE_MATCH_THRESHOLD, expected_user=None):
     try:
         embedding = get_embedding(face_img)
     except Exception:

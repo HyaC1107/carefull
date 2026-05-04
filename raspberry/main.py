@@ -38,7 +38,8 @@ if __name__ == "__main__":
             sys.exit(1)
 
         # 3. 카메라 점검
-        if check_camera_health():
+        camera_ok = check_camera_health()
+        if camera_ok:
             logger.info("Camera health check passed.")
         else:
             logger.warning("Camera health check failed! Please check the camera connection.")
@@ -46,8 +47,8 @@ if __name__ == "__main__":
         # 점검 후 카메라 리소스 해제 (UI에서 필요할 때 다시 켬)
         release_camera()
 
-        # 4. 자가 진단
-        controller.self_test()
+        # 4. 자가 진단 (카메라 재초기화 없이 위 결과 전달)
+        controller.self_test(camera_ok=camera_ok)
 
         # 5. 백그라운드 스케줄 감시 시작
         controller.start()

@@ -16,6 +16,7 @@ import {
   hasStoredToken,
   requestJson,
 } from '../api'
+import { useUnreadCount } from '../hooks/useUnreadCount'
 import '../styles/PatientPage.css'
 import '../styles/MobileBottomNav.css'
 
@@ -27,6 +28,7 @@ const DEFAULT_DEVICE_DETAIL = {
 }
 
 function PatientPage() {
+  const unreadCount = useUnreadCount()
   const [patientData, setPatientData] = useState(null)
   const [deviceData, setDeviceData] = useState(null)
   const [medications, setMedications] = useState([])
@@ -89,10 +91,6 @@ function PatientPage() {
 
     if (isPatientRegistered && hasStoredToken()) {
       try {
-        console.log('[device-register] request:', {
-          device_uid: nextDevice.device_uid,
-          device_name: nextDevice.deviceName,
-        })
         const deviceResponse = await requestJson('/api/device/register', {
           method: 'POST',
           auth: true,
@@ -188,7 +186,7 @@ function PatientPage() {
   return (
     <div className="patient-page">
       <div className="patient-layout">
-        <Sidebar activeMenu="patient" />
+        <Sidebar activeMenu="patient" alertCount={unreadCount} />
 
         <div className="patient-main">
           <TopHeader key={isPatientRegistered ? 'registered' : 'pending'} />
@@ -425,7 +423,6 @@ function buildPatientUpdatePayload(currentPatient, newPatient) {
     bloodtype: newPatient.bloodtype,
     height: toNumber(newPatient.height),
     weight: toNumber(newPatient.weight),
-    fingerprint_id: currentPatient?.fingerprint_id ?? 0,
     guardian_name: newPatient.guardian_name,
     guardian_phone: newPatient.guardian_phone,
   }

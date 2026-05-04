@@ -103,20 +103,21 @@ router.get('/fingerprints', async (req, res) => {
     }
     try {
         const { rows } = await pool.query(`
-            SELECT f.fp_id, f.slot_id, f.label, f.registered_at
-            FROM fingerprints f
-            JOIN devices d ON d.patient_id = f.patient_id
+            SELECT p.fingerprint_slots
+            FROM patients p
+            JOIN devices d ON d.patient_id = p.patient_id
             WHERE d.device_uid = $1
-            ORDER BY f.registered_at ASC
+            LIMIT 1
         `, [String(device_uid).trim()]);
-        return sendSuccess(res, 200, { fingerprints: rows });
+        const fingerprints = rows[0]?.fingerprint_slots ?? [];
+        return sendSuccess(res, 200, { fingerprints });
     } catch (err) {
         console.error('Fingerprint list error:', err);
         return sendError(res, 500, 'Server error while listing fingerprints.');
     }
 });
 
-// POST /api/device/fingerprints  — 새 지문 슬롯 등록
+// POST /api/device/fingerprints  — 새 지문 슬롯 등록 (patients.fingerprint_slots JSONB 배열에 추가)
 router.post('/fingerprints', async (req, res) => {
     const { device_uid, slot_id, label } = req.body;
     if (!device_uid || !String(device_uid).trim()) {
@@ -138,14 +139,23 @@ router.post('/fingerprints', async (req, res) => {
             return sendError(res, 404, 'Device not found or not assigned to a patient.');
         }
         const patient_id = dev_rows[0].patient_id;
+        const new_entry = {
+            slot_id: parsed_slot,
+            label: label || '지문',
+            registered_at: new Date().toISOString(),
+        };
+        // 동일 slot_id 기존 항목 제거 후 새 항목 추가 (upsert 효과)
         const { rows } = await pool.query(`
-            INSERT INTO fingerprints (patient_id, slot_id, label)
-            VALUES ($1, $2, $3)
-            ON CONFLICT (patient_id, slot_id)
-            DO UPDATE SET label = EXCLUDED.label, registered_at = CURRENT_TIMESTAMP
-            RETURNING fp_id, slot_id, label, registered_at
-        `, [patient_id, parsed_slot, label || '지문']);
-        return sendSuccess(res, 201, { fingerprint: rows[0] });
+            UPDATE patients
+            SET fingerprint_slots = (
+                SELECT COALESCE(jsonb_agg(elem ORDER BY (elem->>'registered_at')), '[]'::jsonb)
+                FROM jsonb_array_elements(fingerprint_slots) AS elem
+                WHERE (elem->>'slot_id')::int != $1
+            ) || $2::jsonb
+            WHERE patient_id = $3
+            RETURNING fingerprint_slots
+        `, [parsed_slot, JSON.stringify([new_entry]), patient_id]);
+        return sendSuccess(res, 201, { fingerprint: new_entry, fingerprints: rows[0].fingerprint_slots });
     } catch (err) {
         console.error('Fingerprint register error:', err);
         return sendError(res, 500, 'Server error while registering fingerprint.');
@@ -164,18 +174,22 @@ router.delete('/fingerprints/:slot_id', async (req, res) => {
     }
     try {
         const { rows } = await pool.query(`
-            DELETE FROM fingerprints
-            WHERE slot_id = $1
-              AND patient_id = (
+            UPDATE patients
+            SET fingerprint_slots = (
+                SELECT COALESCE(jsonb_agg(elem ORDER BY (elem->>'registered_at')), '[]'::jsonb)
+                FROM jsonb_array_elements(fingerprint_slots) AS elem
+                WHERE (elem->>'slot_id')::int != $1
+            )
+            WHERE patient_id = (
                 SELECT patient_id FROM devices
                 WHERE device_uid = $2 AND patient_id IS NOT NULL LIMIT 1
-              )
-            RETURNING fp_id, slot_id
+            )
+            RETURNING fingerprint_slots
         `, [parsed_slot, String(device_uid).trim()]);
         if (!rows.length) {
-            return sendError(res, 404, 'Fingerprint not found.');
+            return sendError(res, 404, 'Device not found or not assigned to a patient.');
         }
-        return sendSuccess(res, 200, { message: 'Fingerprint deleted.', fp_id: rows[0].fp_id });
+        return sendSuccess(res, 200, { message: 'Fingerprint deleted.', fingerprints: rows[0].fingerprint_slots });
     } catch (err) {
         console.error('Fingerprint delete error:', err);
         return sendError(res, 500, 'Server error while deleting fingerprint.');
@@ -200,17 +214,27 @@ router.post('/fingerprint', async (req, res) => {
     }
 
     try {
+        const new_entry = {
+            slot_id: parsed_id,
+            label: '지문',
+            registered_at: new Date().toISOString(),
+        };
+
         const { rows } = await pool.query(`
             UPDATE patients
-            SET fingerprint_id = $1
+            SET fingerprint_slots = (
+                SELECT COALESCE(jsonb_agg(elem ORDER BY (elem->>'registered_at')), '[]'::jsonb)
+                FROM jsonb_array_elements(fingerprint_slots) AS elem
+                WHERE (elem->>'slot_id')::int != $1
+            ) || $2::jsonb
             WHERE patient_id = (
                 SELECT patient_id FROM devices
-                WHERE device_uid = $2
+                WHERE device_uid = $3
                   AND patient_id IS NOT NULL
                 LIMIT 1
             )
-            RETURNING patient_id, fingerprint_id
-        `, [parsed_id, String(device_uid).trim()]);
+            RETURNING patient_id, fingerprint_slots
+        `, [parsed_id, JSON.stringify([new_entry]), String(device_uid).trim()]);
 
         if (rows.length === 0) {
             return sendError(res, 404, 'Device not found or not assigned to a patient.');
@@ -219,7 +243,8 @@ router.post('/fingerprint', async (req, res) => {
         return sendSuccess(res, 200, {
             message: 'Fingerprint ID saved successfully.',
             patient_id: rows[0].patient_id,
-            fingerprint_id: rows[0].fingerprint_id
+            fingerprint: new_entry,
+            fingerprints: rows[0].fingerprint_slots
         });
     } catch (error) {
         console.error('Fingerprint update error:', error);
@@ -278,12 +303,6 @@ router.post('/register', verifyToken, async (req, res) => {
                     device: to_device_response(existing_my_device_result.rows[0])
                 });
             }
-
-            console.log('[DEVICE-REGISTER] creating new device row:', {
-                mem_id,
-                patient_id,
-                device_uid: normalized_device_uid
-            });
 
             const insert_query = `
                 INSERT INTO devices (

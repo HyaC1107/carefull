@@ -20,13 +20,14 @@ def sync_schedules() -> list:
     """백엔드에서 스케줄을 가져와 로컬 캐시에 저장. 실패하면 빈 리스트 반환."""
     from api.client import fetch_schedules
     schedules = fetch_schedules()
-    if schedules:
+    if schedules is not None:
+        # 빈 리스트여도 캐시를 덮어써서 이전 스케줄이 남지 않게 한다
         try:
             with open(SCHEDULE_CACHE_PATH, "w", encoding="utf-8") as f:
                 json.dump(schedules, f, ensure_ascii=False, default=str, indent=2)
         except Exception as e:
             logger.warning("schedule cache write failed: %s", e)
-    return schedules
+    return schedules or []
 
 
 def _load_cached() -> list:
@@ -48,8 +49,11 @@ def check_schedule(schedules: list = None) -> list:
 
     due = []
     for s in schedules:
-        sche_id = s.get("sche_id") or s.get("user")
-        time_val = s.get("time_to_take") or s.get("time", "")
+        sche_id = s.get("sche_id")
+        time_val = s.get("time_to_take", "")
+        if not sche_id or not time_val:
+            logger.warning("schedule missing sche_id or time_to_take: %s", s)
+            continue
         sche_time = _to_hhmm(time_val)
 
         key = f"{sche_id}_{sche_time}"

@@ -21,7 +21,15 @@ class FingerprintPrepareThread(QThread):
 
 
 class FingerprintEnrollThread(QThread):
-    """R307 지문 등록 스레드.
+    """R307 지문 등록 스레드 (3-스캔 방식).
+
+    flow:
+        1차 스캔 → buf1
+        2차 스캔 → buf2 → createTemplate 시도
+          성공 → 저장
+          실패 → 3차 스캔 → buf2 덮어쓰기 → createTemplate 재시도
+                  성공 → 저장
+                  실패 → 처음부터 재시작
 
     Signals:
         stage_changed(str): 현재 단계 안내 메시지
@@ -47,22 +55,24 @@ class FingerprintEnrollThread(QThread):
 
     def _run_mock(self):
         import time
-        self.stage_changed.emit("첫 번째 지문을 올려주세요")
+        self.stage_changed.emit("손가락을 올려주세요")
         self.progress.emit(10)
         time.sleep(1.5)
         if not self._running:
             return
+        self.progress.emit(35)
+        self.stage_changed.emit("손가락을 떼주세요")
         self.progress.emit(40)
-        time.sleep(0.5)
+        time.sleep(0.8)
         if not self._running:
             return
-        self.stage_changed.emit("손가락을 떼고 다시 올려주세요")
+        self.stage_changed.emit("같은 손가락을 다시 올려주세요  (2/3)")
         self.progress.emit(50)
         time.sleep(1.5)
         if not self._running:
             return
-        self.progress.emit(90)
-        time.sleep(0.5)
+        self.progress.emit(88)
+        time.sleep(0.4)
         if not self._running:
             return
         self.progress.emit(100)
@@ -79,55 +89,76 @@ class FingerprintEnrollThread(QThread):
             sensor = mgr.sensor
 
             while self._running:
-                # ── 1단계: 첫 번째 지문 스캔 ─────────────────────────────
+                # ── 1차 스캔 → CharBuffer1 ──────────────────────────────────
                 self.stage_changed.emit("손가락을 올려주세요")
                 self.progress.emit(10)
-
                 while self._running:
                     if sensor.readImage():
                         break
                     self.msleep(100)
                 if not self._running:
                     return
-
                 sensor.convertImage(0x01)
+                self.progress.emit(35)
+
+                # ── 1차 대기 ────────────────────────────────────────────────
+                self.stage_changed.emit("손가락을 떼주세요")
                 self.progress.emit(40)
-
-                # ── 잠시 대기 ────────────────────────────────────────────
-                self.stage_changed.emit("손가락을 떼고 다시 올려주세요")
-                self.progress.emit(50)
-
                 for _ in range(30):
                     if not self._running:
                         return
                     self.msleep(100)
 
-                # ── 2단계: 두 번째 지문 스캔 ─────────────────────────────
-                self.stage_changed.emit("같은 손가락을 다시 올려주세요")
-                self.progress.emit(60)
-
+                # ── 2차 스캔 → CharBuffer2 ──────────────────────────────────
+                self.stage_changed.emit("같은 손가락을 다시 올려주세요  (2/3)")
+                self.progress.emit(50)
                 while self._running:
                     if sensor.readImage():
                         break
                     self.msleep(100)
                 if not self._running:
                     return
-
                 sensor.convertImage(0x02)
-                self.progress.emit(80)
+                self.progress.emit(65)
 
-                # ── 3단계: 템플릿 생성 및 저장 ───────────────────────────
-                if not sensor.createTemplate():
-                    # 불일치 → 처음부터 재시도
-                    self.stage_changed.emit("인식이 달라요. 다시 손가락을 올려주세요")
-                    self.progress.emit(0)
-                    self.msleep(1500)
-                    continue
+                # ── 1차 매칭 시도 ────────────────────────────────────────────
+                if sensor.createTemplate():
+                    sensor.storeTemplate(self._position)
+                    self.progress.emit(100)
+                    self.enrolled.emit(self._position)
+                    return
 
-                sensor.storeTemplate(self._position)
-                self.progress.emit(100)
-                self.enrolled.emit(self._position)
-                return
+                # ── 2차 대기 ────────────────────────────────────────────────
+                self.stage_changed.emit("손가락을 떼주세요  (한 번 더 기회가 있어요)")
+                self.progress.emit(70)
+                for _ in range(20):
+                    if not self._running:
+                        return
+                    self.msleep(100)
+
+                # ── 3차 스캔 → CharBuffer2 덮어쓰기 ─────────────────────────
+                self.stage_changed.emit("한 번 더 올려주세요  (3/3)")
+                self.progress.emit(75)
+                while self._running:
+                    if sensor.readImage():
+                        break
+                    self.msleep(100)
+                if not self._running:
+                    return
+                sensor.convertImage(0x02)
+                self.progress.emit(88)
+
+                # ── 2차 매칭 시도 ────────────────────────────────────────────
+                if sensor.createTemplate():
+                    sensor.storeTemplate(self._position)
+                    self.progress.emit(100)
+                    self.enrolled.emit(self._position)
+                    return
+
+                # 3번 모두 실패 → 처음부터 재시작
+                self.stage_changed.emit("인식이 안됩니다. 처음부터 다시 시도합니다")
+                self.progress.emit(0)
+                self.msleep(2000)
 
         except Exception as e:
             self.failed.emit(str(e))
@@ -138,6 +169,8 @@ class FingerprintEnrollThread(QThread):
 
 class FingerprintSearchThread(QThread):
     """R307 지문 인증 스레드.
+    searchTemplate() 이 센서 전체 슬롯을 탐색하므로
+    여러 손가락이 등록되어 있어도 자동으로 1-of-N 매칭됩니다.
 
     Signals:
         found(int, int):  인증 성공 — (슬롯 ID, 정확도 점수)

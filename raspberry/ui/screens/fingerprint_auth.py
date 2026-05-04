@@ -78,11 +78,31 @@ class FingerprintAuthScreen(QWidget):
     def _build_ui(self):
         self.setStyleSheet(f"FingerprintAuthScreen {{ background-color: {_BG}; }}")
         root = QVBoxLayout(self)
-        root.setContentsMargins(24, 0, 24, 32)
+        root.setContentsMargins(120, 20, 120, 40)
         root.setSpacing(0)
         root.setAlignment(Qt.AlignCenter)
 
-        root.addStretch(2)
+        # ── 상단 중단 버튼 ───────────────────────────────────────────────
+        top_lay = QHBoxLayout()
+        self._btn_cancel = QPushButton("중단하기")
+        self._btn_cancel.setFont(QFont("Sans Serif", 22))
+        self._btn_cancel.setFixedHeight(60)
+        self._btn_cancel.setFixedWidth(180)
+        self._btn_cancel.setStyleSheet("""
+            QPushButton {
+                background: white;
+                color: #374151;
+                border: 2px solid #d0d5dd;
+                border-radius: 12px;
+            }
+            QPushButton:pressed { background: #f0f0f0; }
+        """)
+        self._btn_cancel.clicked.connect(self._on_auth_failure)
+        top_lay.addWidget(self._btn_cancel)
+        top_lay.addStretch()
+        root.addLayout(top_lay)
+
+        root.addStretch(1)
 
         _fp_path = os.path.join(_ICONS_DIR, "fingerprint.png")
         if os.path.exists(_fp_path):
@@ -142,16 +162,16 @@ class FingerprintAuthScreen(QWidget):
         self._retry_widget = QWidget()
         retry_row = QHBoxLayout(self._retry_widget)
         retry_row.setContentsMargins(0, 0, 0, 0)
-        retry_row.setSpacing(16)
+        retry_row.setSpacing(24)
 
         self._btn_retry = QPushButton("다시 시도")
         self._btn_retry.setFont(QFont("Sans Serif", 28, QFont.Bold))
-        self._btn_retry.setFixedHeight(72)
+        self._btn_retry.setFixedHeight(100)
         self._btn_retry.setStyleSheet(f"""
             QPushButton {{
                 background-color: {_BLUE};
                 color: white;
-                border-radius: 16px;
+                border-radius: 18px;
                 border: none;
             }}
             QPushButton:pressed {{ background-color: #2563eb; }}
@@ -159,20 +179,20 @@ class FingerprintAuthScreen(QWidget):
         self._btn_retry.clicked.connect(self._on_retry)
 
         self._btn_give_up = QPushButton("포기")
-        self._btn_give_up.setFont(QFont("Sans Serif", 28))
-        self._btn_give_up.setFixedHeight(72)
+        self._btn_give_up.setFont(QFont("Sans Serif", 28, QFont.Bold))
+        self._btn_give_up.setFixedHeight(100)
         self._btn_give_up.setStyleSheet(f"""
             QPushButton {{
                 background-color: white;
                 color: {_RED};
-                border-radius: 16px;
+                border-radius: 18px;
                 border: 2px solid {_RED};
             }}
             QPushButton:pressed {{ background-color: #fef2f2; }}
         """)
         self._btn_give_up.clicked.connect(self._on_auth_failure)
 
-        retry_row.addWidget(self._btn_retry, 2)
+        retry_row.addWidget(self._btn_retry, 1)
         retry_row.addWidget(self._btn_give_up, 1)
 
         self._retry_widget.hide()

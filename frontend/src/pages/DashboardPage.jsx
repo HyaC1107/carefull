@@ -13,6 +13,7 @@ import {
   hasStoredToken,
   requestJson,
 } from '../api'
+import { useUnreadCount } from '../hooks/useUnreadCount'
 import '../styles/DashboardPage.css'
 import '../styles/MobileBottomNav.css'
 
@@ -42,6 +43,7 @@ const DEFAULT_NEXT_MEDICATION = {
 const PATIENT_REGISTRATION_LABEL = '환자를 등록해주세요.'
 
 function DashboardPage() {
+  const unreadCount = useUnreadCount()
   const [dashboardData, setDashboardData] = useState(null)
 
   useEffect(() => {
@@ -55,9 +57,11 @@ function DashboardPage() {
           auth: true,
         })
 
-        console.log('dashboard response', dashboardResponse) // API 최종 응답 구조 확인
-
-        setDashboardData(dashboardResponse?.data ?? null)
+        const nextDashboardData = dashboardResponse?.data ?? null
+        setDashboardData(nextDashboardData)
+        window.dispatchEvent(
+          new CustomEvent('carefull:top-header-data', { detail: nextDashboardData }),
+        )
       } catch (error) {
         console.error('dashboard fetch error:', error)
       }
@@ -65,12 +69,6 @@ function DashboardPage() {
 
     fetchDashboardData()
   }, [])
-
-  useEffect(() => {
-    console.log('dashboardData', dashboardData) // state에 실제로 무엇이 들어갔는지 확인
-    console.log('patient path 1', dashboardData?.patient?.patient_name) // 중첩 patient.patient_name 경로 확인
-    console.log('patient path 2', dashboardData?.patient_name) // 최상위 patient_name 경로 확인
-  }, [dashboardData])
 
   const summaryCards = useMemo(
     () => buildSummaryCards(dashboardData?.summary),
@@ -121,7 +119,7 @@ function DashboardPage() {
   return (
     <div className="dashboard-page">
       <div className="dashboard-layout">
-        <Sidebar activeMenu="dashboard" />
+        <Sidebar activeMenu="dashboard" alertCount={unreadCount} />
 
         <div className="dashboard-main">
           <TopHeader
@@ -258,7 +256,6 @@ function filterVisibleTodaySchedules(schedules = []) {
 
   return schedules.filter((schedule) => {
     if (!schedule?.created_at) {
-      console.log('dashboard today schedule missing created_at', schedule)
       return true
     }
 
@@ -285,14 +282,6 @@ function filterVisibleTodaySchedules(schedules = []) {
     }
 
     const include = scheduleDateTime.getTime() >= createdAt.getTime()
-
-    console.log('[TODAY_SCHEDULE_FILTER]', {
-      sche_id: schedule.sche_id,
-      time_to_take: schedule.time_to_take,
-      created_at: schedule.created_at,
-      scheduleDateTime,
-      include,
-    })
 
     return include
   })

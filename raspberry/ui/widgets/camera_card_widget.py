@@ -1,3 +1,4 @@
+import cv2
 from PyQt5.QtCore import QRectF, Qt
 from PyQt5.QtGui import (
     QColor, QFont, QImage, QPainter, QPainterPath, QPen, QPixmap,
@@ -18,7 +19,7 @@ class CameraCardWidget(QWidget):
         self.update()
 
     def update_frame(self, bgr_frame):
-        self._frame = bgr_frame
+        self._frame = cv2.cvtColor(bgr_frame, cv2.COLOR_BGR2RGB)
         self.update()
 
     def paintEvent(self, event):

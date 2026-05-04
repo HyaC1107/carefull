@@ -1,17 +1,29 @@
 import { createContext, useContext, useEffect, useRef, useState } from 'react'
-import { hasStoredToken, requestJson } from '../api'
+import { useLocation } from 'react-router-dom'
+import {
+  getDeviceStatus,
+  getDeviceStatusClass,
+  getDeviceStatusText,
+  getStoredToken,
+  hasStoredToken,
+  requestJson,
+} from '../api'
 
 const HeaderDataContext = createContext(null)
 
 export function HeaderDataProvider({ children }) {
   const [headerData, setHeaderData] = useState(null)
   const loadedForToken = useRef('')
+  const location = useLocation()
+  const initialPath = useRef(location.pathname)
 
   useEffect(() => {
-    const token = hasStoredToken()
-    if (!token || loadedForToken.current === token) return
+    if (initialPath.current === '/dashboard') return
 
-    loadedForToken.current = String(token)
+    const token = getStoredToken()
+    if (!token || !hasStoredToken() || loadedForToken.current === token) return
+
+    loadedForToken.current = token
 
     requestJson('/api/dashboard', { auth: true })
       .then((res) => setHeaderData(mapHeaderData(res?.data)))
@@ -20,15 +32,49 @@ export function HeaderDataProvider({ children }) {
 
   const refresh = () => {
     loadedForToken.current = ''
-    if (!hasStoredToken()) return
+    const token = getStoredToken()
+    if (!token || !hasStoredToken()) return
+    loadedForToken.current = token
     requestJson('/api/dashboard', { auth: true })
       .then((res) => setHeaderData(mapHeaderData(res?.data)))
       .catch((err) => console.error('header data refresh error:', err))
   }
 
   useEffect(() => {
+    if (!hasStoredToken()) {
+      loadedForToken.current = ''
+      setHeaderData(null)
+      return
+    }
+
+    if (location.pathname === '/dashboard') return
+
+    const token = getStoredToken()
+    if (!token || loadedForToken.current === token) return
+
+    loadedForToken.current = token
+
+    requestJson('/api/dashboard', { auth: true })
+      .then((res) => setHeaderData(mapHeaderData(res?.data)))
+      .catch((err) => console.error('header data fetch error:', err))
+  }, [location.pathname])
+
+  useEffect(() => {
     window.addEventListener('carefull:top-header-refresh', refresh)
     return () => window.removeEventListener('carefull:top-header-refresh', refresh)
+  }, [])
+
+  useEffect(() => {
+    const applyDashboardData = (event) => {
+      const token = getStoredToken()
+      if (token && hasStoredToken()) {
+        loadedForToken.current = token
+      }
+      setHeaderData(mapHeaderData(event.detail))
+    }
+
+    window.addEventListener('carefull:top-header-data', applyDashboardData)
+    return () => window.removeEventListener('carefull:top-header-data', applyDashboardData)
   }, [])
 
   return (
@@ -43,11 +89,14 @@ export function useHeaderData() {
 }
 
 function mapHeaderData(data) {
+  const deviceStatus = getDeviceStatus(data?.device)
+
   return {
     patientLabel: buildPatientLabel(data?.patient),
     guardianName: data?.patient?.guardian_name || data?.member?.nick || '-',
     profileImg: data?.member?.profile_img || '',
-    deviceStatusText: data?.device?.is_connected ? '기기 연결됨' : '기기 연결 안 됨',
+    deviceStatusText: getDeviceStatusText(deviceStatus),
+    deviceStatusClass: getDeviceStatusClass(deviceStatus),
     lastSyncedText: formatRelativeTime(data?.device?.last_sync_time),
   }
 }

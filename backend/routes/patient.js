@@ -28,7 +28,7 @@ const to_patient_response = (row) => ({
     bloodtype: row.bloodtype,
     height: row.height,
     weight: row.weight,
-    fingerprint_id: row.fingerprint_id,
+    fingerprint_slots: row.fingerprint_slots || [],
     guardian_name: row.guardian_name,
     guardian_phone: row.guardian_phone,
     created_at: row.created_at,
@@ -56,18 +56,16 @@ router.post('/register', verifyToken, async (req, res) => {
 
     const numeric_fields = parseNumericFields(req.body, [
         'height',
-        'weight',
-        'fingerprint_id'
+        'weight'
     ]);
 
     if (!numeric_fields) {
-        return sendError(res, 400, 'height, weight, and fingerprint_id must be numeric.');
+        return sendError(res, 400, 'height and weight must be numeric.');
     }
 
     const {
         height: parsed_height,
-        weight: parsed_weight,
-        fingerprint_id: parsed_fingerprint_id
+        weight: parsed_weight
     } = numeric_fields;
 
     try {
@@ -83,18 +81,6 @@ router.post('/register', verifyToken, async (req, res) => {
             return sendError(res, 409, 'Patient already exists.');
         }
 
-        const existing_fingerprint_query = `
-            SELECT patient_id
-            FROM patients
-            WHERE fingerprint_id = $1
-            LIMIT 1
-        `;
-        const existing_fingerprint_result = await pool.query(existing_fingerprint_query, [parsed_fingerprint_id]);
-
-        if (existing_fingerprint_result.rows.length > 0) {
-            return sendError(res, 409, 'fingerprint_id is already in use.');
-        }
-
         const insert_query = `
             INSERT INTO patients (
                 mem_id,
@@ -106,12 +92,11 @@ router.post('/register', verifyToken, async (req, res) => {
                 bloodtype,
                 height,
                 weight,
-                fingerprint_id,
                 guardian_name,
                 guardian_phone
             )
             VALUES (
-                $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12
+                $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11
             )
             RETURNING
                 patient_id,
@@ -124,7 +109,7 @@ router.post('/register', verifyToken, async (req, res) => {
                 bloodtype,
                 height,
                 weight,
-                fingerprint_id,
+                fingerprint_slots,
                 guardian_name,
                 guardian_phone,
                 created_at,
@@ -141,7 +126,6 @@ router.post('/register', verifyToken, async (req, res) => {
             bloodtype,
             parsed_height,
             parsed_weight,
-            parsed_fingerprint_id,
             guardian_name,
             guardian_phone
         ]);
@@ -172,7 +156,7 @@ router.get('/me', verifyToken, async (req, res) => {
                 bloodtype,
                 height,
                 weight,
-                fingerprint_id,
+                fingerprint_slots,
                 guardian_name,
                 guardian_phone,
                 created_at,
@@ -252,7 +236,7 @@ router.patch('/me', verifyToken, async (req, res) => {
                 bloodtype,
                 height,
                 weight,
-                fingerprint_id,
+                fingerprint_slots,
                 guardian_name,
                 guardian_phone,
                 created_at,
@@ -315,7 +299,7 @@ router.patch('/guardian', verifyToken, async (req, res) => {
                 bloodtype,
                 height,
                 weight,
-                fingerprint_id,
+                fingerprint_slots,
                 guardian_name,
                 guardian_phone,
                 created_at,
@@ -363,37 +347,19 @@ router.put('/me', verifyToken, async (req, res) => {
 
     const numeric_fields = parseNumericFields(req.body, [
         'height',
-        'weight',
-        'fingerprint_id'
+        'weight'
     ]);
 
     if (!numeric_fields) {
-        return sendError(res, 400, 'height, weight, and fingerprint_id must be numeric.');
+        return sendError(res, 400, 'height and weight must be numeric.');
     }
 
     const {
         height: parsed_height,
-        weight: parsed_weight,
-        fingerprint_id: parsed_fingerprint_id
+        weight: parsed_weight
     } = numeric_fields;
 
     try {
-        const fingerprint_check_query = `
-            SELECT patient_id
-            FROM patients
-            WHERE fingerprint_id = $1
-              AND mem_id <> $2
-            LIMIT 1
-        `;
-        const fingerprint_check_result = await pool.query(fingerprint_check_query, [
-            parsed_fingerprint_id,
-            mem_id
-        ]);
-
-        if (fingerprint_check_result.rows.length > 0) {
-            return sendError(res, 409, 'fingerprint_id is already in use.');
-        }
-
         const update_query = `
             UPDATE patients
             SET
@@ -405,11 +371,10 @@ router.put('/me', verifyToken, async (req, res) => {
                 bloodtype = $6,
                 height = $7,
                 weight = $8,
-                fingerprint_id = $9,
-                guardian_name = $10,
-                guardian_phone = $11,
+                guardian_name = $9,
+                guardian_phone = $10,
                 updated_at = CURRENT_TIMESTAMP
-            WHERE mem_id = $12
+            WHERE mem_id = $11
             RETURNING
                 patient_id,
                 mem_id,
@@ -421,7 +386,7 @@ router.put('/me', verifyToken, async (req, res) => {
                 bloodtype,
                 height,
                 weight,
-                fingerprint_id,
+                fingerprint_slots,
                 guardian_name,
                 guardian_phone,
                 created_at,
@@ -437,7 +402,6 @@ router.put('/me', verifyToken, async (req, res) => {
             bloodtype,
             parsed_height,
             parsed_weight,
-            parsed_fingerprint_id,
             guardian_name,
             guardian_phone,
             mem_id

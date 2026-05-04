@@ -8,7 +8,8 @@ import MonthlyCalendar from '../components/schedule/MonthlyCalendar'
 import ScheduleSummaryCard from '../components/schedule/ScheduleSummaryCard'
 import ScheduleList from '../components/schedule/ScheduleList'
 import ScheduleInfoBanner from '../components/schedule/ScheduleInfoBanner'
-import { hasStoredToken, requestJson } from '../api'
+import { useUnreadCount } from '../hooks/useUnreadCount'
+import { API_BASE_URL, getStoredToken, hasStoredToken, requestJson } from '../api'
 import '../styles/SchedulePage.css'
 import '../styles/MobileBottomNav.css'
 
@@ -18,6 +19,7 @@ const SCHEDULE_INFO_BANNER = {
 }
 
 function SchedulePage() {
+  const unreadCount = useUnreadCount()
   const [calendarState, setCalendarState] = useState(createInitialCalendarState)
   const [schedules, setSchedules] = useState([])
   const [backendCompletedKeys, setBackendCompletedKeys] = useState(new Set())
@@ -128,6 +130,7 @@ function SchedulePage() {
         next.add(item.id)
         return next
       })
+      window.dispatchEvent(new Event('carefull:top-header-refresh'))
     } catch (error) {
       console.error('schedule completion save error:', error)
       alert(error.message || '복약 완료 저장에 실패했습니다.')
@@ -180,10 +183,53 @@ function SchedulePage() {
     }
   }
 
+  const refreshSchedules = async () => {
+    const refreshedSchedules = await requestJson('/api/schedule', { auth: true })
+    setSchedules(
+      Array.isArray(refreshedSchedules?.schedules)
+        ? refreshedSchedules.schedules
+        : [],
+    )
+  }
+
+  const handlePreviewPrescription = async (file) => {
+    if (!hasStoredToken()) {
+      throw new Error('Authentication token is missing.')
+    }
+
+    const formData = new FormData()
+    formData.append('prescription', file)
+
+    const response = await fetch(new URL('/api/prescription/preview', API_BASE_URL), {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${getStoredToken()}`,
+      },
+      body: formData,
+    })
+    const data = await response.json().catch(() => null)
+
+    if (!response.ok || data?.success === false) {
+      throw new Error(data?.message || 'Prescription preview failed.')
+    }
+
+    return data?.data || { medications: [], warnings: [] }
+  }
+
+  const handleConfirmPrescription = async (payload) => {
+    await requestJson('/api/prescription/confirm', {
+      method: 'POST',
+      auth: true,
+      body: payload,
+    })
+    await refreshSchedules()
+    setIsAddModalOpen(false)
+  }
+
   return (
     <div className="schedule-page">
       <div className="schedule-layout">
-        <Sidebar activeMenu="schedule" />
+        <Sidebar activeMenu="schedule" alertCount={unreadCount} />
 
         <div className="schedule-main">
           <TopHeader />
@@ -226,6 +272,8 @@ function SchedulePage() {
           selectedDateLabel={selectedDateLabel}
           onClose={() => setIsAddModalOpen(false)}
           onSubmit={handleCreateSchedule}
+          onPreviewPrescription={handlePreviewPrescription}
+          onConfirmPrescription={handleConfirmPrescription}
         />
       ) : null}
     </div>
@@ -233,16 +281,12 @@ function SchedulePage() {
 }
 
 function createInitialCalendarState() {
-  const today = new Date()
+  const today = getKstDateParts()
 
   return {
-    year: today.getFullYear(),
-    month: today.getMonth() + 1,
-    selectedDate: formatDateKey(
-      today.getFullYear(),
-      today.getMonth() + 1,
-      today.getDate(),
-    ),
+    year: today.year,
+    month: today.month,
+    selectedDate: formatDateKey(today.year, today.month, today.day),
   }
 }
 
@@ -362,19 +406,12 @@ function formatDateKey(year, month, day) {
 }
 
 function buildScheduleDateTime(dateKey, timeValue) {
-  const [yearText, monthText, dayText] = dateKey.split('-')
-  const [hours = '0', minutes = '0'] = String(timeValue || '').split(':')
-  const date = new Date(
-    Number(yearText),
-    Number(monthText) - 1,
-    Number(dayText),
-    Number(hours),
-    Number(minutes),
-    0,
-    0,
-  )
+  const [hours = '00', minutes = '00', seconds = '00'] = String(timeValue || '')
+    .split(':')
 
-  return date.toISOString()
+  return `${dateKey}T${hours.padStart(2, '0')}:${minutes.padStart(2, '0')}:${String(
+    seconds || '00',
+  ).padStart(2, '0')}`
 }
 
 function findFirstScheduledDateInMonth(scheduleMap, year, month) {
@@ -428,6 +465,22 @@ function ensureSeconds(value) {
   }
 
   return value.length === 5 ? `${value}:00` : value
+}
+
+function getKstDateParts(date = new Date()) {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Asia/Seoul',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(date)
+  const getPart = (type) => Number(parts.find((part) => part.type === type)?.value)
+
+  return {
+    year: getPart('year'),
+    month: getPart('month'),
+    day: getPart('day'),
+  }
 }
 
 export default SchedulePage

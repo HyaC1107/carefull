@@ -21,6 +21,7 @@ const activity_router = require('./routes/activity');
 const push_router = require('./routes/push');
 const admin_router    = require('./routes/admin');
 const voice_router    = require('./routes/voice');
+const prescription_router = require('./routes/prescription');
 
 const { startMissedLogJob } = require('./jobs/missed-activity-job');
 
@@ -43,6 +44,7 @@ app.use(cors({
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
+    maxAge: 600,
 }));
 
 app.use(express.json({ limit: '10mb' }));
@@ -73,6 +75,7 @@ app.use('/api/log',          activity_router);
 app.use('/api/push',         push_router);
 app.use('/api/admin',        admin_router);
 app.use('/api/voice',        voice_router);
+app.use('/api/prescription', prescription_router);
 
 // ─────────────────────────── Server ──────────────────────────────────────────
 // SSL 종료는 nginx 또는 ALB 에서 처리 → Node.js 는 HTTP 로만 실행
@@ -110,10 +113,6 @@ const on_server_listen = () => {
     console.log(`[env] KAKAO_REDIRECT_URI=${process.env.KAKAO_REDIRECT_URI || 'undefined'}`);
     console.log(`[env] GOOGLE_REDIRECT_URI=${process.env.GOOGLE_REDIRECT_URI || 'undefined'}`);
     console.log(`[env] NAVER_REDIRECT_URI=${process.env.NAVER_REDIRECT_URI || 'undefined'}`);
-    if (use_https) {
-        console.log(`[HTTPS mode] SSL key: ${ssl_key_path}`);
-        console.log(`[HTTPS mode] SSL cert: ${ssl_cert_path}`);
-    }
     startMissedLogJob();
 };
 

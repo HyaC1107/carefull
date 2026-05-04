@@ -7,6 +7,7 @@ const { find_patient_id_by_mem_id } = require('../utils/auth-user');
 const { parseNumericFields, parseNumericValue, validateRequiredFields } = require('../utils/validators');
 const { sendSuccess, sendError } = require('../utils/response');
 const { send_schedule_created_push_safe } = require('../services/push.service');
+const { KST_TIME_ZONE } = require('../utils/dashboard-helpers');
 
 const validate_schedule_payload = (body) => {
     const required_fields = [
@@ -70,7 +71,7 @@ const parse_schedule_medi_ids = (body) => {
 
 const parse_schedule_dose_interval = (value) => {
     if (value === undefined || value === null || value === '') {
-        return null;
+        return 1;
     }
 
     const parsed_dose_interval = parseNumericValue(value);
@@ -138,6 +139,41 @@ const add_days = (date, days) => {
     return next_date;
 };
 
+const get_kst_wall_clock_parts = (date = new Date()) => {
+    const parts = new Intl.DateTimeFormat('en-US', {
+        timeZone: KST_TIME_ZONE,
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hourCycle: 'h23'
+    }).formatToParts(date);
+    const get_part = (type) => parts.find((part) => part.type === type)?.value;
+
+    return {
+        date_string: `${get_part('year')}-${get_part('month')}-${get_part('day')}`,
+        time_string: `${get_part('hour')}:${get_part('minute')}:${get_part('second')}`
+    };
+};
+
+const normalize_schedule_time_string = (time_to_take) => {
+    const [hours = 0, minutes = 0, seconds = 0] = String(time_to_take)
+        .split(':')
+        .map(Number);
+
+    if (![hours, minutes, seconds].every(Number.isFinite)) {
+        return null;
+    }
+
+    return [
+        String(hours).padStart(2, '0'),
+        String(minutes).padStart(2, '0'),
+        String(seconds || 0).padStart(2, '0')
+    ].join(':');
+};
+
 const build_schedule_datetime = (date, time_to_take) => {
     const [hours = 0, minutes = 0, seconds = 0] = String(time_to_take)
         .split(':')
@@ -160,14 +196,23 @@ const resolve_insert_start_date = (start_date, end_date, time_to_take, registere
         return null;
     }
 
-    const schedule_datetime = build_schedule_datetime(start_date_only, time_to_take);
+    const schedule_time_string = normalize_schedule_time_string(time_to_take);
 
-    if (!schedule_datetime) {
+    if (!schedule_time_string) {
         return null;
     }
 
-    if (schedule_datetime.getTime() >= registered_at.getTime()) {
-        return format_date_only(start_date_only);
+    const start_date_string = format_date_only(start_date_only);
+    const registered_parts = get_kst_wall_clock_parts(registered_at);
+
+    if (
+        start_date_string > registered_parts.date_string ||
+        (
+            start_date_string === registered_parts.date_string &&
+            schedule_time_string >= registered_parts.time_string
+        )
+    ) {
+        return start_date_string;
     }
 
     const next_date = add_days(start_date_only, 1);
@@ -514,13 +559,16 @@ router.get('/device', async (req, res) => {
             LEFT JOIN medications m ON m.medi_id = s.medi_id
             WHERE d.device_uid = $1
               AND s.status = 'ACTIVE'
-              AND s.start_date <= CURRENT_DATE
-              AND (s.end_date IS NULL OR s.end_date >= CURRENT_DATE)
+              AND s.start_date <= (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Seoul')::date
               AND (
-                  CURRENT_DATE > s.created_at::date
+                  s.end_date IS NULL
+                  OR s.end_date >= (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Seoul')::date
+              )
+              AND (
+                  (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Seoul')::date > (s.created_at AT TIME ZONE 'Asia/Seoul')::date
                   OR (
-                      CURRENT_DATE = s.created_at::date
-                      AND (CURRENT_DATE + s.time_to_take) >= s.created_at
+                      (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Seoul')::date = (s.created_at AT TIME ZONE 'Asia/Seoul')::date
+                      AND ((CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Seoul')::date + s.time_to_take) >= (s.created_at AT TIME ZONE 'Asia/Seoul')
                   )
               )
             ORDER BY s.time_to_take, s.sche_id

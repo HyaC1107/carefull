@@ -34,14 +34,29 @@ class MedicationScreen(QWidget):
 
         self._gradient = _GradientOverlay(parent=self)
 
+        # 중단 버튼 추가
+        self._btn_cancel = QPushButton("중단", parent=self)
+        self._btn_cancel.setFont(QFont("Sans Serif", 20, QFont.Bold))
+        self._btn_cancel.setStyleSheet("""
+            QPushButton {
+                background: rgba(255, 255, 255, 180);
+                color: #374151;
+                border: 2px solid #d0d5dd;
+                border-radius: 12px;
+                padding: 8px;
+            }
+            QPushButton:pressed { background: white; }
+        """)
+        self._btn_cancel.clicked.connect(self._on_cancel)
+
         self._title_lbl = QLabel("약을 복용해주세요", parent=self)
-        self._title_lbl.setFont(QFont("Sans Serif", 36, QFont.Bold))
+        self._title_lbl.setFont(QFont("Sans Serif", 42, QFont.Bold))
         self._title_lbl.setAlignment(Qt.AlignCenter)
         self._title_lbl.setStyleSheet("color: #ffffff; background: transparent;")
         self._title_lbl.setAttribute(Qt.WA_TransparentForMouseEvents)
 
         self._sub_lbl = QLabel("물과 함께 드세요", parent=self)
-        self._sub_lbl.setFont(QFont("Sans Serif", 28))
+        self._sub_lbl.setFont(QFont("Sans Serif", 34))
         self._sub_lbl.setAlignment(Qt.AlignCenter)
         self._sub_lbl.setStyleSheet("color: #93c5fd; background: transparent;")
         self._sub_lbl.setAttribute(Qt.WA_TransparentForMouseEvents)
@@ -50,10 +65,14 @@ class MedicationScreen(QWidget):
         super().resizeEvent(event)
         w, h = self.width(), self.height()
         self._camera_card.setGeometry(0, 0, w, h)
-        overlay_h = int(h * 0.27)
+
+        # 우측 상단 중단 버튼 배치
+        self._btn_cancel.setGeometry(w - 140, 25, 120, 60)
+
+        overlay_h = int(h * 0.32)
         self._gradient.setGeometry(0, h - overlay_h, w, overlay_h)
-        self._title_lbl.setGeometry(0, h - int(h * 0.20), w, 58)
-        self._sub_lbl.setGeometry(0, h - int(h * 0.10), w, 46)
+        self._title_lbl.setGeometry(0, h - int(h * 0.22), w, 64)
+        self._sub_lbl.setGeometry(0, h - int(h * 0.12), w, 52)
 
     def showEvent(self, event):
         super().showEvent(event)
@@ -88,6 +107,13 @@ class MedicationScreen(QWidget):
     def _on_progress(self, current: int, required: int):
         pct = int(current / required * 100)
         self._sub_lbl.setText(f"복약 감지 중... {pct}%")
+
+    def _on_cancel(self):
+        self._stop_thread()
+        if self._timeout_timer:
+            self._timeout_timer.stop()
+        if self._app:
+            self._app.show_screen("home")
 
     def _on_intake(self):
         self._stop_thread()

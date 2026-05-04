@@ -68,7 +68,7 @@
 - `bloodtype`
 - `height`
 - `weight`
-- `fingerprint_id`
+- `fingerprint_slots`
 - `guardian_name`
 - `guardian_phone`
 - `created_at`
@@ -304,7 +304,7 @@ address varchar(255) NOT NULL,
 bloodtype varchar(5) NOT NULL,
 height numeric(5, 2) NOT NULL,
 weight numeric(5, 2) NOT NULL,
-fingerprint_id int4 NOT NULL,
+fingerprint int4 NOT NULL,
 guardian_name varchar(100) NOT NULL,
 guardian_phone varchar(20) NOT NULL,
 created_at timestamptz DEFAULT CURRENT_TIMESTAMP NOT NULL,

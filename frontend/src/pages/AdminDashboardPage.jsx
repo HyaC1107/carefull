@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { API_BASE_URL } from '../api'
-import { adminRequest, clearAdminToken, getAdminToken } from '../adminApi'
+import { adminRequest, clearAdminToken, getAdminToken, sendTestPush } from '../adminApi'
 
 /* ─── JWT 디코딩 ─────────────────────────────────────────────────────────── */
 function decodeAdminToken() {
@@ -15,6 +15,18 @@ function decodeAdminToken() {
 const fmt = (iso) => {
   if (!iso) return '-'
   return new Date(iso).toLocaleString('ko-KR', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })
+}
+
+const getKstTodayDateString = () => {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Asia/Seoul',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(new Date())
+  const getPart = (type) => parts.find((part) => part.type === type)?.value
+
+  return `${getPart('year')}-${getPart('month')}-${getPart('day')}`
 }
 
 const STATUS_COLOR = {
@@ -91,7 +103,7 @@ function TestManagement({ onRefreshStats }) {
   const [devForm,  setDevForm]  = useState({ device_uid: '', patient_id: '' })
   const [scheForm, setScheForm] = useState({
     patient_id: '', medi_id: '', time_to_take: '',
-    start_date: new Date().toISOString().split('T')[0], end_date: '', dose_interval: '1',
+    start_date: getKstTodayDateString(), end_date: '', dose_interval: '1',
   })
 
   useEffect(() => { loadAll() }, [])
@@ -331,7 +343,7 @@ function TestManagement({ onRefreshStats }) {
                 <td style={s.td}>{r.patient_name}</td>
                 <td style={s.td}>{r.member_nick || '-'}</td>
                 <td style={s.td}><code style={s.code}>{r.device_uid || '-'}</code></td>
-                <td style={{ ...s.td, textAlign: 'center' }}>{r.fingerprint_id ?? '-'}</td>
+                <td style={{ ...s.td, textAlign: 'center' }}>{Array.isArray(r.fingerprint_slots) ? r.fingerprint_slots.length : '-'}</td>
                 <td style={s.td}>{fmt(r.created_at)}</td>
                 <td style={s.td}>
                   <button style={s.dangerBtn} onClick={() => deletePatient(r.patient_id, r.patient_name)}>삭제</button>
@@ -347,13 +359,23 @@ function TestManagement({ onRefreshStats }) {
 
 /* ─── 기기 이벤트 테스트 폼 ─────────────────────────────────────────────── */
 function DeviceEventTest() {
+  const [members, setMembers] = useState([])
   const [form, setForm] = useState({
     device_uid: '', sche_id: '',
     face_verified: 'true', dispensed: 'true', action_verified: 'true',
     raw_confidence: '0.85', status: '',
   })
+  const [pushForm, setPushForm] = useState({
+    mem_id: '', title: '테스트 알림', body: '관리자 페이지에서 보내는 테스트 메시지입니다.',
+  })
   const [result, setResult] = useState(null)
+  const [pushResult, setPushResult] = useState(null)
   const [loading, setLoading] = useState(false)
+  const [pushLoading, setPushLoading] = useState(false)
+
+  useEffect(() => {
+    adminRequest('/api/admin/members').then(d => setMembers(d.members || []))
+  }, [])
 
   const set = (k, v) => setForm(prev => ({ ...prev, [k]: v }))
 
@@ -386,73 +408,139 @@ function DeviceEventTest() {
     }
   }
 
-  const Field = ({ label, name, type = 'text', placeholder }) => (
+  const handlePushSubmit = async (e) => {
+    e.preventDefault()
+    setPushLoading(true)
+    setPushResult(null)
+    try {
+      const d = await sendTestPush(pushForm.mem_id, pushForm.title, pushForm.body)
+      setPushResult({ ok: true, data: d })
+    } catch (err) {
+      setPushResult({ ok: false, data: { message: err.message } })
+    } finally {
+      setPushLoading(false)
+    }
+  }
+
+  const Field = ({ label, name, type = 'text', placeholder, val, onChg }) => (
     <div style={s.testField}>
       <label style={s.testLabel}>{label}</label>
       <input style={s.testInput} type={type} placeholder={placeholder}
-        value={form[name]} onChange={e => set(name, e.target.value)} />
+        value={val !== undefined ? val : form[name]} 
+        onChange={e => onChg ? onChg(e.target.value) : set(name, e.target.value)} />
     </div>
   )
 
-  const Select = ({ label, name, options }) => (
+  const Select = ({ label, name, options, val, onChg }) => (
     <div style={s.testField}>
       <label style={s.testLabel}>{label}</label>
-      <select style={s.testInput} value={form[name]} onChange={e => set(name, e.target.value)}>
+      <select style={s.testInput} value={val !== undefined ? val : form[name]} 
+        onChange={e => onChg ? onChg(e.target.value) : set(name, e.target.value)}>
         {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
       </select>
     </div>
   )
 
   return (
-    <div>
-      <p style={{ color: '#64748b', fontSize: 14, marginBottom: 20 }}>
-        라즈베리파이 디바이스 이벤트를 시뮬레이션합니다. <code style={s.code}>POST /api/log/device-event</code>
-      </p>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 40 }}>
+      {/* 1. 기기 이벤트 시뮬레이션 */}
+      <section>
+        <h2 style={{ ...s.sectionTitle, borderLeft: '4px solid #3b82f6', paddingLeft: 12, marginBottom: 20 }}>기기 이벤트 시뮬레이션</h2>
+        <p style={{ color: '#64748b', fontSize: 14, marginBottom: 20 }}>
+          라즈베리파이 디바이스 이벤트를 시뮬레이션합니다. <code style={s.code}>POST /api/log/device-event</code>
+        </p>
 
-      <form onSubmit={handleSubmit} style={s.testForm}>
-        <div style={s.testGrid}>
-          <Field label="device_uid *" name="device_uid" placeholder="등록된 기기 UID" />
-          <Field label="sche_id *" name="sche_id" type="number" placeholder="스케줄 ID" />
-          <Field label="raw_confidence (0~1)" name="raw_confidence" type="number" placeholder="0.85" />
-          <Field label="status (선택, 비우면 자동결정)" name="status" placeholder="SUCCESS / FAILED / ERROR" />
-          <Select label="face_verified (얼굴인증)" name="face_verified"
-            options={[{ value: 'true', label: '성공 (true)' }, { value: 'false', label: '실패 (false)' }]} />
-          <Select label="dispensed (약 배출)" name="dispensed"
-            options={[{ value: 'true', label: '완료 (true)' }, { value: 'false', label: '실패 (false)' }]} />
-          <Select label="action_verified (복약 확인)" name="action_verified"
-            options={[{ value: 'true', label: '확인 (true)' }, { value: 'false', label: '미확인 (false)' }]} />
+        <form onSubmit={handleSubmit} style={s.testForm}>
+          <div style={s.testGrid}>
+            <Field label="device_uid *" name="device_uid" placeholder="등록된 기기 UID" />
+            <Field label="sche_id *" name="sche_id" type="number" placeholder="스케줄 ID" />
+            <Field label="raw_confidence (0~1)" name="raw_confidence" type="number" placeholder="0.85" />
+            <Field label="status (선택, 비우면 자동결정)" name="status" placeholder="SUCCESS / FAILED / ERROR" />
+            <Select label="face_verified (얼굴인증)" name="face_verified"
+              options={[{ value: 'true', label: '성공 (true)' }, { value: 'false', label: '실패 (false)' }]} />
+            <Select label="dispensed (약 배출)" name="dispensed"
+              options={[{ value: 'true', label: '완료 (true)' }, { value: 'false', label: '실패 (false)' }]} />
+            <Select label="action_verified (복약 확인)" name="action_verified"
+              options={[{ value: 'true', label: '확인 (true)' }, { value: 'false', label: '미확인 (false)' }]} />
+          </div>
+
+          <button style={{ ...s.testBtn, opacity: loading ? 0.7 : 1 }} type="submit" disabled={loading}>
+            {loading ? '전송 중...' : '이벤트 전송'}
+          </button>
+        </form>
+
+        {result && (
+          <div style={{ ...s.resultBox, borderColor: result.ok ? '#86efac' : '#fca5a5', background: result.ok ? '#f0fdf4' : '#fef2f2' }}>
+            <p style={{ fontWeight: 700, color: result.ok ? '#16a34a' : '#dc2626', margin: '0 0 8px' }}>
+              {result.ok ? '✓ 성공' : '✗ 실패'}
+            </p>
+            <pre style={s.pre}>{JSON.stringify(result.data, null, 2)}</pre>
+          </div>
+        )}
+
+        <div style={{ marginTop: 24 }}>
+          <h3 style={{ fontSize: 14, color: '#374151', marginBottom: 12 }}>자주 쓰는 시나리오</h3>
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+            {[
+              { label: '정상 복약', vals: { face_verified: 'true', dispensed: 'true', action_verified: 'true', raw_confidence: '0.92' }},
+              { label: '얼굴인증 실패', vals: { face_verified: 'false', dispensed: 'true', action_verified: 'true', raw_confidence: '0.3' }},
+              { label: '복약 미확인', vals: { face_verified: 'true', dispensed: 'true', action_verified: 'false', raw_confidence: '0.85' }},
+              { label: '전체 실패', vals: { face_verified: 'false', dispensed: 'false', action_verified: 'false', raw_confidence: '0.0' }},
+            ].map(({ label, vals }) => (
+              <button key={label} style={s.scenarioBtn}
+                onClick={() => setForm(prev => ({ ...prev, ...vals }))}>
+                {label}
+              </button>
+            ))}
+          </div>
         </div>
+      </section>
 
-        <button style={{ ...s.testBtn, opacity: loading ? 0.7 : 1 }} type="submit" disabled={loading}>
-          {loading ? '전송 중...' : '이벤트 전송'}
-        </button>
-      </form>
+      <hr style={{ border: 'none', borderTop: '1px solid #e2e8f0', margin: 0 }} />
 
-      {result && (
-        <div style={{ ...s.resultBox, borderColor: result.ok ? '#86efac' : '#fca5a5', background: result.ok ? '#f0fdf4' : '#fef2f2' }}>
-          <p style={{ fontWeight: 700, color: result.ok ? '#16a34a' : '#dc2626', margin: '0 0 8px' }}>
-            {result.ok ? '✓ 성공' : '✗ 실패'}
-          </p>
-          <pre style={s.pre}>{JSON.stringify(result.data, null, 2)}</pre>
-        </div>
-      )}
+      {/* 2. 푸시 알림 테스트 */}
+      <section>
+        <h2 style={{ ...s.sectionTitle, borderLeft: '4px solid #f97316', paddingLeft: 12, marginBottom: 20 }}>FCM 푸시 알림 테스트</h2>
+        <p style={{ color: '#64748b', fontSize: 14, marginBottom: 20 }}>
+          특정 회원(보호자)에게 푸시 알림을 즉시 발송합니다. 해당 회원이 앱에서 알림 권한을 승인한 상태여야 합니다.
+        </p>
 
-      <div style={{ marginTop: 32 }}>
-        <h3 style={{ fontSize: 15, color: '#374151', marginBottom: 12 }}>자주 쓰는 시나리오</h3>
-        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-          {[
-            { label: '정상 복약', vals: { face_verified: 'true', dispensed: 'true', action_verified: 'true', raw_confidence: '0.92' }},
-            { label: '얼굴인증 실패', vals: { face_verified: 'false', dispensed: 'true', action_verified: 'true', raw_confidence: '0.3' }},
-            { label: '복약 미확인', vals: { face_verified: 'true', dispensed: 'true', action_verified: 'false', raw_confidence: '0.85' }},
-            { label: '전체 실패', vals: { face_verified: 'false', dispensed: 'false', action_verified: 'false', raw_confidence: '0.0' }},
-          ].map(({ label, vals }) => (
-            <button key={label} style={s.scenarioBtn}
-              onClick={() => setForm(prev => ({ ...prev, ...vals }))}>
-              {label}
-            </button>
-          ))}
-        </div>
-      </div>
+        <form onSubmit={handlePushSubmit} style={s.testForm}>
+          <div style={s.testGrid}>
+            <Select label="수신 회원 (보호자) *" name="mem_id"
+              val={pushForm.mem_id}
+              onChg={v => setPushForm(p => ({ ...p, mem_id: v }))}
+              options={[
+                { value: '', label: '-- 회원 선택 --' },
+                ...members.map(m => ({ value: m.mem_id, label: `${m.nick} (${m.email || '이메일 없음'})` }))
+              ]} />
+            <Field label="알림 제목 *" name="title"
+              val={pushForm.title}
+              onChg={v => setPushForm(p => ({ ...p, title: v }))}
+              placeholder="알림 제목을 입력하세요" />
+            <div style={{ ...s.testField, gridColumn: 'span 2' }}>
+              <label style={s.testLabel}>알림 내용 *</label>
+              <textarea style={{ ...s.testInput, height: 80, resize: 'none' }}
+                value={pushForm.body}
+                onChange={e => setPushForm(p => ({ ...p, body: e.target.value }))}
+                placeholder="알림 내용을 입력하세요" required />
+            </div>
+          </div>
+
+          <button style={{ ...s.testBtn, background: '#f97316', opacity: pushLoading ? 0.7 : 1 }} type="submit" disabled={pushLoading}>
+            {pushLoading ? '발송 중...' : '테스트 푸시 발송'}
+          </button>
+        </form>
+
+        {pushResult && (
+          <div style={{ ...s.resultBox, borderColor: pushResult.ok ? '#86efac' : '#fca5a5', background: pushResult.ok ? '#f0fdf4' : '#fef2f2' }}>
+            <p style={{ fontWeight: 700, color: pushResult.ok ? '#16a34a' : '#dc2626', margin: '0 0 8px' }}>
+              {pushResult.ok ? '✓ 전송 요청 성공' : '✗ 전송 요청 실패'}
+            </p>
+            <pre style={s.pre}>{JSON.stringify(pushResult.data, null, 2)}</pre>
+          </div>
+        )}
+      </section>
     </div>
   )
 }

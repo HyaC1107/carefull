@@ -75,9 +75,20 @@ class AuthResultScreen(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self._app = parent
+        self._pending_timer = None
         self._build_ui()
 
+    def _cancel_pending(self):
+        if self._pending_timer is not None:
+            self._pending_timer.stop()
+            self._pending_timer = None
+
+    def hideEvent(self, event):
+        super().hideEvent(event)
+        self._cancel_pending()
+
     def set_result(self, success: bool, user: str = None, fingerprint: bool = False):
+        self._cancel_pending()   # 이전 결과의 타이머가 남아 있으면 취소
         if success:
             self.setStyleSheet("AuthResultScreen { background-color: #dff4ef; }")
             _png = os.path.join(_ICONS_DIR, "check_small.png")
@@ -95,7 +106,10 @@ class AuthResultScreen(QWidget):
             sub = "지문으로 확인되었습니다" if fingerprint else "약을 준비하고 있습니다"
             self._sub_lbl.setText(sub)
             self._sub_lbl.setStyleSheet("color: #3b82f6;")
-            QTimer.singleShot(_AUTO_SUCCESS_MS, lambda: self._go("dispensing"))
+            self._pending_timer = QTimer(self)
+            self._pending_timer.setSingleShot(True)
+            self._pending_timer.timeout.connect(lambda: self._go("dispensing"))
+            self._pending_timer.start(_AUTO_SUCCESS_MS)
         else:
             self.setStyleSheet("AuthResultScreen { background-color: #ffeaea; }")
             self._card.set_state(_ResultCardWidget.FAIL)
@@ -105,7 +119,10 @@ class AuthResultScreen(QWidget):
             self._title_lbl.setStyleSheet("color: #7f1d1d;")
             self._sub_lbl.setText("다시 시도해주세요")
             self._sub_lbl.setStyleSheet("color: #ef4444;")
-            QTimer.singleShot(_AUTO_FAIL_MS, lambda: self._go("home"))
+            self._pending_timer = QTimer(self)
+            self._pending_timer.setSingleShot(True)
+            self._pending_timer.timeout.connect(lambda: self._go("home"))
+            self._pending_timer.start(_AUTO_FAIL_MS)
 
     def _build_ui(self):
         self.setStyleSheet("AuthResultScreen { background-color: #dff4ef; }")

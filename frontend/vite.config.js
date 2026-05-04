@@ -1,23 +1,59 @@
 import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
 import fs from 'node:fs'
+import path from 'node:path'
 import { VitePWA } from 'vite-plugin-pwa'
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
+  const isDevelopment = mode === 'development'
 
   const devServerPort = env.VITE_DEV_PORT
     ? Number(env.VITE_DEV_PORT)
-    : 5173
+    : undefined
+
+  const resolveEnvPath = (value) => (
+    value && (path.isAbsolute(value) ? value : path.resolve(process.cwd(), value))
+  )
+
+  const sslKeyPath = resolveEnvPath(env.SSL_KEY_PATH)
+  const sslCertPath = resolveEnvPath(env.SSL_CERT_PATH)
+  const hasDevHttpsCerts = Boolean(
+    isDevelopment
+    && sslKeyPath
+    && sslCertPath
+    && fs.existsSync(sslKeyPath)
+    && fs.existsSync(sslCertPath)
+  )
+
+  const devServer = {
+    strictPort: Boolean(devServerPort),
+    ...(env.VITE_DEV_HOST ? { host: env.VITE_DEV_HOST } : {}),
+    ...(devServerPort ? { port: devServerPort } : {}),
+    ...(env.VITE_ALLOWED_HOSTS
+      ? { allowedHosts: env.VITE_ALLOWED_HOSTS.split(',').map((host) => host.trim()).filter(Boolean) }
+      : {}),
+    ...(hasDevHttpsCerts
+      ? {
+          https: {
+            key: fs.readFileSync(sslKeyPath),
+            cert: fs.readFileSync(sslCertPath),
+          },
+        }
+      : {}),
+  }
 
   return {
     plugins: [
       react(),
       VitePWA({
         registerType: 'autoUpdate',
-        filename: 'manifest.json',
+        strategies: 'injectManifest',
+        srcDir: 'src',
+        filename: 'sw.js',
         devOptions: {
           enabled: true,
+          type: 'module',
         },
         includeAssets: [
           'favicons/favicon.ico',
@@ -36,76 +72,40 @@ export default defineConfig(({ mode }) => {
           scope: '/',
           icons: [
             {
-              src: 'favicons/android-chrome-192x192.png',
+              src: '/favicons/android-chrome-192x192.png',
               sizes: '192x192',
               type: 'image/png',
-              purpose: 'any',
+              purpose: 'any maskable',
             },
             {
-              src: 'favicons/android-chrome-512x512.png',
+              src: '/favicons/android-chrome-512x512.png',
               sizes: '512x512',
               type: 'image/png',
-              purpose: 'any',
+              purpose: 'any maskable',
             },
           ],
           screenshots: [
             {
-              src: 'favicons/android-chrome-512x512.png',
+              src: '/favicons/android-chrome-512x512.png',
               sizes: '512x512',
               type: 'image/png',
               form_factor: 'wide',
               label: 'Care-full 대시보드',
             },
             {
-              src: 'favicons/android-chrome-512x512.png',
+              src: '/favicons/android-chrome-512x512.png',
               sizes: '512x512',
               type: 'image/png',
               label: 'Care-full 모바일',
             },
           ],
         },
-        workbox: {
+        injectManifest: {
           globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
-          navigateFallback: 'index.html',
-          runtimeCaching: [
-            {
-              urlPattern: ({ request }) => request.destination === 'document',
-              handler: 'NetworkFirst',
-              options: {
-                cacheName: 'pages-cache',
-                expiration: {
-                  maxEntries: 10,
-                  maxAgeSeconds: 60 * 60 * 24,
-                },
-              },
-            },
-            {
-              urlPattern: ({ request }) =>
-                ['style', 'script', 'worker'].includes(request.destination),
-              handler: 'StaleWhileRevalidate',
-              options: {
-                cacheName: 'assets-cache',
-              },
-            },
-            {
-              urlPattern: ({ request }) => request.destination === 'image',
-              handler: 'StaleWhileRevalidate',
-              options: {
-                cacheName: 'image-cache',
-                expiration: {
-                  maxEntries: 50,
-                  maxAgeSeconds: 60 * 60 * 24 * 30,
-                },
-              },
-            },
-          ],
+          globIgnores: ['firebase-messaging-sw.js'],
         },
       }),
     ],
-    server: {
-      host: env.VITE_DEV_HOST || '0.0.0.0',
-      port: devServerPort,
-      strictPort: true
-    },
+    server: devServer,
   }
 })

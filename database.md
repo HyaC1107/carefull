@@ -88,12 +88,33 @@ members ──< patients ──< schedules >── medications
 | `bloodtype` | varchar(5) | ✓ | 혈액형 |
 | `height` | numeric(5,2) | ✓ | 키 (cm) |
 | `weight` | numeric(5,2) | ✓ | 몸무게 (kg) |
-| `fingerprint_id` | int4 | ✓ | R307 지문 센서 내부 ID |
+| `fingerprint_id` | int4 | ✓ | (레거시) 첫 번째 R307 슬롯 번호 |
+| `fingerprint_slots` | jsonb | | 다중 지문 슬롯 목록 (default: `[]`) |
 | `guardian_name` | varchar(100) | ✓ | 긴급 연락처 이름 |
 | `guardian_phone` | varchar(20) | ✓ | 긴급 연락처 전화번호 |
 | `created_at` | timestamptz | ✓ | 생성일시 |
 | `updated_at` | timestamptz | | 수정일시 |
 | `deleted_at` | timestamptz | | 삭제일시 (소프트 삭제) |
+
+**`fingerprint_slots` 구조** (JSONB 배열)
+```json
+[
+  { "slot_id": 1, "label": "지문1", "registered_at": "2026-04-30T10:00:00Z" },
+  { "slot_id": 2, "label": "지문2", "registered_at": "2026-04-30T10:05:00Z" }
+]
+```
+
+**마이그레이션** (미실행 시 실행 필요)
+```sql
+ALTER TABLE patients
+  ADD COLUMN IF NOT EXISTS fingerprint_slots jsonb NOT NULL DEFAULT '[]';
+
+UPDATE public.patients
+SET fingerprint_slots = jsonb_build_array(
+    jsonb_build_object('slot_id', fingerprint_id, 'label', '지문1', 'registered_at', created_at)
+)
+WHERE fingerprint_id > 0;
+```
 
 ---
 
@@ -186,21 +207,6 @@ ALTER TABLE devices
 
 ---
 
-### fingerprints
-지문 슬롯. R307 지문 센서에 등록된 슬롯 정보.
-
-| 컬럼 | 타입 | 필수 | 설명 |
-|---|---|---|---|
-| `fp_id` | serial4 | PK | 자동 증가 ID |
-| `patient_id` | int4 | ✓ | 환자 FK → `patients.patient_id` |
-| `slot_id` | int4 | ✓ | R307 센서 내부 슬롯 번호 |
-| `label` | varchar | | 슬롯 이름 (default: `지문`) |
-| `registered_at` | timestamptz | ✓ | 등록일시 (default: now) |
-
-**제약**
-- `(patient_id, slot_id)` Unique — 환자당 슬롯 번호 중복 불가
-
----
 
 ### voice_samples
 보호자 목소리 파일. AI 처리 후 복약 알림 TTS에 사용.

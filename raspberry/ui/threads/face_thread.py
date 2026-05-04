@@ -64,25 +64,33 @@ class FaceThread(QThread):
         from hardware.gimbal import Gimbal
         import cv2
 
-        gimbal = Gimbal()
-        deadline = time.time() + AUTH_TIMEOUT_SEC
+        # 카메라 워밍업 시간을 인증 시간으로 소모하지 않도록
+        # 첫 프레임이 도착한 시점부터 AUTH_TIMEOUT_SEC 카운트다운 시작
+        deadline = None
+        frame_count = 0
 
-        while self._running and time.time() < deadline:
+        while self._running:
             frame = get_frame()
             if frame is None:
-                self.msleep(200)
+                self.msleep(30)
                 continue
 
-            fh, fw = frame.shape[:2]
-            # --- 가이드 라인 그리기 (주석 해제 시 사용) ---
-            # cv2.line(frame, (fw // 2, 0), (fw // 2, fh), (0, 255, 0), 1) # 수직선
-            # cv2.line(frame, (0, fh // 2), (fw, fh // 2), (0, 255, 0), 1) # 수평선
+            if deadline is None:
+                deadline = time.time() + AUTH_TIMEOUT_SEC
+            if time.time() > deadline:
+                break
 
+            # 항상 화면 갱신 시그널을 먼저 보냄
             self.frame_ready.emit(frame.copy())
+            frame_count += 1
+
+            # N프레임마다 한 번씩만 AI 연산 수행
+            if frame_count % _DETECT_EVERY_N != 0:
+                self.msleep(10) # CPU 부하 감소를 위한 짧은 휴식
+                continue
 
             faces = detect_face(frame)
             if not faces:
-                self.msleep(200)
                 continue
 
             # 가장 큰 얼굴 기준 추적
@@ -103,8 +111,6 @@ class FaceThread(QThread):
                     self.auth_success.emit(user, float(score))
                 gimbal.stop()
                 return
-
-            self.msleep(100) # 추적 반응 속도를 위해 대기 시간 단축
 
         if self._running:
             self.auth_failed.emit()

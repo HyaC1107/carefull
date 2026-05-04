@@ -5,6 +5,10 @@ const pool = require('../db');
 const { verifyToken } = require('../middleware/auth');
 const { sendSuccess, sendError } = require('../utils/response');
 const { parseNumericValue } = require('../utils/validators');
+const { register_push_token } = require('../services/push.service');
+
+const DEFAULT_NOTIFICATION_LIMIT = 30;
+const MAX_NOTIFICATION_LIMIT = 100;
 
 const to_notification_response = (row) => ({
     noti_id: row.noti_id,
@@ -19,17 +23,19 @@ const to_notification_response = (row) => ({
 
 router.post('/fcm-token', verifyToken, async (req, res) => {
     const mem_id = req.user.mem_id;
-    const { fcm_token } = req.body;
+    const fcm_token = String(req.body?.fcm_token || '').trim();
+    const device_type = String(req.body?.device_type || 'web').trim() || 'web';
 
-    if (!fcm_token || !String(fcm_token).trim()) {
+    if (!fcm_token) {
         return sendError(res, 400, 'fcm_token is required.');
     }
 
     try {
-        await pool.query(
-            'UPDATE members SET fcm_token = $1 WHERE mem_id = $2',
-            [String(fcm_token).trim(), mem_id]
-        );
+        await register_push_token({
+            mem_id,
+            fcm_token,
+            device_type
+        });
         return sendSuccess(res, 200, { message: 'FCM token updated.' });
     } catch (err) {
         console.error('FCM token update error:', err);
@@ -39,6 +45,14 @@ router.post('/fcm-token', verifyToken, async (req, res) => {
 
 router.get('/', verifyToken, async (req, res) => {
     const mem_id = req.user.mem_id;
+    const parsed_limit = parseNumericValue(req.query.limit);
+    const parsed_offset = parseNumericValue(req.query.offset);
+    const limit = Number.isSafeInteger(parsed_limit) && parsed_limit > 0
+        ? Math.min(parsed_limit, MAX_NOTIFICATION_LIMIT)
+        : DEFAULT_NOTIFICATION_LIMIT;
+    const offset = Number.isSafeInteger(parsed_offset) && parsed_offset >= 0
+        ? parsed_offset
+        : 0;
 
     try {
         const query = `
@@ -54,9 +68,11 @@ router.get('/', verifyToken, async (req, res) => {
             FROM notifications
             WHERE mem_id = $1
             ORDER BY created_at DESC, noti_id DESC
+            LIMIT $2
+            OFFSET $3
         `;
 
-        const { rows } = await pool.query(query, [mem_id]);
+        const { rows } = await pool.query(query, [mem_id, limit, offset]);
 
         return sendSuccess(res, 200, {
             notifications: rows.map(to_notification_response)
@@ -64,6 +80,20 @@ router.get('/', verifyToken, async (req, res) => {
     } catch (error) {
         console.error('Notification fetch error:', error);
         return sendError(res, 500, 'Server error while fetching notifications.');
+    }
+});
+
+router.get('/unread-count', verifyToken, async (req, res) => {
+    const mem_id = req.user.mem_id;
+    try {
+        const { rows } = await pool.query(
+            'SELECT COUNT(*)::int AS count FROM notifications WHERE mem_id = $1 AND is_received = FALSE',
+            [mem_id]
+        );
+        return sendSuccess(res, 200, { count: rows[0].count });
+    } catch (error) {
+        console.error('Notification unread count error:', error);
+        return sendError(res, 500, 'Server error while fetching unread count.');
     }
 });
 
