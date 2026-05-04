@@ -383,6 +383,268 @@ LOW_STOCK:
 
 ---
 
+
+---
+
+## 8.1 보호자 목소리 / ElevenLabs 음성 알림 흐름
+
+보호자 목소리 기능은 **녹음 파일을 그대로 재생하는 기능이 아니다.**
+보호자 음성 샘플로 ElevenLabs voice clone을 생성하고, 고정 안내 문구를 해당 목소리로 TTS 변환한 뒤 디바이스에서 mp3를 재생하는 구조다.
+
+전체 흐름:
+
+```text
+[1] 보호자가 1분 정도 목소리 녹음 또는 음성 파일 업로드
+[2] 프론트엔드가 POST /api/voice/upload 호출
+[3] 백엔드가 multer로 음성 파일을 uploads/voices에 저장
+[4] voice_samples 테이블에 status = 'pending' 으로 저장
+[5] 서버가 ElevenLabs Voice Cloning API에 음성 샘플 전달
+[6] ElevenLabs가 보호자 목소리 voice_id 생성
+[7] 서버가 voice_samples.elevenlabs_voice_id에 voice_id 저장
+[8] 서버가 "약 먹을 시간이에요" 같은 안내 텍스트를 ElevenLabs TTS API에 전달
+[9] ElevenLabs가 보호자 목소리 느낌의 mp3 생성
+[10] 서버가 mp3를 uploads/sounds에 저장
+[11] 서버가 devices.alarm_sound_path / alarm_sound_name / alarm_sound_updated_at 업데이트
+[12] 디바이스가 GET /api/device/sound?device_uid=... 로 알림음 메타 조회
+[13] 디바이스가 file_path를 서버 URL과 조합해 mp3 다운로드
+[14] 디바이스 스피커로 mp3 출력
+```
+
+역할 구분:
+
+```text
+Voice Cloning:
+- 보호자 음성 샘플을 기반으로 ElevenLabs voice_id 생성
+- 결과물은 재생 파일이 아니라 voice_id
+
+Text to Speech:
+- voice_id + 안내 문구를 이용해 mp3 생성
+- 결과물은 디바이스가 재생할 alarm_voice_*.mp3 파일
+```
+
+아래 기능과 혼동하지 않는다:
+
+```text
+보이스 아이솔레이터:
+- 배경음/잡음/목소리 분리 기능
+- 현재 보호자 음성 알림 핵심 기능 아님
+
+보이스 체인저:
+- 이미 존재하는 음성을 다른 목소리처럼 변환하는 기능
+- 현재 구조의 핵심 아님
+
+음성 텍스트 변환(STT):
+- 음성을 글자로 변환하는 기능
+- 현재 구조의 핵심 아님
+```
+
+---
+
+## 8.2 보호자 목소리 관련 파일 기준
+
+AI/Codex 작업자는 보호자 목소리 또는 알림음 기능 수정 전 아래 파일을 우선 확인한다.
+
+```text
+프론트엔드:
+- frontend/src/pages/SettingsPage.jsx
+- frontend/src/components/settings/VoiceUploadTab.jsx
+- frontend/src/components/settings/AlarmSoundTab.jsx
+- frontend/src/api.js
+
+백엔드:
+- backend/server.js
+- backend/routes/voice.js
+- backend/routes/device.js
+- backend/services/elevenlabs.service.js
+
+DB 문서:
+- backend/carefull_ohs_db.md
+
+라즈베리파이/디바이스:
+- sound_sync.py
+- alarm.py
+- 디바이스 설정 또는 환경변수 파일
+```
+
+현재 기준으로 확인된 주요 연결점:
+
+```text
+프론트 업로드 field 이름:
+- voice
+
+백엔드 multer field 이름:
+- upload.single('voice')
+
+음성 샘플 저장 경로:
+- uploads/voices
+
+TTS mp3 저장 경로:
+- uploads/sounds
+
+정적 파일 서빙:
+- /uploads
+
+디바이스 알림음 조회 API:
+- GET /api/device/sound?device_uid=...
+
+알림음 DB 컬럼:
+- devices.alarm_sound_path
+- devices.alarm_sound_name
+- devices.alarm_sound_updated_at
+
+음성 샘플 DB 테이블:
+- voice_samples
+
+음성 상태값:
+- pending
+- processing
+- ready
+- error
+```
+
+주의:
+
+```text
+- voice_samples.status에 processing이 정의되어 있어도 실제 코드에서 사용하지 않을 수 있으므로 코드 기준으로 확인한다.
+- 업로드 직후 프론트가 완료 화면을 보여도 ElevenLabs 변환은 아직 pending일 수 있다.
+- ready/error 상태 polling이 없으면 사용자가 실제 변환 성공 여부를 즉시 알 수 없다.
+- devices 업데이트는 연결된 device row가 있어야 반영된다.
+- devices UPDATE rowCount가 0일 수 있으므로 디버깅 시 반드시 확인한다.
+```
+
+---
+
+## 8.3 ElevenLabs 연동 기준
+
+ElevenLabs 연동은 서버에서만 수행한다.
+프론트엔드 또는 디바이스에 ElevenLabs API Key를 노출하지 않는다.
+
+필수 환경변수:
+
+```env
+ELEVENLABS_API_KEY=
+VOICE_CALLBACK_SECRET=
+```
+
+규칙:
+
+```text
+- ELEVENLABS_API_KEY는 backend/.env에만 둔다.
+- 실제 API Key 값은 문서, 로그, 프론트 코드, 라즈베리파이 코드에 출력하지 않는다.
+- .env 실파일은 삭제/초기화/덮어쓰기 금지다.
+- 예시는 .env.example 또는 문서에만 작성한다.
+```
+
+ElevenLabs API 사용 기준:
+
+```text
+Voice Clone:
+- 보호자 음성 샘플을 multipart/form-data로 전달
+- 결과 voice_id를 voice_samples.elevenlabs_voice_id에 저장
+
+Text to Speech:
+- voice_id와 안내 문구를 전달
+- mp3 결과를 uploads/sounds에 저장
+- 저장 후 devices.alarm_sound_* 컬럼을 갱신
+```
+
+확인해야 할 위험 지점:
+
+```text
+- /voices/add 요청의 FormData 필드명이 공식 명세와 맞는지 확인
+- /text-to-speech/{voice_id} 요청의 model_id가 한국어 TTS에 적합한지 확인
+- output_format이 디바이스 재생 가능한 mp3 형식인지 확인
+- Node.js 배포 버전이 FormData / Blob 전역 객체를 지원하는지 확인
+- ElevenLabs 실패 응답을 로그로 확인할 수 있는지 확인
+- API 실패 시 voice_samples.status = 'error' 흐름이 보장되는지 확인
+```
+
+외부 라이브러리 추가 금지 원칙은 유지한다.
+단, Node 런타임 호환성 문제는 먼저 Node 버전 확인으로 판단한다.
+
+---
+
+## 8.4 디바이스 알림음 동기화 기준
+
+디바이스는 ElevenLabs API를 직접 호출하지 않는다.
+디바이스는 서버가 생성한 mp3 파일만 조회/다운로드/재생한다.
+
+디바이스 기준 흐름:
+
+```text
+[1] 디바이스가 device_uid를 기준으로 서버에 알림음 메타 조회
+[2] GET /api/device/sound?device_uid=... 호출
+[3] 응답의 sound.file_path, sound.file_name, sound.updated_at 확인
+[4] 기존 local updated_at과 비교
+[5] 변경된 경우에만 mp3 다운로드
+[6] 로컬에 저장된 mp3를 alarm.py에서 재생
+```
+
+주의:
+
+```text
+- /api/device/sound 응답이 file_path만 주면 디바이스가 API_ORIGIN과 조합해야 한다.
+- file_path가 uploads/sounds/... 형태면 실제 접근은 /uploads/sounds/... 형태가 되어야 한다.
+- API_ORIGIN, SERVER_URL, device_uid는 하드코딩하지 않고 환경변수 또는 설정 파일 기준으로 관리한다.
+- device_uid만으로 조회 가능한 구조는 기기용 설계일 수 있으나, 노출 시 알림음 메타 조회 위험이 있으므로 임의로 확장하지 않는다.
+```
+
+라즈베리파이 관련 코드에서 확인할 것:
+
+```text
+- sound_sync.py가 updated_at 기준으로 새 파일만 다운로드하는지
+- download_sound()가 file_path URL을 올바르게 조합하는지
+- alarm.py가 로컬 mp3 경로를 사용해 재생하는지
+- mpg123 등 시스템 의존성이 필요한지
+- poll_seconds와 프론트 안내 문구가 일치하는지
+```
+
+---
+
+## 8.5 보호자 목소리 기능 작업 금지/주의 사항
+
+금지:
+
+```text
+- ElevenLabs API Key를 프론트엔드에 노출 금지
+- ElevenLabs API Key를 라즈베리파이에 배포 금지
+- 녹음 파일을 그대로 최종 알림음으로 간주 금지
+- voice_id를 mp3 파일 경로로 오해 금지
+- 보이스 아이솔레이터/보이스 체인저/STT 기능으로 잘못 구현 금지
+- devices.alarm_sound_* 응답 key 변경 금지
+- /api/voice, /api/device/sound 라우트명 변경 금지
+- voice_samples / devices DB 스키마 변경 금지
+- 새 테이블/새 컬럼/새 마이그레이션 임의 생성 금지
+- 외부 라이브러리 임의 추가 금지
+- URL/도메인/포트 하드코딩 금지
+```
+
+수정 전 확인:
+
+```text
+1. carefull_ohs.md 확인
+2. carefull_ohs_db.md 확인
+3. frontend VoiceUploadTab 업로드 field 확인
+4. backend voice 라우트의 multer field 확인
+5. elevenlabs.service.js의 API 요청 방식 확인
+6. device.js의 /api/device/sound 응답 구조 확인
+7. server.js의 /uploads 정적 서빙 확인
+8. raspberry sound_sync.py / alarm.py 확인
+```
+
+Codex 출력 기준:
+
+```text
+- 전체 코드 출력 금지
+- 수정 파일 목록 출력
+- 핵심 diff만 출력
+- 변경 이유를 파일별로 짧게 설명
+- 기존 UI/UX 변경 금지
+- 기존 라우트명/응답 key 변경 금지
+- 기존 인증/JWT 구조 변경 금지
+- 기존 DB 스키마 변경 금지
+```
+
 ## 9. 관리자 시스템 규칙
 
 ```text

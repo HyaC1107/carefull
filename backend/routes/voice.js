@@ -161,6 +161,14 @@ async function _run_elevenlabs_pipeline(voice_id, audio_abs_path, patient_id) {
     fs.mkdirSync(SOUNDS_DIR, { recursive: true });
 
     try {
+        await pool.query(
+            `UPDATE voice_samples
+             SET status = 'processing',
+                 updated_at = NOW()
+             WHERE voice_id = $1`,
+            [voice_id]
+        );
+
         // 1. 보이스 클로닝
         console.log(`[voice] ElevenLabs 클로닝 시작 voice_id=${voice_id}`);
         const el_voice_id = await elevenlabs.clone_voice(
@@ -187,7 +195,7 @@ async function _run_elevenlabs_pipeline(voice_id, audio_abs_path, patient_id) {
         );
 
         // 4. 환자 기기의 alarm_sound 갱신 (라즈베리 sync 대상)
-        await pool.query(
+        const device_update_result = await pool.query(
             `UPDATE devices
              SET alarm_sound_path       = $1,
                  alarm_sound_name       = $2,
@@ -195,6 +203,9 @@ async function _run_elevenlabs_pipeline(voice_id, audio_abs_path, patient_id) {
              WHERE patient_id = $3`,
             [relative_sound, filename, patient_id]
         );
+        if (device_update_result.rowCount === 0) {
+            console.warn(`[voice] no device row updated patient_id=${patient_id}`);
+        }
 
         console.log(`[voice] 파이프라인 완료 patient_id=${patient_id}`);
 
