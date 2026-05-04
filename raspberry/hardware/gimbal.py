@@ -32,17 +32,18 @@ class Gimbal:
         self.angle = 90            # 초기 각도 (중앙)
         
         # 추적 및 안정화 파라미터
-        self.threshold = 50        # 데드존 대폭 확대 (사용자 요청: +-50)
-        self.kP = 0.03             # 비례 계수 (안정적인 추적을 위해 유지)
-        self.min_step = 1        # 최소 동작 각도 (미세 떨림 방지)
+        self.threshold = 50        # 데드존
+        self.kP = 0.04             # 비례 계수 약간 상향 (0.03 -> 0.04): 덜 자주 움직이는 대신 더 확실히 이동
+        self.min_step = 1.0        # 최소 동작 각도 상향 (0.5 -> 1.0)
+        self.max_change = 5.0      # 프레임당 최대 회전 각도 상향 (2.0 -> 5.0): 딜레이 동안 밀린 거리 보정
         
         # 움직임 간 딜레이(쿨다운) 설정
         self.last_move_time = 0
-        self.move_cooldown = 0.5   # x초 동안은 다음 움직임 대기 (안정감 향상)
+        self.move_cooldown = 0.4   # 대기 시간 대폭 확대 (0.1 -> 0.4): 진동 억제 핵심
         
         # 필터링 설정
         self.smooth_error_x = 0
-        self.alpha = 0.3           # 필터링 강화
+        self.alpha = 0.25          # 필터링 약간 완화 (0.2 -> 0.25): 딜레이가 길어지므로 반응 지연 방지
         
         # GPIO 설정
         try:
@@ -108,12 +109,16 @@ class Gimbal:
         effective_error = self.smooth_error_x - (self.threshold if self.smooth_error_x > 0 else -self.threshold)
         adjustment = effective_error * self.kP
         
-        # 5. 최소 동작 각도 체크
+        # 5. 프레임당 최대 회전 각도 제한 (Snap 방지 핵심)
+        if abs(adjustment) > self.max_change:
+            adjustment = self.max_change if adjustment > 0 else -self.max_change
+        
+        # 6. 최소 동작 각도 체크
         if abs(adjustment) < self.min_step:
             self.pwm.ChangeDutyCycle(0)
             return
             
-        # 6. 각도 업데이트 및 시간 기록
+        # 7. 각도 업데이트 및 시간 기록
         self.set_angle(self.angle - adjustment)
         self.last_move_time = now
 

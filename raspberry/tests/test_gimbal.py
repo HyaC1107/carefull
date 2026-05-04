@@ -87,12 +87,15 @@ class GimbalFaceTracker:
             if self._picam2:
                 # Picamera2는 기본적으로 RGB를 반환할 수 있음
                 frame = self._picam2.capture_array()
-                # 화면 출력이 파랗게 나온다면 여기서 BGR로의 변환이 필요하거나, 
-                # 혹은 이미 BGR인데 또 변환해서 생기는 문제일 수 있음.
+                # 180도 회전 (상하 반전 장착 대응)
+                frame = cv2.flip(frame, -1)
                 return cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
             elif self._webcam:
                 ok, frame = self._webcam.read()
-                return frame if ok else None
+                if ok:
+                    # 180도 회전
+                    return cv2.flip(frame, -1)
+                return None
         except Exception as e:
             print(f"[ERROR] 프레임 획득 실패: {e}")
         return None

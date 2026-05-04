@@ -48,6 +48,8 @@ def _get_frame_picamera() -> "cv2.ndarray | None":
         frame = cam.capture_array()
         if frame is None:
             return None
+        # 카메라 상하 반전 장착에 따른 180도 회전 (V-flip + H-flip)
+        frame = cv2.flip(frame, -1)
         return cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
     except Exception as e:
         print(f"[CAMERA/PICAM CAPTURE ERROR] {e}")
@@ -72,7 +74,10 @@ def _get_frame_webcam() -> "cv2.ndarray | None":
     try:
         cap = _init_webcam()
         ok, frame = cap.read()
-        return frame if ok else None
+        if ok:
+            # 카메라 상하 반전 장착에 따른 180도 회전
+            return cv2.flip(frame, -1)
+        return None
     except Exception as e:
         print(f"[CAMERA/WEBCAM ERROR] {e}")
         return None

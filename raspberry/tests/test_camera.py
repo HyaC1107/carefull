@@ -77,10 +77,15 @@ class RobustCameraTester:
             if self._picam2:
                 # Picamera2 프레임 캡처
                 frame = self._picam2.capture_array()
+                # 180도 회전 (상하 반전 대응)
+                frame = cv2.flip(frame, -1)
                 return cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
             elif self._webcam:
                 ok, frame = self._webcam.read()
-                return frame if ok else None
+                if ok:
+                    # 180도 회전
+                    return cv2.flip(frame, -1)
+                return None
         except Exception as e:
             print(f"[ERROR] 프레임 획득 실패: {e}")
         return None
