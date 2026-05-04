@@ -104,3 +104,5 @@ docs
 raspberry/core
 raspberry/voices
 dev_test/behavior/logs/summary.csv
+raspberry/db
+raspberry/db/schedule.json
