@@ -38,40 +38,48 @@ class GimbalFaceTracker:
             print("[WARN] 디스플레이 환경 변수가 없습니다. 창이 뜨지 않을 수 있습니다.")
 
     def _init_camera(self):
-        print("[INFO] 카메라 초기화 시도 중...")
+        from config.settings import USE_WEBCAM
+        print(f"[INFO] 카메라 초기화 시도 중... (USE_WEBCAM: {USE_WEBCAM})")
         
-        # 1. Picamera2 시도
-        try:
-            from picamera2 import Picamera2
-            print("[INFO] Picamera2 라이브러리 로드 성공. 카메라 객체 생성 중...")
-            self._picam2 = Picamera2()
-            
-            config = self._picam2.create_preview_configuration(
-                main={"size": (WIDTH, HEIGHT), "format": "RGB888"}
-            )
-            self._picam2.configure(config)
-            self._picam2.start()
-            
-            print("[SUCCESS] Picamera2 가동 성공!")
-            return True
-        except Exception as e:
-            print(f"[WARN] Picamera2 실패 사유: {e}")
-            self._picam2 = None
-
-        # 2. 일반 OpenCV 웹캠 시도 (폴백)
-        print("[INFO] USB 웹캠 모드로 전환하여 시도 중...")
-        try:
-            self._webcam = cv2.VideoCapture(0)
-            if self._webcam.isOpened():
-                self._webcam.set(cv2.CAP_PROP_FRAME_WIDTH, WIDTH)
-                self._webcam.set(cv2.CAP_PROP_FRAME_HEIGHT, HEIGHT)
-                print("[SUCCESS] USB 웹캠 가동 성공!")
+        # 1. Picamera2 시도 (USE_WEBCAM이 아닐 때만 우선 시도)
+        if not USE_WEBCAM:
+            try:
+                from picamera2 import Picamera2
+                print("[INFO] Picamera2 라이브러리 로드 성공. 카메라 객체 생성 중...")
+                self._picam2 = Picamera2()
+                
+                config = self._picam2.create_preview_configuration(
+                    main={"size": (WIDTH, HEIGHT), "format": "RGB888"}
+                )
+                self._picam2.configure(config)
+                self._picam2.start()
+                
+                print("[SUCCESS] Picamera2 가동 성공!")
                 return True
-            else:
-                print("[ERROR] 연결된 USB 웹캠을 찾을 수 없습니다.")
-        except Exception as e:
-            print(f"[ERROR] 웹캠 초기화 실패: {e}")
+            except Exception as e:
+                print(f"[WARN] Picamera2 실패 (USB 웹캠으로 전환 시도): {e}")
+                self._picam2 = None
+
+        # 2. 일반 OpenCV 웹캠 시도 (인덱스 0~2까지 순차 시도)
+        print("[INFO] USB 웹캠 검색 중 (Index 0~2)...")
+        for idx in range(3):
+            try:
+                cap = cv2.VideoCapture(idx)
+                if cap.isOpened():
+                    # 테스트 프레임 읽기 확인
+                    ok, frame = cap.read()
+                    if ok:
+                        self._webcam = cap
+                        self._webcam.set(cv2.CAP_PROP_FRAME_WIDTH, WIDTH)
+                        self._webcam.set(cv2.CAP_PROP_FRAME_HEIGHT, HEIGHT)
+                        print(f"[SUCCESS] USB 웹캠 Index {idx} 가동 성공!")
+                        return True
+                    cap.release()
+            except Exception as e:
+                print(f"[DEBUG] Index {idx} 시도 중 에러: {e}")
         
+        print("[ERROR] 연결된 USB 웹캠을 찾을 수 없거나 이미 사용 중입니다.")
+        print("[TIP] 'ps aux | grep python'으로 다른 카메라 사용 프로세스가 있는지 확인하세요.")
         return False
 
     def get_frame(self):
