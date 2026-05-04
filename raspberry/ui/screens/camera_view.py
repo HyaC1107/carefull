@@ -58,6 +58,23 @@ class _EmbeddingSaveWorker(QThread):
             print(f"[REGISTER ERROR] {e}")
             self.done.emit(False)
 
+_THEMES = {
+    MODE_REGISTER: {
+        "dash":        "#7c3aed",
+        "title":       "얼굴을 맞춰주세요",
+        "sub":         "자동으로 촬영합니다",
+        "title_color": "#ffffff",
+        "sub_color":   "#c4b5fd",
+    },
+    MODE_AUTH: {
+        "dash":        "#3b82f6",
+        "title":       "얼굴을 화면 중앙에 맞춰주세요",
+        "sub":         "카메라를 바라봐 주세요",
+        "title_color": "#ffffff",
+        "sub_color":   "#93c5fd",
+    },
+}
+
 # 카메라가 완전히 준비될 때까지 대기 (프레임 수 기준)
 _CAMERA_READY_FRAMES = 5
 
