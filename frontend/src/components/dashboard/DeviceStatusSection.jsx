@@ -62,10 +62,6 @@ function DeviceStatusSection({ deviceStatus }) {
           <p className="dashboard-device__value dashboard-device__value--blue">
             {deviceStatus.remaining_medication_count}회
           </p>
-          <p className="dashboard-device__label">오늘 남은 복용횟수</p>
-          <p className="dashboard-device__value dashboard-device__value--blue">
-            {deviceStatus.today_remaining_count}회
-          </p>
         </div>
       </div>
 

@@ -22,7 +22,6 @@ const DEFAULT_SUMMARY = {
   today_total_scheduled_count: 0,
   today_completed_count: 0,
   today_missed_count: 0,
-  today_remaining_count: 0,
   status_message: '데이터가 없습니다.',
 }
 
@@ -31,7 +30,6 @@ const DEFAULT_DEVICE_STATUS = {
   medication_level: '-',
   total_scheduled_count: 0,
   remaining_medication_count: 0,
-  today_remaining_count: 0,
   last_sync_time: '-',
   next_schedule_time: '-',
 }
@@ -210,7 +208,6 @@ function mapDeviceStatus(
       connection_status_class: getDeviceStatusClass(status),
       total_scheduled_count: toCount(totalScheduledCount),
       remaining_medication_count: toCount(remainingMedicationCount),
-      today_remaining_count: toCount(summary?.today_remaining_count),
     }
   }
 
@@ -225,7 +222,6 @@ function mapDeviceStatus(
         : `${device.medication_level}회`,
     total_scheduled_count: toCount(totalScheduledCount),
     remaining_medication_count: toCount(remainingMedicationCount),
-    today_remaining_count: toCount(summary?.today_remaining_count),
     last_sync_time: formatDateTime(device.last_sync_time),
     next_schedule_time: formatDateTime(device.next_schedule_time, true),
   }
