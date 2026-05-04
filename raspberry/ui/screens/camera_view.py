@@ -43,7 +43,7 @@ class _EmbeddingSaveWorker(QThread):
 
 
 class _AuthWorker(QThread):
-    """수집된 프레임들로 백그라운드 추론 실행."""
+    """수집된 프레임들로 백그라운드 추론 실행 (다수결 투표 방식)."""
     success = pyqtSignal(str, float)
     failed  = pyqtSignal()
 
@@ -58,19 +58,52 @@ class _AuthWorker(QThread):
             
         from auth.authenticate import authenticate
         
-        best_user = None
-        best_score = -1.0
+        results = {}  # {user_name: [scores]}
+        total_count = len(self._face_imgs)
         
-        # 수집된 프레임 중 가장 점수가 높은 결과를 선택
-        for img in self._face_imgs:
+        print(f"[AUTH_WORKER] Analyzing {total_count} frames (Strict Mode)...")
+
+        for i, img in enumerate(self._face_imgs):
             user, score = authenticate(img)
-            if user and score > best_score:
-                best_user = user
-                best_score = score
+            if user:
+                if user not in results:
+                    results[user] = []
+                results[user].append(score)
         
-        if best_user:
-            self.success.emit(best_user, float(best_score))
+        if not results:
+            print("[AUTH_WORKER] Access Denied: No matching user found.")
+            self.failed.emit()
+            return
+
+        # 다수결 및 보안 검증
+        best_user = None
+        max_votes = 0
+        highest_avg = 0.0
+
+        for user, scores in results.items():
+            votes = len(scores)
+            avg_score = sum(scores) / votes
+            match_ratio = votes / total_count
+            
+            print(f"  - Candidate: {user} | Ratio: {match_ratio*100:.1f}% ({votes}/{total_count}) | Avg: {avg_score:.4f}")
+            
+            if votes > max_votes:
+                max_votes = votes
+                best_user = user
+                highest_avg = avg_score
+            elif votes == max_votes and avg_score > highest_avg:
+                best_user = user
+                highest_avg = avg_score
+
+        # 보안 강화: 매칭 비율이 60% 이상이어야만 승인 (FAR 감소 핵심)
+        STRICT_RATIO_THRESHOLD = 0.6
+        final_ratio = max_votes / total_count
+
+        if final_ratio >= STRICT_RATIO_THRESHOLD:
+            print(f"[AUTH_WORKER] SUCCESS: {best_user} verified with {final_ratio*100:.1f}% confidence.")
+            self.success.emit(best_user, float(highest_avg))
         else:
+            print(f"[AUTH_WORKER] FAILED: Consistency too low ({final_ratio*100:.1f}%). Requires {STRICT_RATIO_THRESHOLD*100:.1f}%.")
             self.failed.emit()
 
 
