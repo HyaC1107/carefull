@@ -13,6 +13,15 @@ def _url(path: str) -> str:
     return f"{API_BASE_URL.rstrip('/')}{path}"
 
 
+def _log_error(context: str, exc: Exception) -> None:
+    """HTTP 응답이 있으면 상태 코드 포함해서 로깅."""
+    response = getattr(exc, "response", None)
+    if response is not None:
+        logger.error("%s failed: HTTP %s", context, response.status_code)
+    else:
+        logger.error("%s failed: %s", context, exc)
+
+
 def ping_device(device_uid: str = DEVICE_UID) -> bool:
     if not device_uid:
         return False
@@ -100,7 +109,7 @@ def send_device_event(
         r.raise_for_status()
         return r.json()
     except Exception as e:
-        logger.error("send_device_event failed: %s", e)
+        _log_error("send_device_event", e)
         return None
 
 
@@ -116,7 +125,7 @@ def fetch_schedules(device_uid: str = DEVICE_UID) -> list:
         r.raise_for_status()
         return r.json().get("schedules", [])
     except Exception as e:
-        logger.error("fetch_schedules failed: %s", e)
+        _log_error("fetch_schedules", e)
         return []
 
 
@@ -132,7 +141,7 @@ def fetch_face_embeddings(device_uid: str = DEVICE_UID) -> list:
         r.raise_for_status()
         return r.json().get("face_embeddings", [])
     except Exception as e:
-        logger.error("fetch_face_embeddings failed: %s", e)
+        _log_error("fetch_face_embeddings", e)
         return []
 
 
@@ -155,7 +164,7 @@ def upload_fingerprint(slot_id: int, label: str = "지문", device_uid: str = DE
         r.raise_for_status()
         return True
     except Exception as e:
-        logger.error("upload_fingerprint failed: %s", e)
+        _log_error("upload_fingerprint", e)
         return False
 
 
@@ -223,7 +232,7 @@ def download_sound(url: str, dest_path: str) -> bool:
                     f.write(chunk)
         return True
     except Exception as e:
-        logger.error("download_sound failed: %s", e)
+        _log_error("download_sound", e)
         return False
 
 
@@ -240,5 +249,5 @@ def upload_face_embedding(face_vector: list, device_uid: str = DEVICE_UID) -> bo
         r.raise_for_status()
         return True
     except Exception as e:
-        logger.error("upload_face_embedding failed: %s", e)
+        _log_error("upload_face_embedding", e)
         return False

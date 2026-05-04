@@ -25,7 +25,9 @@
       "Bash(npx vite *)",
       "Bash(PowerShell *)",
       "Bash(xargs grep *)",
-      "Bash(npm install *)"
+      "Bash(npm install *)",
+      "Bash(xargs -I {} bash -c \"wc -l '{}' && echo '---'\")",
+      "WebFetch(domain:pypi.org)"
     ]
   }
 }
