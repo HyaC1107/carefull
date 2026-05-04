@@ -98,14 +98,12 @@ class FaceThread(QThread):
                 else:
                     consecutive_face_count = 0
                     last_faces = []
-            
             # 얼굴 감지 결과 처리
             if last_faces and consecutive_face_count >= 2:
                 # 1. 추적할 메인 얼굴 선정 (중앙에서 가장 가까운 얼굴 우선)
-                # (단순 크기순 정렬은 찰나의 흔들림으로 순위가 바뀔 수 있어 '휙' 돌 수 있음)
                 last_faces.sort(key=lambda b: abs((b[0] + b[2]//2) - fw//2))
                 main_face = last_faces[0]
-                
+
                 # 2. 짐벌 추적 실행
                 gimbal.track_face(main_face, fw, fh)
 
@@ -121,8 +119,10 @@ class FaceThread(QThread):
                             gimbal.stop()
                             return
             else:
-                # 얼굴이 없으면 PWM 신호 차단
-                gimbal.pwm.ChangeDutyCycle(0)
+                # 얼굴이 없으면 2초 후 정위치 복귀 체크
+                gimbal.update_idle()
+
+
             
             # 루프 주기 조절 (약 30fps)
             self.msleep(10)
@@ -181,6 +181,15 @@ class FaceThread(QThread):
                         face_imgs.append(crop)
                         last_capture_time = now
                         self.capture_progress.emit(len(face_imgs))
+            
+            self.msleep(10)
+
+        if self._running:
+            self.capture_done.emit(face_imgs)
+        gimbal.stop()
+ else:
+                # 얼굴이 없으면 2초 후 정위치 복귀 체크
+                gimbal.update_idle()
             
             self.msleep(10)
 
