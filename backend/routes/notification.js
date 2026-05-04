@@ -7,6 +7,9 @@ const { sendSuccess, sendError } = require('../utils/response');
 const { parseNumericValue } = require('../utils/validators');
 const { register_push_token } = require('../services/push.service');
 
+const DEFAULT_NOTIFICATION_LIMIT = 30;
+const MAX_NOTIFICATION_LIMIT = 100;
+
 const to_notification_response = (row) => ({
     noti_id: row.noti_id,
     mem_id: row.mem_id,
@@ -42,6 +45,14 @@ router.post('/fcm-token', verifyToken, async (req, res) => {
 
 router.get('/', verifyToken, async (req, res) => {
     const mem_id = req.user.mem_id;
+    const parsed_limit = parseNumericValue(req.query.limit);
+    const parsed_offset = parseNumericValue(req.query.offset);
+    const limit = Number.isSafeInteger(parsed_limit) && parsed_limit > 0
+        ? Math.min(parsed_limit, MAX_NOTIFICATION_LIMIT)
+        : DEFAULT_NOTIFICATION_LIMIT;
+    const offset = Number.isSafeInteger(parsed_offset) && parsed_offset >= 0
+        ? parsed_offset
+        : 0;
 
     try {
         const query = `
@@ -57,9 +68,11 @@ router.get('/', verifyToken, async (req, res) => {
             FROM notifications
             WHERE mem_id = $1
             ORDER BY created_at DESC, noti_id DESC
+            LIMIT $2
+            OFFSET $3
         `;
 
-        const { rows } = await pool.query(query, [mem_id]);
+        const { rows } = await pool.query(query, [mem_id, limit, offset]);
 
         return sendSuccess(res, 200, {
             notifications: rows.map(to_notification_response)

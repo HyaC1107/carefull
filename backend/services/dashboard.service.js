@@ -31,99 +31,113 @@ const get_today_context = () => {
     };
 };
 
-const measure_dashboard_step = async (_step_name, callback) => {
-    return callback();
+const measure_dashboard_step = async (step_name, callback) => {
+    const started_at = Date.now();
+
+    try {
+        return await callback();
+    } finally {
+        console.info(`[dashboard] ${step_name}: ${Date.now() - started_at}ms`);
+    }
 };
 
 const get_dashboard_data_by_mem_id = async (mem_id) => {
-    const member = await measure_dashboard_step('get_member_header', () =>
-        get_member_header(mem_id)
-    );
+    const total_started_at = Date.now();
 
-    if (!member) {
-        return null;
-    }
+    try {
+        const member = await measure_dashboard_step('get_member_header', () =>
+            get_member_header(mem_id)
+        );
 
-    const patient_id = await measure_dashboard_step('find_patient_id_by_mem_id', () =>
-        find_patient_id_by_mem_id(mem_id)
-    );
+        if (!member) {
+            return null;
+        }
 
-    if (!patient_id) {
+        const patient_id = await measure_dashboard_step('find_patient_id_by_mem_id', () =>
+            find_patient_id_by_mem_id(mem_id)
+        );
+
+        if (!patient_id) {
+            const dashboard_data = build_dashboard_data({
+                patient: null,
+                member,
+                summary: null,
+                device: null,
+                medication_stock: {
+                    remainingMedicationCount: 0,
+                    lowStockMedications: [],
+                    medications: []
+                },
+                total_scheduled_count: 0,
+                remaining_medication_count: 0,
+                today_schedules: [],
+                recent_notifications: await measure_dashboard_step('recent_notifications', () =>
+                    get_recent_notifications(mem_id)
+                ),
+                recent_activities: []
+            });
+
+            return dashboard_data;
+        }
+
+        const [
+            patient,
+            summary,
+            total_scheduled_count,
+            remaining_medication_count,
+            device,
+            medication_stock,
+            today_schedules,
+            recent_notifications,
+            recent_activities
+        ] = await Promise.all([
+            measure_dashboard_step('get_patient_header', () => get_patient_header(patient_id)),
+            measure_dashboard_step('get_dashboard_summary', () =>
+                get_dashboard_summary(patient_id)
+            ),
+            measure_dashboard_step('total_scheduled_count', () =>
+                get_total_planned_schedule_count(patient_id)
+            ),
+            measure_dashboard_step('remaining_medication_count', () =>
+                get_remaining_planned_medication_count(patient_id)
+            ),
+            measure_dashboard_step('get_device_status', () => get_device_status(patient_id)),
+            measure_dashboard_step('get_estimated_medication_stock', () =>
+                get_estimated_medication_stock(patient_id)
+            ),
+            measure_dashboard_step('get_today_schedules', () =>
+                get_today_schedules(patient_id)
+            ),
+            measure_dashboard_step('recent_notifications', () =>
+                get_recent_notifications(mem_id)
+            ),
+            measure_dashboard_step('recent_activities', () =>
+                get_recent_activities(patient_id)
+            )
+        ]);
+
+        const resolved_device = apply_estimated_medication_stock_to_device(
+            device,
+            medication_stock
+        );
+
         const dashboard_data = build_dashboard_data({
-            patient: null,
+            patient,
             member,
-            summary: null,
-            device: null,
-            medication_stock: {
-                remainingMedicationCount: 0,
-                lowStockMedications: [],
-                medications: []
-            },
-            total_scheduled_count: 0,
-            remaining_medication_count: 0,
-            today_schedules: [],
-            recent_notifications: await get_recent_notifications(mem_id),
-            recent_activities: []
+            summary,
+            total_scheduled_count,
+            remaining_medication_count,
+            device: resolved_device,
+            medication_stock,
+            today_schedules,
+            recent_notifications,
+            recent_activities
         });
 
         return dashboard_data;
+    } finally {
+        console.info(`[dashboard] total: ${Date.now() - total_started_at}ms`);
     }
-
-    const [
-        patient,
-        summary,
-        total_scheduled_count,
-        remaining_medication_count,
-        device,
-        medication_stock,
-        today_schedules,
-        recent_notifications,
-        recent_activities
-    ] = await Promise.all([
-        measure_dashboard_step('get_patient_header', () => get_patient_header(patient_id)),
-        measure_dashboard_step('get_dashboard_summary', () =>
-            get_dashboard_summary(patient_id)
-        ),
-        measure_dashboard_step('total_scheduled_count', () =>
-            get_total_planned_schedule_count(patient_id)
-        ),
-        measure_dashboard_step('remaining_medication_count', () =>
-            get_remaining_planned_medication_count(patient_id)
-        ),
-        measure_dashboard_step('get_device_status', () => get_device_status(patient_id)),
-        measure_dashboard_step('get_estimated_medication_stock', () =>
-            get_estimated_medication_stock(patient_id)
-        ),
-        measure_dashboard_step('get_today_schedules', () =>
-            get_today_schedules(patient_id)
-        ),
-        measure_dashboard_step('recent_notifications', () =>
-            get_recent_notifications(mem_id)
-        ),
-        measure_dashboard_step('recent_activities', () =>
-            get_recent_activities(patient_id)
-        )
-    ]);
-
-    const resolved_device = apply_estimated_medication_stock_to_device(
-        device,
-        medication_stock
-    );
-
-    const dashboard_data = build_dashboard_data({
-        patient,
-        member,
-        summary,
-        total_scheduled_count,
-        remaining_medication_count,
-        device: resolved_device,
-        medication_stock,
-        today_schedules,
-        recent_notifications,
-        recent_activities
-    });
-
-    return dashboard_data;
 };
 
 const build_dashboard_data = ({

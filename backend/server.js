@@ -44,6 +44,7 @@ app.use(cors({
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
+    maxAge: 600,
 }));
 
 app.use(express.json({ limit: '10mb' }));
