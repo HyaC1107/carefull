@@ -12,9 +12,14 @@ MODE_REGISTER = "register"
 
 AUTH_TIMEOUT_SEC = 7           # 얼굴 인증 최대 시도 시간 (초과 시 지문 폴백)
 _REGISTER_TARGET = 20
-_REGISTER_COOLDOWN_SEC = 0.5   # 캡처 간격 (블로킹 sleep 대신 타임스탬프로 관리)
-_DETECT_EVERY_N = 8            # N프레임마다 1번 AI 검출 (~30fps 기준 약 4fps 검출)
+_REGISTER_COOLDOWN_SEC = 0.6   # 캡처 간격
+_DETECT_EVERY_N = 8            # N프레임마다 1번 AI 검출
 _FACE_MARGIN = 0.2
+
+# 등록 방향 안내 (4장씩 × 5방향 = 20장)
+_PHASES = ["정면", "위", "아래", "왼쪽", "오른쪽"]
+_PHOTOS_PER_PHASE = 4
+_PHASE_PAUSE_SEC = 2.0   # 방향 전환 전 카운트다운 대기 시간
 
 
 class FaceThread(QThread):
@@ -23,6 +28,7 @@ class FaceThread(QThread):
     auth_failed = pyqtSignal()
     capture_progress = pyqtSignal(int)     # captured count (register mode)
     capture_done = pyqtSignal(list)        # list of face BGR images (register mode)
+    phase_changed = pyqtSignal(int, str)   # (phase_idx, direction_label) 방향 전환 안내
 
     def __init__(self, mode: str = MODE_AUTH, max_retries: int = 5, parent=None):
         super().__init__(parent)
@@ -97,20 +103,18 @@ class FaceThread(QThread):
             self.frame_ready.emit(frame.copy())
 
             if now - last_capture_time > capture_interval:
-                # 검출은 저해상도로 빠르게
+                # 검출은 저해상도로 빠르게 (BGR 그대로 전달 — detect_face가 내부에서 BGR→RGB 변환)
                 small_frame = cv2.resize(frame, (320, 240))
-                rgb_small = cv2.cvtColor(small_frame, cv2.COLOR_BGR2RGB)
-                faces = detect_face(rgb_small)
-                
+                faces = detect_face(small_frame)
+
                 if faces:
                     sx, sy, sw, sh = faces[0]
                     x, y, w, h = sx*2, sy*2, sw*2, sh*2
-                    
+
                     face_bgr = frame[max(0,y):min(480,y+h), max(0,x):min(640,x+w)]
                     if face_bgr.size > 0:
-                        # AI용 RGB 변환
-                        face_rgb = cv2.cvtColor(face_bgr, cv2.COLOR_BGR2RGB)
-                        face_imgs.append(face_rgb)
+                        # 등록과 동일한 BGR 포맷으로 저장 (임베딩 색공간 일치)
+                        face_imgs.append(face_bgr)
                         last_capture_time = now
                         logger.debug(f"[AUTH_CAPTURE] Progress: {len(face_imgs)}/{max_capture}")
 
@@ -132,6 +136,9 @@ class FaceThread(QThread):
         face_imgs = []
         frame_count = 0
         last_capture_time = 0.0
+        phase_idx = 0
+
+        self.phase_changed.emit(0, _PHASES[0])
 
         while self._running and len(face_imgs) < _REGISTER_TARGET:
             frame = get_frame()
@@ -139,7 +146,6 @@ class FaceThread(QThread):
                 self.msleep(10)
                 continue
 
-            # 항상 프레임 송출 (등록 시에도 부드럽게)
             self.frame_ready.emit(frame.copy())
             frame_count += 1
 
@@ -148,14 +154,13 @@ class FaceThread(QThread):
                 self.msleep(1)
                 continue
 
-            # 등록 시에도 검출 속도 향상을 위해 저해상도 사용
             small_frame = cv2.resize(frame, (320, 240))
             faces = detect_face(small_frame)
-            
+
             if faces:
                 sx, sy, sw, sh = faces[0]
                 x, y, w, h = sx*2, sy*2, sw*2, sh*2
-                
+
                 fh, fw = frame.shape[:2]
                 mx, my = int(w * _FACE_MARGIN), int(h * _FACE_MARGIN)
                 x1, y1 = max(0, x - mx), max(0, y - my)
@@ -166,7 +171,21 @@ class FaceThread(QThread):
                     face_imgs.append(crop)
                     last_capture_time = now
                     self.capture_progress.emit(len(face_imgs))
-                    logger.debug(f"[REGISTER] Captured {len(face_imgs)}/20")
+                    logger.debug(f"[REGISTER] Captured {len(face_imgs)}/20  phase={_PHASES[phase_idx]}")
+
+                    # 이 페이즈에서 _PHOTOS_PER_PHASE장 완료 → 다음 방향으로 전환
+                    next_phase = len(face_imgs) // _PHOTOS_PER_PHASE
+                    if next_phase != phase_idx and next_phase < len(_PHASES):
+                        phase_idx = next_phase
+                        # 카운트다운 (2→1) 후 다음 방향 안내
+                        for countdown in range(int(_PHASE_PAUSE_SEC), 0, -1):
+                            if not self._running:
+                                break
+                            self.phase_changed.emit(-countdown, _PHASES[phase_idx])
+                            self.msleep(1000)
+                        if self._running:
+                            self.phase_changed.emit(phase_idx, _PHASES[phase_idx])
+                        last_capture_time = time.time()
 
             self.msleep(1)
 
