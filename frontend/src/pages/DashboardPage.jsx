@@ -5,7 +5,6 @@ import MobileBottomNav from '../components/layout/MobileBottomNav'
 import SummaryCard from '../components/dashboard/SummaryCard'
 import DeviceStatusSection from '../components/dashboard/DeviceStatusSection'
 import AlertsSection from '../components/dashboard/AlertsSection'
-import NextMedicationBanner from '../components/dashboard/NextMedicationBanner'
 import {
   getDeviceStatus,
   getDeviceStatusClass,
@@ -34,10 +33,6 @@ const DEFAULT_DEVICE_STATUS = {
   next_schedule_time: '-',
 }
 
-const DEFAULT_NEXT_MEDICATION = {
-  title: '다음 복약 일정이 없습니다.',
-  description: '백엔드에서 예정된 복약 정보를 불러오면 여기에 표시됩니다.',
-}
 const PATIENT_REGISTRATION_LABEL = '환자를 등록해주세요.'
 
 function DashboardPage() {
@@ -86,18 +81,6 @@ function DashboardPage() {
     () => mapDashboardAlerts(dashboardData?.recent_notifications),
     [dashboardData],
   )
-  const visibleTodaySchedules = useMemo(
-    () => filterVisibleTodaySchedules(dashboardData?.today_schedules),
-    [dashboardData],
-  )
-  const nextMedication = useMemo(
-    () =>
-      mapNextMedication(
-        visibleTodaySchedules,
-        dashboardData?.device?.next_schedule_time,
-      ),
-    [dashboardData, visibleTodaySchedules],
-  )
   const patientLabel = buildPatientLabel(
     dashboardData?.patient,
     dashboardData?.patient_name,
@@ -145,7 +128,6 @@ function DashboardPage() {
 
             <DeviceStatusSection deviceStatus={deviceStatus} />
             <AlertsSection alerts={recentAlerts} />
-            <NextMedicationBanner nextMedication={nextMedication} />
           </main>
         </div>
       </div>
@@ -241,129 +223,6 @@ function mapDashboardAlerts(notifications = []) {
     timeAgo: formatRelativeTime(notification.created_at),
     message: notification.noti_msg || notification.noti_title || '',
   }))
-}
-
-function filterVisibleTodaySchedules(schedules = []) {
-  if (!Array.isArray(schedules)) {
-    return []
-  }
-
-  const today = new Date()
-
-  return schedules.filter((schedule) => {
-    if (!schedule?.created_at) {
-      return true
-    }
-
-    const createdAt = new Date(schedule.created_at)
-
-    if (Number.isNaN(createdAt.getTime())) {
-      return true
-    }
-
-    if (!isSameLocalDate(createdAt, today)) {
-      return true
-    }
-
-    const timeValue = schedule.time_to_take || schedule.sche_time
-
-    if (!timeValue) {
-      return true
-    }
-
-    const scheduleDateTime = buildTodayDateTime(timeValue, today)
-
-    if (!scheduleDateTime || Number.isNaN(scheduleDateTime.getTime())) {
-      return true
-    }
-
-    const include = scheduleDateTime.getTime() >= createdAt.getTime()
-
-    return include
-  })
-}
-
-function buildTodayDateTime(timeValue, baseDate) {
-  if (timeValue instanceof Date) {
-    const date = new Date(baseDate)
-
-    date.setHours(
-      timeValue.getHours(),
-      timeValue.getMinutes(),
-      timeValue.getSeconds(),
-      0,
-    )
-
-    return date
-  }
-
-  if (typeof timeValue === 'object' && timeValue !== null) {
-    const date = new Date(baseDate)
-    const hours = Number(timeValue.hours ?? timeValue.hour ?? 0)
-    const minutes = Number(timeValue.minutes ?? timeValue.minute ?? 0)
-    const seconds = Number(timeValue.seconds ?? timeValue.second ?? 0)
-
-    if (![hours, minutes, seconds].every(Number.isFinite)) {
-      return null
-    }
-
-    date.setHours(hours, minutes, seconds, 0)
-
-    return date
-  }
-
-  const normalizedTimeValue = String(timeValue).trim()
-
-  if (normalizedTimeValue.includes('T')) {
-    const parsedDate = new Date(normalizedTimeValue)
-
-    return Number.isNaN(parsedDate.getTime()) ? null : parsedDate
-  }
-
-  const [hours = 0, minutes = 0, seconds = 0] = normalizedTimeValue
-    .split(':')
-    .map((part) => Number(part))
-
-  if (![hours, minutes, seconds].every(Number.isFinite)) {
-    return null
-  }
-
-  const date = new Date(baseDate)
-
-  date.setHours(hours, minutes, seconds || 0, 0)
-
-  return date
-}
-
-function isSameLocalDate(left, right) {
-  return (
-    left.getFullYear() === right.getFullYear() &&
-    left.getMonth() === right.getMonth() &&
-    left.getDate() === right.getDate()
-  )
-}
-
-function mapNextMedication(schedules = [], nextScheduleTime) {
-  if (Array.isArray(schedules) && schedules.length > 0) {
-    const nextSchedule =
-      schedules.find((item) => item.status === 'Scheduled') || schedules[0]
-
-    return {
-      title: '다음 복약 예정',
-      description: `${nextSchedule?.medi_name || '등록된 약물'} · ${formatTime(
-        nextSchedule?.time_to_take || nextSchedule?.actual_time || nextScheduleTime,
-      )}`,
-    }
-  }
-
-  if (nextScheduleTime) {
-    return {
-      title: '다음 복약 예정',
-      description: `${formatDateTime(nextScheduleTime, true)} 복약 일정이 있습니다.`,
-    }
-  }
-
-  return DEFAULT_NEXT_MEDICATION
 }
 
 function mapTopHeaderData({ patient, device, nick, profileImg }) {
@@ -470,18 +329,6 @@ function formatDateTime(value, timeOnly = false) {
     hour: '2-digit',
     minute: '2-digit',
   })
-}
-
-function formatTime(value) {
-  if (!value) {
-    return '-'
-  }
-
-  if (String(value).includes('T')) {
-    return formatDateTime(value, true)
-  }
-
-  return String(value).slice(0, 5)
 }
 
 function formatRelativeTime(value) {
