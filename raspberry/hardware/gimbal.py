@@ -34,13 +34,13 @@ class Gimbal:
         
         # 추적 및 안정화 파라미터 (초정밀 튜닝)
         self.threshold = 60        # 데드존 확대 (+-60): 중앙 근처에서 확실히 멈춤
-        self.kP = 0.02             # 비례 계수 낮춤: 부드럽게 접근
-        self.min_step = 0.2        # 최소 동작 각도 낮춤: 정밀한 최종 위치 조정
-        self.max_change = 1.0      # 프레임당 최대 회전 제한 (1.0도): '탁' 튀는 현상 원천 차단
+        self.kP = 0.1             # 비례 계수 낮춤: 부드럽게 접근
+        self.min_step = 1        # 최소 동작 각도 낮춤: 정밀한 최종 위치 조정
+        self.max_change = 2.0      # 프레임당 최대 회전 제한 (1.0도): '탁' 튀는 현상 원천 차단
         
         # 움직임 주기 설정 (빠른 업데이트 + 작은 보폭 = 부드러움)
         self.last_move_time = 0
-        self.move_cooldown = 0.05  # 0.05초마다 업데이트 (약 20fps)
+        self.move_cooldown = 0.1  # 0.1초마다 업데이트 
         
         # 필터링 설정 (강력한 평활화)
         self.smooth_error_x = 0
@@ -53,7 +53,7 @@ class Gimbal:
             GPIO.setup(self.servo_pin, GPIO.OUT)
             self.pwm = GPIO.PWM(self.servo_pin, 50)
             self.pwm.start(0)
-            time.sleep(0.1)
+            time.sleep(0.5)
             self.set_angle(self.angle)
             logger.info(f"Gimbal precision crawl mode initialized. Reverse: {self.reverse}")
         except Exception as e:
