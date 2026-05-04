@@ -31,7 +31,6 @@ function startSocialLogin(provider) {
     return
   }
 
-  console.log('[social-login:debug]', { provider, loginUrl })
   window.location.assign(loginUrl)
 }
 

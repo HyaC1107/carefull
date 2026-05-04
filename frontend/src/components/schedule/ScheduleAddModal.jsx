@@ -3,7 +3,13 @@ import { requestJson } from '../../api'
 
 const DOSE_INTERVAL_OPTIONS = [1, 2, 3, 4, 5]
 
-function ScheduleAddModal({ selectedDateLabel, onClose, onSubmit }) {
+function ScheduleAddModal({
+  selectedDateLabel,
+  onClose,
+  onSubmit,
+  onPreviewPrescription,
+  onConfirmPrescription,
+}) {
   const [repeatType, setRepeatType] = useState('none')
   const [doseInterval, setDoseInterval] = useState('')
   const [form, setForm] = useState({
@@ -20,6 +26,11 @@ function ScheduleAddModal({ selectedDateLabel, onClose, onSubmit }) {
   const [selectedMed, setSelectedMed] = useState(null)
   const [selectedMeds, setSelectedMeds] = useState([])
   const [selectedTimes, setSelectedTimes] = useState([])
+  const [prescriptionFile, setPrescriptionFile] = useState(null)
+  const [prescriptionMedications, setPrescriptionMedications] = useState([])
+  const [prescriptionWarnings, setPrescriptionWarnings] = useState([])
+  const [isPrescriptionAnalyzing, setIsPrescriptionAnalyzing] = useState(false)
+  const [isPrescriptionConfirming, setIsPrescriptionConfirming] = useState(false)
 
   const debounceRef = useRef(null)
 
@@ -134,6 +145,56 @@ function ScheduleAddModal({ selectedDateLabel, onClose, onSubmit }) {
     })
   }
 
+  const handlePrescriptionPreview = async () => {
+    if (!prescriptionFile || !onPreviewPrescription) {
+      return
+    }
+
+    setIsPrescriptionAnalyzing(true)
+    try {
+      const data = await onPreviewPrescription(prescriptionFile)
+      setPrescriptionMedications(
+        Array.isArray(data?.medications) ? data.medications : [],
+      )
+      setPrescriptionWarnings(Array.isArray(data?.warnings) ? data.warnings : [])
+    } catch (error) {
+      console.error('prescription preview error:', error)
+      alert(error.message || '처방전 분석에 실패했습니다.')
+    } finally {
+      setIsPrescriptionAnalyzing(false)
+    }
+  }
+
+  const handlePrescriptionMedicationChange = (index, field, value) => {
+    setPrescriptionMedications((prev) =>
+      prev.map((item, itemIndex) =>
+        itemIndex === index ? { ...item, [field]: value } : item,
+      ),
+    )
+  }
+
+  const handlePrescriptionConfirm = async () => {
+    if (!onConfirmPrescription) {
+      return
+    }
+
+    setIsPrescriptionConfirming(true)
+    try {
+      await onConfirmPrescription({
+        medications: prescriptionMedications.map((item) => ({
+          ...item,
+          times: parseTimesInput(item.times),
+        })),
+      })
+      alert('처방전 복약 일정이 등록되었습니다.')
+    } catch (error) {
+      console.error('prescription confirm error:', error)
+      alert(error.message || '처방전 복약 일정 등록에 실패했습니다.')
+    } finally {
+      setIsPrescriptionConfirming(false)
+    }
+  }
+
   return (
     <div className="schedule-modal-overlay" onClick={onClose}>
       <div
@@ -164,6 +225,115 @@ function ScheduleAddModal({ selectedDateLabel, onClose, onSubmit }) {
             </span>
             <span>{selectedDateLabel}</span>
           </div>
+
+          <section className="schedule-modal__section">
+            <div className="schedule-modal__section-header">
+              <div className="schedule-modal__section-title-row">
+                <span className="schedule-modal__section-icon" aria-hidden="true">
+                  📄
+                </span>
+                <h4 className="schedule-modal__section-title">처방전 이미지</h4>
+              </div>
+              <button
+                type="button"
+                className="schedule-modal__mini-button"
+                onClick={handlePrescriptionPreview}
+                disabled={!prescriptionFile || isPrescriptionAnalyzing}
+              >
+                {isPrescriptionAnalyzing ? '분석 중' : '분석'}
+              </button>
+            </div>
+
+            <input
+              type="file"
+              accept="image/*"
+              className="schedule-modal__input"
+              onChange={(event) => {
+                setPrescriptionFile(event.target.files?.[0] || null)
+                setPrescriptionMedications([])
+                setPrescriptionWarnings([])
+              }}
+            />
+
+            {prescriptionWarnings.length > 0 ? (
+              <div className="schedule-modal__repeat-hint">
+                {prescriptionWarnings.join(' / ')}
+              </div>
+            ) : null}
+
+            {prescriptionMedications.length > 0 ? (
+              <div className="schedule-modal__selected-meds">
+                {prescriptionMedications.map((item, index) => (
+                  <div key={`${item.medicine_name || 'medicine'}-${index}`} className="schedule-modal__field">
+                    <input
+                      className="schedule-modal__input"
+                      value={item.medicine_name || ''}
+                      onChange={(event) =>
+                        handlePrescriptionMedicationChange(
+                          index,
+                          'medicine_name',
+                          event.target.value,
+                        )
+                      }
+                      placeholder="약 이름"
+                    />
+                    <input
+                      className="schedule-modal__input"
+                      value={formatTimesInput(item.times)}
+                      onChange={(event) =>
+                        handlePrescriptionMedicationChange(
+                          index,
+                          'times',
+                          event.target.value,
+                        )
+                      }
+                      placeholder="08:00, 13:00, 19:00"
+                    />
+                    <input
+                      type="date"
+                      className="schedule-modal__input"
+                      value={item.start_date || ''}
+                      onChange={(event) =>
+                        handlePrescriptionMedicationChange(
+                          index,
+                          'start_date',
+                          event.target.value,
+                        )
+                      }
+                    />
+                    <input
+                      type="date"
+                      className="schedule-modal__input"
+                      value={item.end_date || ''}
+                      onChange={(event) =>
+                        handlePrescriptionMedicationChange(
+                          index,
+                          'end_date',
+                          event.target.value,
+                        )
+                      }
+                    />
+                    <input
+                      className="schedule-modal__input"
+                      value={item.memo || ''}
+                      onChange={(event) =>
+                        handlePrescriptionMedicationChange(index, 'memo', event.target.value)
+                      }
+                      placeholder="메모"
+                    />
+                  </div>
+                ))}
+                <button
+                  type="button"
+                  className="schedule-modal__button schedule-modal__button--primary"
+                  onClick={handlePrescriptionConfirm}
+                  disabled={isPrescriptionConfirming}
+                >
+                  {isPrescriptionConfirming ? '등록 중' : '최종 확인'}
+                </button>
+              </div>
+            ) : null}
+          </section>
 
           <section className="schedule-modal__section">
             <div className="schedule-modal__section-header">
@@ -413,6 +583,21 @@ function ScheduleAddModal({ selectedDateLabel, onClose, onSubmit }) {
       </div>
     </div>
   )
+}
+
+function formatTimesInput(times) {
+  return Array.isArray(times) ? times.join(', ') : String(times || '')
+}
+
+function parseTimesInput(value) {
+  if (Array.isArray(value)) {
+    return value
+  }
+
+  return String(value || '')
+    .split(',')
+    .map((time) => time.trim())
+    .filter(Boolean)
 }
 
 export default ScheduleAddModal
