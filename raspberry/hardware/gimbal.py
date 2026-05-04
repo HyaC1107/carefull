@@ -96,11 +96,13 @@ class Gimbal:
         if abs(self.smooth_error_x) < self.threshold or (now - self.last_move_time < self.move_interval):
             return
 
-        # 3. 목표 방향 결정 (주의: 휙 돌아간다면 move_dir의 부호를 반대로 해보세요)
-        # 기본값: 얼굴이 오른쪽(error > 0)이면 각도를 줄여서 오른쪽을 보게 함
-        move_dir = -1 if not self.reverse else 1
+        # 3. 목표 방향 결정 (사용자 요청: 0도=왼쪽, 180도=오른쪽)
+        # 얼굴이 오른쪽(error > 0)에 있으면 각도를 증가(+)시켜서 오른쪽(180)을 보게 함
+        # 얼굴이 왼쪽(error < 0)에 있으면 각도를 감소(-)시켜서 왼쪽(0)을 보게 함
+        # GIMBAL_REVERSE 설정이 True면 이 방향을 한 번 더 뒤집음
+        move_dir = 1 if not self.reverse else -1
         
-        # 오차 크기에 따라 보폭 조절 (멀면 더 크게 이동하여 답답함 해소)
+        # 오차 크기에 따라 보폭 조절
         dynamic_step = self.step_size
         if abs(self.smooth_error_x) > 150:
             dynamic_step *= 2
