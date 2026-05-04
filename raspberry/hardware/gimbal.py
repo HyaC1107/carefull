@@ -19,31 +19,32 @@ except ImportError:
             def stop(self): pass
     GPIO = MockGPIO()
 
-from config.settings import TILT_PIN # 19번 핀 사용
+from config.settings import TILT_PIN, GIMBAL_REVERSE
 
 logger = logging.getLogger("Gimbal")
 
 class Gimbal:
     """
-    1축 서보 모터 제어 (19번 핀 전용) - 진동 완전 해결 및 딜레이 로직 적용
+    1축 서보 모터 제어 (19번 핀 전용) - 초정밀/저속 추적 모드
     """
     def __init__(self):
         self.servo_pin = TILT_PIN  # 19번 핀
         self.angle = 90            # 초기 각도 (중앙)
+        self.reverse = GIMBAL_REVERSE
         
-        # 추적 및 안정화 파라미터
-        self.threshold = 50        # 데드존
-        self.kP = 0.04             # 비례 계수 약간 상향 (0.03 -> 0.04): 덜 자주 움직이는 대신 더 확실히 이동
-        self.min_step = 1.0        # 최소 동작 각도 상향 (0.5 -> 1.0)
-        self.max_change = 5.0      # 프레임당 최대 회전 각도 상향 (2.0 -> 5.0): 딜레이 동안 밀린 거리 보정
+        # 추적 및 안정화 파라미터 (초정밀 튜닝)
+        self.threshold = 60        # 데드존 확대 (+-60): 중앙 근처에서 확실히 멈춤
+        self.kP = 0.02             # 비례 계수 낮춤: 부드럽게 접근
+        self.min_step = 0.2        # 최소 동작 각도 낮춤: 정밀한 최종 위치 조정
+        self.max_change = 1.0      # 프레임당 최대 회전 제한 (1.0도): '탁' 튀는 현상 원천 차단
         
-        # 움직임 간 딜레이(쿨다운) 설정
+        # 움직임 주기 설정 (빠른 업데이트 + 작은 보폭 = 부드러움)
         self.last_move_time = 0
-        self.move_cooldown = 0.4   # 대기 시간 대폭 확대 (0.1 -> 0.4): 진동 억제 핵심
+        self.move_cooldown = 0.05  # 0.05초마다 업데이트 (약 20fps)
         
-        # 필터링 설정
+        # 필터링 설정 (강력한 평활화)
         self.smooth_error_x = 0
-        self.alpha = 0.25          # 필터링 약간 완화 (0.2 -> 0.25): 딜레이가 길어지므로 반응 지연 방지
+        self.alpha = 0.1           # 필터링 대폭 강화 (0.1): 인식 좌표 흔들림 완전 무시
         
         # GPIO 설정
         try:
@@ -54,7 +55,7 @@ class Gimbal:
             self.pwm.start(0)
             time.sleep(0.1)
             self.set_angle(self.angle)
-            logger.info(f"Gimbal stability mode: Deadzone={self.threshold}, Cooldown={self.move_cooldown}s")
+            logger.info(f"Gimbal precision crawl mode initialized. Reverse: {self.reverse}")
         except Exception as e:
             logger.error(f"Gimbal GPIO Setup Error: {e}")
 
@@ -66,22 +67,19 @@ class Gimbal:
         try:
             target_angle = max(0, min(180, angle))
             
-            # 변화가 적으면 신호를 차단하여 진동 방지
-            if abs(self.angle - target_angle) < 0.3:
+            # 미세한 변화(0.1도)는 무시하여 소음 방지
+            if abs(self.angle - target_angle) < 0.1:
                 self.pwm.ChangeDutyCycle(0)
                 return
 
             self.angle = target_angle
             duty = self._angle_to_duty(self.angle)
             self.pwm.ChangeDutyCycle(duty)
-            
-            # 신호가 전달될 최소 시간을 보장하기 위해 짧은 지연을 줄 수도 있으나
-            # 여기서는 호출 주기(face_thread의 msleep)에 맡깁니다.
         except Exception as e:
             logger.error(f"Gimbal set_angle Error: {e}")
 
     def track_face(self, face_bbox, frame_w, frame_h):
-        """딜레이와 데드존을 활용한 안정적인 추적"""
+        """부드럽게 '기어가는' 추적 로직"""
         now = time.time()
         
         x, y, w, h = face_bbox
@@ -90,26 +88,24 @@ class Gimbal:
         
         raw_error_x = face_center_x - frame_center_x
         
-        # 1. 지수 이동 평균 필터
+        # 1. 지수 이동 평균 필터 (매우 부드러움)
         self.smooth_error_x = (self.alpha * raw_error_x) + ((1 - self.alpha) * self.smooth_error_x)
         
-        # 2. 데드존 체크 (+-50픽셀 이내면 PWM 신호 즉시 차단)
+        # 2. 데드존 체크
         if abs(self.smooth_error_x) < self.threshold:
-            self.pwm.ChangeDutyCycle(0) # 신호 차단 (진동 해결의 핵심)
+            self.pwm.ChangeDutyCycle(0)
             self.smooth_error_x = raw_error_x
             return
 
-        # 3. 움직임 간 딜레이(쿨다운) 체크
+        # 3. 움직임 쿨다운 체크 (0.05s)
         if now - self.last_move_time < self.move_cooldown:
-            # 쿨다운 중에는 신호만 차단하고 대기
-            self.pwm.ChangeDutyCycle(0)
             return
 
         # 4. 비례 제어 (P-Control)
         effective_error = self.smooth_error_x - (self.threshold if self.smooth_error_x > 0 else -self.threshold)
         adjustment = effective_error * self.kP
         
-        # 5. 프레임당 최대 회전 각도 제한 (Snap 방지 핵심)
+        # 5. 프레임당 최대 회전 각도 제한 (Snap 방지)
         if abs(adjustment) > self.max_change:
             adjustment = self.max_change if adjustment > 0 else -self.max_change
         
@@ -118,8 +114,9 @@ class Gimbal:
             self.pwm.ChangeDutyCycle(0)
             return
             
-        # 7. 각도 업데이트 및 시간 기록
-        self.set_angle(self.angle - adjustment)
+        # 7. 각도 업데이트 (방향 반전 설정 적용)
+        move_dir = -1 if not self.reverse else 1
+        self.set_angle(self.angle + (adjustment * move_dir))
         self.last_move_time = now
 
     def reset(self):
