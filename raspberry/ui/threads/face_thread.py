@@ -10,7 +10,7 @@ MODE_REGISTER = "register"
 AUTH_TIMEOUT_SEC = 7           # 얼굴 인증 최대 시도 시간 (초과 시 지문 폴백)
 _REGISTER_TARGET = 20
 _REGISTER_COOLDOWN_SEC = 0.5   # 캡처 간격 (블로킹 sleep 대신 타임스탬프로 관리)
-_DETECT_EVERY_N = 3            # N프레임마다 1번 AI 검출 (~30fps 기준 10fps 검출)
+_DETECT_EVERY_N = 8            # N프레임마다 1번 AI 검출 (~30fps 기준 약 4fps 검출)
 _FACE_MARGIN = 0.2
 
 
