@@ -111,6 +111,9 @@ class FaceThread(QThread):
                                 self.auth_success.emit(user, float(score))
                             gimbal.stop()
                             return
+            else:
+                # 얼굴이 없으면 PWM 신호를 즉시 차단하여 진동/소음 방지
+                gimbal.pwm.ChangeDutyCycle(0)
             
             # 루프 주기 조절 (약 30fps)
             self.msleep(10)
