@@ -70,6 +70,20 @@ router.get('/', verifyToken, async (req, res) => {
     }
 });
 
+router.get('/unread-count', verifyToken, async (req, res) => {
+    const mem_id = req.user.mem_id;
+    try {
+        const { rows } = await pool.query(
+            'SELECT COUNT(*)::int AS count FROM notifications WHERE mem_id = $1 AND is_received = FALSE',
+            [mem_id]
+        );
+        return sendSuccess(res, 200, { count: rows[0].count });
+    } catch (error) {
+        console.error('Notification unread count error:', error);
+        return sendError(res, 500, 'Server error while fetching unread count.');
+    }
+});
+
 router.patch('/read-all', verifyToken, async (req, res) => {
     const mem_id = req.user.mem_id;
 

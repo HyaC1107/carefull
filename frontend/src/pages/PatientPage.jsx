@@ -16,6 +16,7 @@ import {
   hasStoredToken,
   requestJson,
 } from '../api'
+import { useUnreadCount } from '../hooks/useUnreadCount'
 import '../styles/PatientPage.css'
 import '../styles/MobileBottomNav.css'
 
@@ -27,6 +28,7 @@ const DEFAULT_DEVICE_DETAIL = {
 }
 
 function PatientPage() {
+  const unreadCount = useUnreadCount()
   const [patientData, setPatientData] = useState(null)
   const [deviceData, setDeviceData] = useState(null)
   const [medications, setMedications] = useState([])
@@ -184,7 +186,7 @@ function PatientPage() {
   return (
     <div className="patient-page">
       <div className="patient-layout">
-        <Sidebar activeMenu="patient" />
+        <Sidebar activeMenu="patient" alertCount={unreadCount} />
 
         <div className="patient-main">
           <TopHeader key={isPatientRegistered ? 'registered' : 'pending'} />
