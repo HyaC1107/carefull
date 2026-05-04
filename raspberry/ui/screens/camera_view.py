@@ -235,12 +235,13 @@ class CameraViewScreen(QWidget):
         self._thread = FaceThread(mode=self._mode)
         self._thread.frame_ready.connect(self._on_frame_ready)
         self._thread.capture_done.connect(self._on_capture_done)
-        
+
         if self._mode == MODE_AUTH:
             self._thread.auth_failed.connect(self._on_auth_failed)
         else:
             self._thread.capture_progress.connect(self._on_progress)
-            
+            self._thread.phase_changed.connect(self._on_phase_changed)
+
         self._thread.start()
 
     def _stop_thread(self):
@@ -309,11 +310,18 @@ class CameraViewScreen(QWidget):
         if self._app: self._app.show_screen("fingerprint_auth")
 
     def _on_progress(self, count: int):
-        if count <= 5: guide = "정면을 바라봐 주세요"
-        elif count <= 10: guide = "고개를 왼쪽으로 살짝 돌려주세요"
-        elif count <= 15: guide = "고개를 오른쪽으로 살짝 돌려주세요"
-        else: guide = "고개를 위아래로 천천히 움직여주세요"
-        self._sub_lbl.setText(f"{guide}  ({count} / 20)")
+        phase_in_count = ((count - 1) % 4) + 1
+        self._sub_lbl.setText(f"촬영 중...  {phase_in_count} / 4")
+
+    def _on_phase_changed(self, phase_idx: int, direction: str):
+        if phase_idx < 0:
+            # 카운트다운 중 (-2, -1 순서로 옴)
+            countdown = abs(phase_idx)
+            self._sub_lbl.setText(f"다음 방향 준비: {direction}  ({countdown}초)")
+            self._sub_lbl.setStyleSheet("color: #fbbf24; background: transparent;")
+        else:
+            self._sub_lbl.setText(f"{direction}을(를) 바라봐 주세요")
+            self._sub_lbl.setStyleSheet("color: #93c5fd; background: transparent;")
 
     def _on_save_done(self, ok: bool):
         if self._app: self._app.show_screen("fingerprint_register")
