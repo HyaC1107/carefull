@@ -12,6 +12,16 @@ except ImportError:
         OUTPUT = 1
     pigpio = MockPigpio()
 
+# pigpio 설치 및 데몬 실행
+## 1. 라이브러리 설치
+## sudo apt update
+## sudo apt install pigpio
+## 2. pigpiod 데몬 실행 (매 부팅 시 자동 실행하려면 추가 설정 필요)
+## sudo pigpiod
+## 3. (선택) 부팅 시 자동 실행 설정
+## sudo systemctl enable pigpiod
+## sudo systemctl start pigpiod
+
 from config.settings import TILT_PIN, GIMBAL_REVERSE
 
 logger = logging.getLogger("Gimbal")
