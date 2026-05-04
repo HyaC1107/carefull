@@ -17,7 +17,7 @@ class CameraWidget(QLabel):
             return
         rgb = cv2.cvtColor(bgr_frame, cv2.COLOR_BGR2RGB)
         h, w, ch = rgb.shape
-        image = QImage(rgb.data, w, h, ch * w, QImage.Format_RGB888)
+        image = QImage(rgb.tobytes(), w, h, ch * w, QImage.Format_RGB888)
         pixmap = QPixmap.fromImage(image).scaled(
             self.width(), self.height(),
             Qt.KeepAspectRatio,

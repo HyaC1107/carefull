@@ -58,31 +58,6 @@ class _EmbeddingSaveWorker(QThread):
             print(f"[REGISTER ERROR] {e}")
             self.done.emit(False)
 
-# 얼굴 인증 가이드 메시지 순환 (2초마다 교체)
-_AUTH_GUIDES = [
-    "정면을 바라봐 주세요",
-    "좌우로 천천히 움직여 주세요",
-    "카메라와 눈높이를 맞춰 주세요",
-    "밝은 곳에서 시도해 주세요",
-]
-
-_THEMES = {
-    MODE_REGISTER: {
-        "dash":        "#7c3aed",
-        "title":       "얼굴을 맞춰주세요",
-        "sub":         "자동으로 촬영합니다",
-        "title_color": "#ffffff",
-        "sub_color":   "#c4b5fd",
-    },
-    MODE_AUTH: {
-        "dash":        "#3b82f6",
-        "title":       "얼굴을 화면 중앙에 맞춰주세요",
-        "sub":         "카메라를 바라봐 주세요",
-        "title_color": "#ffffff",
-        "sub_color":   "#93c5fd",
-    },
-}
-
 # 카메라가 완전히 준비될 때까지 대기 (프레임 수 기준)
 _CAMERA_READY_FRAMES = 5
 
@@ -110,9 +85,7 @@ class CameraViewScreen(QWidget):
         self._thread          = None
         self._save_worker     = None
         self._countdown_timer = None
-        self._guide_timer     = None
         self._remaining       = 0
-        self._guide_index     = 0
         self._frame_count     = 0   # 카메라 준비 판단용
         self._auth_started    = False
         self._build_ui()
@@ -206,7 +179,6 @@ class CameraViewScreen(QWidget):
         self._stop_thread()
         self._frame_count  = 0
         self._auth_started = False
-        self._guide_index  = 0
 
         self._loading_lbl.show()
         self._loading_lbl.raise_()
@@ -226,10 +198,7 @@ class CameraViewScreen(QWidget):
     def _stop_thread(self):
         if self._countdown_timer and self._countdown_timer.isActive():
             self._countdown_timer.stop()
-        if self._guide_timer and self._guide_timer.isActive():
-            self._guide_timer.stop()
         self._countdown_timer = None
-        self._guide_timer     = None
         if self._thread and self._thread.isRunning():
             self._thread.stop()
             self._thread.wait(3000)
@@ -249,31 +218,22 @@ class CameraViewScreen(QWidget):
                 self._begin_auth_countdown()
 
     def _begin_auth_countdown(self):
-        """카메라 준비 완료 후 인증 카운트다운 + 가이드 텍스트 시작."""
+        """카메라 준비 완료 후 인증 카운트다운 시작."""
         self._remaining = AUTH_TIMEOUT_SEC
-        self._update_sub_with_guide()
+        self._update_auth_status()
 
         self._countdown_timer = QTimer(self)
         self._countdown_timer.timeout.connect(self._tick_countdown)
         self._countdown_timer.start(1000)
 
-        self._guide_timer = QTimer(self)
-        self._guide_timer.timeout.connect(self._rotate_guide)
-        self._guide_timer.start(2000)
-
     def _tick_countdown(self):
         self._remaining -= 1
-        self._update_sub_with_guide()
+        self._update_auth_status()
         if self._remaining <= 0:
             self._countdown_timer.stop()
 
-    def _rotate_guide(self):
-        self._guide_index = (self._guide_index + 1) % len(_AUTH_GUIDES)
-        self._update_sub_with_guide()
-
-    def _update_sub_with_guide(self):
-        guide = _AUTH_GUIDES[self._guide_index]
-        self._sub_lbl.setText(f"{guide}  ({self._remaining}초)")
+    def _update_auth_status(self):
+        self._sub_lbl.setText(f"정면을 바라봐 주세요  ({self._remaining}초)")
 
     # ─────────────────────────────── 콜백: auth ──────────────────────────────
 
