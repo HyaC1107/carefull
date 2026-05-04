@@ -71,7 +71,7 @@ const parse_schedule_medi_ids = (body) => {
 
 const parse_schedule_dose_interval = (value) => {
     if (value === undefined || value === null || value === '') {
-        return null;
+        return 1;
     }
 
     const parsed_dose_interval = parseNumericValue(value);
