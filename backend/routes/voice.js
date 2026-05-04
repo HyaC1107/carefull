@@ -4,9 +4,10 @@ const path    = require('path');
 const fs      = require('fs');
 const multer  = require('multer');
 
-const pool          = require('../db');
+const pool            = require('../db');
 const { verifyToken } = require('../middleware/auth');
 const { sendSuccess, sendError } = require('../utils/response');
+const elevenlabs      = require('../services/elevenlabs.service');
 
 // ─── 업로드 디렉터리 ───────────────────────────────────────────────────────────
 const UPLOAD_DIR = path.join(__dirname, '..', 'uploads', 'voices');
@@ -54,10 +55,17 @@ function remove_file(file_path) {
 
 async function delete_patient_voices(patient_id) {
     const { rows } = await pool.query(
-        'SELECT file_path FROM voice_samples WHERE patient_id = $1',
+        'SELECT file_path, elevenlabs_voice_id FROM voice_samples WHERE patient_id = $1',
         [patient_id]
     );
-    rows.forEach(r => remove_file(r.file_path));
+    for (const r of rows) {
+        remove_file(r.file_path);
+        if (r.elevenlabs_voice_id) {
+            elevenlabs.delete_voice(r.elevenlabs_voice_id).catch(
+                (e) => console.warn('[voice] ElevenLabs 보이스 삭제 실패:', e.message)
+            );
+        }
+    }
     await pool.query('DELETE FROM voice_samples WHERE patient_id = $1', [patient_id]);
 }
 
@@ -116,13 +124,79 @@ router.post('/upload', verifyToken, upload.single('voice'), async (req, res) => 
             ]
         );
 
-        return sendSuccess(res, 201, { voice: rows[0] });
+        const saved_voice = rows[0];
+        // 응답 먼저 반환 (ElevenLabs는 시간이 걸리므로 비동기 처리)
+        sendSuccess(res, 201, { voice: saved_voice });
+
+        // ── ElevenLabs 파이프라인 (백그라운드) ──────────────────────────────
+        _run_elevenlabs_pipeline(saved_voice.voice_id, req.file.path, patient_id).catch(
+            (e) => console.error('[voice] ElevenLabs 파이프라인 실패:', e.message)
+        );
+
     } catch (err) {
         if (req.file) remove_file(req.file.path);
         console.error('[POST /api/voice/upload]', err);
         return sendError(res, 500, '업로드 중 오류가 발생했습니다');
     }
 });
+
+/**
+ * 업로드 완료 후 백그라운드에서 실행:
+ *  1) ElevenLabs 보이스 클로닝
+ *  2) 고정 메시지 TTS 생성
+ *  3) alarm 파일로 저장 + devices 테이블 갱신
+ *  4) voice_samples 상태 업데이트
+ */
+async function _run_elevenlabs_pipeline(voice_id, audio_abs_path, patient_id) {
+    const SOUNDS_DIR = path.join(__dirname, '..', 'uploads', 'sounds');
+    fs.mkdirSync(SOUNDS_DIR, { recursive: true });
+
+    try {
+        // 1. 보이스 클로닝
+        console.log(`[voice] ElevenLabs 클로닝 시작 voice_id=${voice_id}`);
+        const el_voice_id = await elevenlabs.clone_voice(
+            audio_abs_path,
+            `carefull_patient_${patient_id}`
+        );
+        console.log(`[voice] 클로닝 완료 el_voice_id=${el_voice_id}`);
+
+        // 2. TTS 생성 → uploads/sounds/alarm_{voice_id}.mp3
+        const filename    = `alarm_voice_${voice_id}.mp3`;
+        const output_abs  = path.join(SOUNDS_DIR, filename);
+        await elevenlabs.text_to_speech(el_voice_id, output_abs);
+        console.log(`[voice] TTS 생성 완료 → ${filename}`);
+
+        // 3. voice_samples 갱신
+        const relative_sound = path.join('uploads', 'sounds', filename);
+        await pool.query(
+            `UPDATE voice_samples
+             SET elevenlabs_voice_id = $1,
+                 status              = 'ready',
+                 updated_at          = NOW()
+             WHERE voice_id = $2`,
+            [el_voice_id, voice_id]
+        );
+
+        // 4. 환자 기기의 alarm_sound 갱신 (라즈베리 sync 대상)
+        await pool.query(
+            `UPDATE devices
+             SET alarm_sound_path       = $1,
+                 alarm_sound_name       = $2,
+                 alarm_sound_updated_at = NOW()
+             WHERE patient_id = $3`,
+            [relative_sound, filename, patient_id]
+        );
+
+        console.log(`[voice] 파이프라인 완료 patient_id=${patient_id}`);
+
+    } catch (err) {
+        await pool.query(
+            `UPDATE voice_samples SET status = 'error', updated_at = NOW() WHERE voice_id = $1`,
+            [voice_id]
+        );
+        throw err;
+    }
+}
 
 // ─── DELETE /api/voice ────────────────────────────────────────────────────────
 // 등록된 목소리 삭제

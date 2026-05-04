@@ -246,6 +246,7 @@ router.get('/kakao/callback', async (req, res) => {
 
             }
         });
+
         const login_result = await handle_social_login({
             id: user_response.data.id.toString(),
             nickname: user_response.data.properties?.nickname
@@ -261,6 +262,7 @@ router.get('/kakao/callback', async (req, res) => {
                 error: login_result.message || 'Kakao authentication failed.'
             }));
         }
+
 
         const redirect_url = build_frontend_callback_url(req, {
             provider: 'kakao',
@@ -315,6 +317,8 @@ router.get('/google/callback', async (req, res) => {
             }));
         }
 
+        console.log(`[social:google:login] success=true is_new_user=${login_result.is_new_user}`);
+
         return res.redirect(build_frontend_callback_url(req, {
             provider: 'google',
             token: login_result.token,
@@ -362,6 +366,8 @@ router.get('/naver/callback', async (req, res) => {
                 error: login_result.message || 'Naver authentication failed.'
             }));
         }
+
+        console.log(`[social:naver:login] success=true is_new_user=${login_result.is_new_user}`);
 
         return res.redirect(build_frontend_callback_url(req, {
             provider: 'naver',

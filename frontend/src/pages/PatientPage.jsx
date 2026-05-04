@@ -89,10 +89,6 @@ function PatientPage() {
 
     if (isPatientRegistered && hasStoredToken()) {
       try {
-        console.log('[device-register] request:', {
-          device_uid: nextDevice.device_uid,
-          device_name: nextDevice.deviceName,
-        })
         const deviceResponse = await requestJson('/api/device/register', {
           method: 'POST',
           auth: true,

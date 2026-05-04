@@ -205,7 +205,6 @@ const runMissedLogJob = async () => {
         const targets = filterMissedTargets(candidates);
 
         if (targets.length === 0) {
-            console.log('[MISSED-ACTIVITY-JOB] no targets to process.');
             return;
         }
 
@@ -233,9 +232,6 @@ const runMissedLogJob = async () => {
 
                 if (existing_missed_activity) {
                     await client.query('ROLLBACK');
-                    console.log(
-                        `[MISSED-ACTIVITY-JOB] skipped duplicate MISSED activity - sche_id: ${target.sche_id}, activity_id: ${existing_missed_activity.activity_id}`
-                    );
                     continue;
                 }
 
@@ -247,9 +243,6 @@ const runMissedLogJob = async () => {
 
                 if (existing_activity_after_lock) {
                     await client.query('ROLLBACK');
-                    console.log(
-                        `[MISSED-ACTIVITY-JOB] skipped duplicate after lock - sche_id: ${target.sche_id}, activity_id: ${existing_activity_after_lock.activity_id}`
-                    );
                     continue;
                 }
 
@@ -265,10 +258,6 @@ const runMissedLogJob = async () => {
                     event_type: NOTIFICATION_TYPE.MISSED,
                     medi_name: target.medi_name || '등록된 약'
                 });
-
-                console.log(
-                    `[MISSED-ACTIVITY-JOB] processed - sche_id: ${target.sche_id}, activity_id: ${inserted_activity.activity_id}`
-                );
             } catch (error) {
                 await client.query('ROLLBACK');
                 console.error('[MISSED-ACTIVITY-JOB] target processing error:', error);
@@ -282,8 +271,6 @@ const runMissedLogJob = async () => {
 };
 
 const startMissedLogJob = () => {
-    console.log('[MISSED-ACTIVITY-JOB] started.');
-
     runMissedLogJob();
 
     setInterval(() => {

@@ -28,8 +28,11 @@ router.post('/fcm-token', verifyToken, async (req, res) => {
     }
 
     try {
-        await register_push_token({ mem_id, fcm_token, device_type });
-
+        await register_push_token({
+            mem_id,
+            fcm_token,
+            device_type
+        });
         return sendSuccess(res, 200, { message: 'FCM token updated.' });
     } catch (err) {
         console.error('FCM token update error:', err);

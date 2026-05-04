@@ -7,6 +7,7 @@ const { find_patient_id_by_mem_id } = require('../utils/auth-user');
 const { parseNumericFields, parseNumericValue, validateRequiredFields } = require('../utils/validators');
 const { sendSuccess, sendError } = require('../utils/response');
 const { send_schedule_created_push_safe } = require('../services/push.service');
+const { getKstWallClockDate } = require('../utils/dashboard-helpers');
 
 const validate_schedule_payload = (body) => {
     const required_fields = [
@@ -225,7 +226,7 @@ router.post('/', verifyToken, async (req, res) => {
         return sendError(res, 400, 'dose_interval must be an integer from 1 to 5.');
     }
 
-    const registered_at = new Date();
+    const registered_at = getKstWallClockDate();
     registered_at.setSeconds(0, 0);
 
     try {
@@ -514,13 +515,16 @@ router.get('/device', async (req, res) => {
             LEFT JOIN medications m ON m.medi_id = s.medi_id
             WHERE d.device_uid = $1
               AND s.status = 'ACTIVE'
-              AND s.start_date <= CURRENT_DATE
-              AND (s.end_date IS NULL OR s.end_date >= CURRENT_DATE)
+              AND s.start_date <= (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Seoul')::date
               AND (
-                  CURRENT_DATE > s.created_at::date
+                  s.end_date IS NULL
+                  OR s.end_date >= (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Seoul')::date
+              )
+              AND (
+                  (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Seoul')::date > (s.created_at AT TIME ZONE 'Asia/Seoul')::date
                   OR (
-                      CURRENT_DATE = s.created_at::date
-                      AND (CURRENT_DATE + s.time_to_take) >= s.created_at
+                      (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Seoul')::date = (s.created_at AT TIME ZONE 'Asia/Seoul')::date
+                      AND ((CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Seoul')::date + s.time_to_take) >= (s.created_at AT TIME ZONE 'Asia/Seoul')
                   )
               )
             ORDER BY s.time_to_take, s.sche_id
