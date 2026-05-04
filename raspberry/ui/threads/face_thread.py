@@ -64,16 +64,20 @@ class FaceThread(QThread):
         from hardware.gimbal import Gimbal
         import cv2
 
+        gimbal = Gimbal()
         # 카메라 워밍업 시간을 인증 시간으로 소모하지 않도록
         # 첫 프레임이 도착한 시점부터 AUTH_TIMEOUT_SEC 카운트다운 시작
         deadline = None
         frame_count = 0
+        last_faces = []
 
         while self._running:
             frame = get_frame()
             if frame is None:
                 self.msleep(30)
                 continue
+
+            fh, fw = frame.shape[:2]
 
             if deadline is None:
                 deadline = time.time() + AUTH_TIMEOUT_SEC
@@ -85,32 +89,31 @@ class FaceThread(QThread):
             frame_count += 1
 
             # N프레임마다 한 번씩만 AI 연산 수행
-            if frame_count % _DETECT_EVERY_N != 0:
-                self.msleep(10) # CPU 부하 감소를 위한 짧은 휴식
-                continue
-
-            faces = detect_face(frame)
-            if not faces:
-                continue
-
-            # 가장 큰 얼굴 기준 추적
-            faces.sort(key=lambda b: b[2] * b[3], reverse=True)
-            main_face = faces[0]
+            if frame_count % _DETECT_EVERY_N == 0:
+                last_faces = detect_face(frame)
             
-            # 짐벌 추적 실행
-            gimbal.track_face(main_face, fw, fh)
+            if last_faces:
+                # 가장 큰 얼굴 기준 추적
+                last_faces.sort(key=lambda b: b[2] * b[3], reverse=True)
+                main_face = last_faces[0]
+                
+                # 짐벌 추적 실행 (매 프레임 호출하여 부드러움 유지)
+                gimbal.track_face(main_face, fw, fh)
 
-            x, y, w, h = main_face
-            face_img = frame[y: y + h, x: x + w]
-            if face_img.size == 0:
-                continue
-
-            user, score = authenticate(face_img)
-            if user:
-                if self._running:
-                    self.auth_success.emit(user, float(score))
-                gimbal.stop()
-                return
+                # 인증은 AI가 새로 갱신되었을 때만 수행
+                if frame_count % _DETECT_EVERY_N == 0:
+                    x, y, w, h = main_face
+                    face_img = frame[y: y + h, x: x + w]
+                    if face_img.size > 0:
+                        user, score = authenticate(face_img)
+                        if user:
+                            if self._running:
+                                self.auth_success.emit(user, float(score))
+                            gimbal.stop()
+                            return
+            
+            # 루프 주기 조절 (약 30fps)
+            self.msleep(10)
 
         if self._running:
             self.auth_failed.emit()
@@ -128,6 +131,7 @@ class FaceThread(QThread):
         face_imgs = []
         frame_count = 0
         last_capture_time = 0.0
+        last_faces = []
 
         while self._running and len(face_imgs) < _REGISTER_TARGET:
             frame = get_frame()
@@ -136,41 +140,37 @@ class FaceThread(QThread):
                 continue
 
             fh, fw = frame.shape[:2]
-            # --- 가이드 라인 그리기 (주석 해제 시 사용) ---
-            # cv2.line(frame, (fw // 2, 0), (fw // 2, fh), (255, 0, 0), 1)
-
             # 항상 프레임 송출 → 디스플레이 ~30fps 유지
             self.frame_ready.emit(frame.copy())
             frame_count += 1
-            self.msleep(33)
 
-            # N프레임마다 + 캡처 쿨다운 지난 경우에만 AI 검출
-            now = time.time()
-            if frame_count % _DETECT_EVERY_N != 0:
-                continue
+            # N프레임마다 AI 검출
+            if frame_count % _DETECT_EVERY_N == 0:
+                last_faces = detect_face(frame)
             
-            faces = detect_face(frame)
-            if faces:
-                # 짐벌 추적
-                faces.sort(key=lambda b: b[2] * b[3], reverse=True)
-                gimbal.track_face(faces[0], fw, fh)
+            if last_faces:
+                # 짐벌 추적 (매 프레임 호출하여 부드러움 유지)
+                last_faces.sort(key=lambda b: b[2] * b[3], reverse=True)
+                gimbal.track_face(last_faces[0], fw, fh)
 
-                if now - last_capture_time < _REGISTER_COOLDOWN_SEC:
-                    continue
+                now = time.time()
+                # 캡처는 AI가 갱신되었을 때 + 쿨다운 지난 경우에만 수행
+                if frame_count % _DETECT_EVERY_N == 0 and (now - last_capture_time >= _REGISTER_COOLDOWN_SEC):
+                    x, y, w, h = last_faces[0]
+                    mx = int(w * _FACE_MARGIN)
+                    my = int(h * _FACE_MARGIN)
+                    x1 = max(0, x - mx)
+                    y1 = max(0, y - my)
+                    x2 = min(fw, x + w + mx)
+                    y2 = min(fh, y + h + my)
 
-                x, y, w, h = faces[0]
-                mx = int(w * _FACE_MARGIN)
-                my = int(h * _FACE_MARGIN)
-                x1 = max(0, x - mx)
-                y1 = max(0, y - my)
-                x2 = min(fw, x + w + mx)
-                y2 = min(fh, y + h + my)
-
-                crop = frame[y1:y2, x1:x2]
-                if crop.size > 0:
-                    face_imgs.append(crop)
-                    last_capture_time = now
-                    self.capture_progress.emit(len(face_imgs))
+                    crop = frame[y1:y2, x1:x2]
+                    if crop.size > 0:
+                        face_imgs.append(crop)
+                        last_capture_time = now
+                        self.capture_progress.emit(len(face_imgs))
+            
+            self.msleep(10)
 
         if self._running:
             self.capture_done.emit(face_imgs)
