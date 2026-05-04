@@ -28,8 +28,9 @@ import numpy as np
 from picamera2 import Picamera2
 
 # ── 설정 ──────────────────────────────────────────────────────────────────────
-INTAKE_DISTANCE_THRESHOLD = 0.15
+INTAKE_DISTANCE_THRESHOLD = 0.20
 SUCCESS_REQUIRED_FRAMES   = 5
+_WIN = "MP Pose | Intake Detection"
 
 NOSE    = 0
 L_WRIST = 15
@@ -116,6 +117,9 @@ print(f"\n[{_MODEL}] 준비 완료  —  SSH 터미널: 1=시작  2=중지  3=�
 print(f"  로그: {_LOG_FILE}\n")
 
 _term = _TermInput()
+
+cv2.namedWindow(_WIN, cv2.WINDOW_NORMAL)
+cv2.setWindowProperty(_WIN, cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
 
 try:
     fps = 0.0
@@ -262,7 +266,7 @@ try:
         cv2.putText(disp, state_label, (8, h - 10),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.58, state_color, 2)
 
-        cv2.imshow("MP Pose | Intake Detection", disp)
+        cv2.imshow(_WIN, disp)
         cv2.waitKey(1)
 
         t_status = (f"\r[측정중] Trial#{_trial_no}  dist={current_dist:.4f}  "
