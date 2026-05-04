@@ -118,7 +118,7 @@ router.post('/upload', verifyToken, upload.single('voice'), async (req, res) => 
         await delete_patient_voices(patient_id);
 
         // 새 레코드 저장 (file_path는 uploads/voices/... 상대 경로)
-        const relative_path = path.join('uploads', 'voices', req.file.filename);
+        const relative_path = path.join('uploads', 'voices', req.file.filename).replace(/\\/g, '/');
         const { rows } = await pool.query(
             `INSERT INTO voice_samples
                (patient_id, file_name, file_path, file_size, mime_type, status)
@@ -184,7 +184,7 @@ async function _run_elevenlabs_pipeline(voice_id, audio_abs_path, patient_id) {
         console.log(`[voice] TTS 생성 완료 → ${filename}`);
 
         // 3. voice_samples 갱신
-        const relative_sound = path.join('uploads', 'sounds', filename);
+        const relative_sound = path.join('uploads', 'sounds', filename).replace(/\\/g, '/');
         await pool.query(
             `UPDATE voice_samples
              SET elevenlabs_voice_id = $1,
