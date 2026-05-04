@@ -34,15 +34,15 @@ class Gimbal:
         # 추적 및 안정화 파라미터
         self.threshold = 50        # 데드존 대폭 확대 (사용자 요청: +-50)
         self.kP = 0.03             # 비례 계수 (안정적인 추적을 위해 유지)
-        self.min_step = 0.5        # 최소 동작 각도 (미세 떨림 방지)
+        self.min_step = 1        # 최소 동작 각도 (미세 떨림 방지)
         
         # 움직임 간 딜레이(쿨다운) 설정
         self.last_move_time = 0
-        self.move_cooldown = 0.1   # 0.1초 동안은 다음 움직임 대기 (안정감 향상)
+        self.move_cooldown = 0.5   # x초 동안은 다음 움직임 대기 (안정감 향상)
         
         # 필터링 설정
         self.smooth_error_x = 0
-        self.alpha = 0.2           # 필터링 강화
+        self.alpha = 0.3           # 필터링 강화
         
         # GPIO 설정
         try:
