@@ -17,6 +17,9 @@ function api_key() {
  * @returns {string} elevenlabs voice_id
  */
 async function clone_voice(audio_file_path, voice_name) {
+    const key = process.env.ELEVENLABS_API_KEY;
+    if (!key) throw new Error('ELEVENLABS_API_KEY is not configured');
+
     const buffer = fs.readFileSync(audio_file_path);
     const ext    = path.extname(audio_file_path).slice(1).toLowerCase() || 'webm';
     const mime   = ext === 'mp3' ? 'audio/mpeg' : `audio/${ext}`;
@@ -25,10 +28,19 @@ async function clone_voice(audio_file_path, voice_name) {
     form.append('name', voice_name);
     form.append('files', new Blob([buffer], { type: mime }), path.basename(audio_file_path));
 
-    const { data } = await axios.post(`${BASE_URL}/voices/add`, form, {
-        headers: { 'xi-api-key': api_key() },
-        timeout: 60_000,
-    });
+    let data;
+    try {
+        ({ data } = await axios.post(`${BASE_URL}/voices/add`, form, {
+            headers: { 'xi-api-key': key },
+            timeout: 60_000,
+        }));
+    } catch (err) {
+        console.error('[ElevenLabs] clone_voice failed:', {
+            status: err.response?.status,
+            message: err.response?.data?.detail || err.response?.data?.message || err.message,
+        });
+        throw err;
+    }
 
     if (!data.voice_id) throw new Error('ElevenLabs 응답에 voice_id가 없습니다');
     return data.voice_id;
@@ -39,23 +51,36 @@ async function clone_voice(audio_file_path, voice_name) {
  * @returns {string} 저장된 파일의 절대 경로
  */
 async function text_to_speech(voice_id, output_path) {
-    const response = await axios.post(
-        `${BASE_URL}/text-to-speech/${voice_id}`,
-        {
-            text: FIXED_MESSAGE,
-            model_id: MODEL_ID,
-            voice_settings: { stability: 0.5, similarity_boost: 0.75 },
-        },
-        {
-            headers: {
-                'xi-api-key': api_key(),
-                'Content-Type': 'application/json',
-                'Accept': 'audio/mpeg',
+    const key = process.env.ELEVENLABS_API_KEY;
+    if (!key) throw new Error('ELEVENLABS_API_KEY is not configured');
+
+    let response;
+    try {
+        response = await axios.post(
+            `${BASE_URL}/text-to-speech/${voice_id}`,
+            {
+                text: FIXED_MESSAGE,
+                model_id: process.env.ELEVENLABS_MODEL_ID || MODEL_ID || 'eleven_multilingual_v2',
+                voice_settings: { stability: 0.5, similarity_boost: 0.75 },
             },
-            responseType: 'arraybuffer',
-            timeout: 60_000,
-        }
-    );
+            {
+                headers: {
+                    'xi-api-key': key,
+                    'Content-Type': 'application/json',
+                    'Accept': 'audio/mpeg',
+                },
+                params: { output_format: 'mp3_44100_128' },
+                responseType: 'arraybuffer',
+                timeout: 60_000,
+            }
+        );
+    } catch (err) {
+        console.error('[ElevenLabs] text_to_speech failed:', {
+            status: err.response?.status,
+            message: err.response?.data?.detail || err.response?.data?.message || err.message,
+        });
+        throw err;
+    }
 
     fs.mkdirSync(path.dirname(output_path), { recursive: true });
     fs.writeFileSync(output_path, Buffer.from(response.data));
