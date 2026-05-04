@@ -4,7 +4,7 @@ import mediapipe as mp
 mp_face_detection = mp.solutions.face_detection
 face_detection = mp_face_detection.FaceDetection(
     model_selection=0,
-    min_detection_confidence=0.5,
+    min_detection_confidence=0.7,
 )
 
 

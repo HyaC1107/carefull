@@ -20,7 +20,7 @@ except ImportError:
 from scheduler.schedule import check_schedule, sync_schedules
 from hardware.alarm import play_alarm, stop_alarm
 from camera.camera import check_camera_health, release_camera
-from config.settings import VOICES_DIR, STEP_PINS
+from config.settings import VOICES_DIR, STEP_PINS, PUMP_PIN
 
 logger = logging.getLogger("Controller")
 
@@ -46,11 +46,16 @@ class Controller(threading.Thread):
             GPIO.setmode(GPIO.BCM)
             GPIO.setwarnings(False)
 
+            # 스텝 모터 초기화
             for pin in STEP_PINS:
                 GPIO.setup(pin, GPIO.OUT)
                 GPIO.output(pin, False)
+            
+            # 펌프 모터 초기화
+            GPIO.setup(PUMP_PIN, GPIO.OUT)
+            GPIO.output(PUMP_PIN, False)
                 
-            logger.info("GPIO and Motor pins initialized.")
+            logger.info("GPIO, Motor, and Pump pins initialized.")
             return True
         except Exception as e:
             logger.error(f"Hardware initialization failed: {e}")
@@ -86,8 +91,11 @@ class Controller(threading.Thread):
         logger.warning("EMERGENCY STOP CALLED!")
         try:
             stop_alarm()
+            # 스텝 모터 정지
             for pin in STEP_PINS:
                 GPIO.output(pin, False)
+            # 펌프 모터 정지
+            GPIO.output(PUMP_PIN, False)
             release_camera()
         except Exception as e:
             logger.error(f"Emergency stop failed: {e}")
@@ -111,9 +119,14 @@ class Controller(threading.Thread):
                         medi_name = s.get("medi_name", "약")
                         logger.info(f"Schedule due: {medi_name} (ID: {sche_id}) — alarm only, UI handles the rest")
 
-#                        # 알람만 울림 — 인증/배출/검증은 app.py UI 흐름이 담당
-#                        custom_voice = f"voice_{sche_id}.mp3"
-#                        play_alarm(custom_voice)
+                        # 알람만 울림 — 인증/배출/검증은 app.py UI 흐름이 담당
+                        # 보호자 맞춤 음성(voice_id.mp3) 우선 확인 후 미존재 시 기본음(default_voice.mp3) 사용
+                        custom_voice = f"voice_{sche_id}.mp3"
+                        default_voice = "default_voice.mp3"
+                        
+                        voice_to_play = custom_voice if os.path.exists(os.path.join(VOICES_DIR, custom_voice)) else default_voice
+                        logger.info(f"Playing alarm: {voice_to_play}")
+                        play_alarm(voice_to_play)
                         
                 time.sleep(30)
                 

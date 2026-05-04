@@ -191,3 +191,13 @@ class FaceThread(QThread):
 
         if self._running:
             self.capture_done.emit(face_imgs)
+        gimbal.stop()
+ else:
+                # 얼굴이 없으면 2초 후 정위치 복귀 체크
+                gimbal.update_idle()
+            
+            self.msleep(10)
+
+        if self._running:
+            self.capture_done.emit(face_imgs)
+        gimbal.stop()

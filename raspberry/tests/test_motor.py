@@ -1,168 +1,120 @@
-"""
-스텝모터 단위 테스트 — 실제 GPIO가 없으면 모의 실행
-  실행: python -m tests.test_motor  (raspberry/ 루트에서)
-
-버튼 설명:
-  절반 회전(256스텝): 짧게 동작 확인
-  전체 회전(512스텝): dispense_medicine() 전체 흐름 확인
-  역방향(-256스텝): 모터 방향 확인
-"""
 import sys
 import os
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+import time
+import logging
 
-from PyQt5.QtCore import Qt, QThread, pyqtSignal
-from PyQt5.QtGui import QFont
-from PyQt5.QtWidgets import (
-    QApplication, QHBoxLayout, QLabel, QProgressBar,
-    QPushButton, QVBoxLayout, QWidget,
-)
+# 프로젝트 루트 경로 추가 (부모 디렉토리의 부모)
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from config.settings import SCREEN_WIDTH, SCREEN_HEIGHT, FULLSCREEN
+from hardware.motor import dispense_medicine, _run_step_motor, _run_pump_motor, _run_step_motor_with_jiggle
+from config.settings import STEP_PINS, PUMP_PIN
 
+try:
+    import RPi.GPIO as GPIO
+except ImportError:
+    GPIO = None
 
-class _MotorWorker(QThread):
-    status = pyqtSignal(str)
-    done   = pyqtSignal(bool)
+# 로깅 설정
+logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(levelname)s] %(message)s')
+logger = logging.getLogger("MotorTest")
 
-    def __init__(self, steps: int, parent=None):
-        super().__init__(parent)
-        self._steps = steps
-
-    def run(self):
-        self.status.emit(f"모터 구동 중... ({self._steps}스텝)")
+def init_gpio():
+    """테스트를 위한 GPIO 초기화"""
+    if GPIO:
         try:
-            from hardware.motor import _run_step_motor
-            _run_step_motor(self._steps, delay=0.002)
-            self.status.emit("완료")
-            self.done.emit(True)
+            # 이미 모드가 설정되어 있는지 확인 (오류 방지)
+            mode = GPIO.getmode()
+            if mode is None:
+                logger.info("GPIO 모드 설정 중 (BCM)...")
+                GPIO.setmode(GPIO.BCM)
+            
+            GPIO.setwarnings(False)
+            
+            # 핀 설정
+            for pin in STEP_PINS:
+                GPIO.setup(pin, GPIO.OUT)
+                GPIO.output(pin, False)
+            if PUMP_PIN:
+                GPIO.setup(PUMP_PIN, GPIO.OUT)
+                GPIO.output(PUMP_PIN, False)
         except Exception as e:
-            self.status.emit(f"오류: {e}")
-            self.done.emit(False)
-
-
-class _FullDispenseWorker(QThread):
-    status = pyqtSignal(str)
-    done   = pyqtSignal(bool)
-
-    def run(self):
-        self.status.emit("dispense_medicine() 실행 중...")
-        try:
-            from hardware.motor import dispense_medicine
-            result = dispense_medicine(user="test_user")
-            self.status.emit("완료" if result else "실패 반환")
-            self.done.emit(result)
-        except Exception as e:
-            self.status.emit(f"오류: {e}")
-            self.done.emit(False)
-
-
-class MotorTestWindow(QWidget):
-    def __init__(self):
-        super().__init__()
-        self.setWindowTitle("스텝모터 테스트")
-        self.setFixedSize(SCREEN_WIDTH, SCREEN_HEIGHT)
-        self.setStyleSheet("background: #f0f4ff;")
-        self._worker = None
-        self._build_ui()
-
-    def _build_ui(self):
-        root = QVBoxLayout(self)
-        root.setContentsMargins(48, 48, 48, 48)
-        root.setSpacing(24)
-        root.setAlignment(Qt.AlignCenter)
-
-        title = QLabel("스텝모터 단위 테스트")
-        title.setFont(QFont("Sans Serif", 44, QFont.Bold))
-        title.setAlignment(Qt.AlignCenter)
-        title.setStyleSheet("color: #1e3a5f;")
-        root.addWidget(title)
-
-        self._status_lbl = QLabel("버튼을 눌러 테스트하세요")
-        self._status_lbl.setFont(QFont("Sans Serif", 28))
-        self._status_lbl.setAlignment(Qt.AlignCenter)
-        self._status_lbl.setStyleSheet("color: #3b82f6;")
-        root.addWidget(self._status_lbl)
-
-        btn_row = QHBoxLayout()
-        btn_row.setSpacing(16)
-
-        for label, steps in [("절반 회전", 256), ("전체 회전", 512), ("역방향", -256)]:
-            btn = QPushButton(label)
-            btn.setFont(QFont("Sans Serif", 26, QFont.Bold))
-            btn.setMinimumHeight(80)
-            btn.setStyleSheet("""
-                QPushButton { background: #3b82f6; color: white; border-radius: 16px; }
-                QPushButton:pressed { background: #2563eb; }
-                QPushButton:disabled { background: #93c5fd; }
-            """)
-            btn.clicked.connect(lambda _, s=steps: self._run_motor(s))
-            btn_row.addWidget(btn)
-            setattr(self, f"_btn_{abs(steps)}{'r' if steps < 0 else ''}", btn)
-
-        root.addLayout(btn_row)
-
-        dispense_btn = QPushButton("전체 플로우 (dispense_medicine)")
-        dispense_btn.setFont(QFont("Sans Serif", 26, QFont.Bold))
-        dispense_btn.setMinimumHeight(80)
-        dispense_btn.setStyleSheet("""
-            QPushButton { background: #16a34a; color: white; border-radius: 16px; }
-            QPushButton:pressed { background: #15803d; }
-            QPushButton:disabled { background: #86efac; }
-        """)
-        dispense_btn.clicked.connect(self._run_full)
-        root.addWidget(dispense_btn)
-        self._dispense_btn = dispense_btn
-
-        self._result_lbl = QLabel("")
-        self._result_lbl.setFont(QFont("Sans Serif", 36, QFont.Bold))
-        self._result_lbl.setAlignment(Qt.AlignCenter)
-        root.addWidget(self._result_lbl)
-
-    def _set_buttons_enabled(self, enabled: bool):
-        for attr in vars(self):
-            if attr.startswith("_btn_") or attr == "_dispense_btn":
-                getattr(self, attr).setEnabled(enabled)
-
-    def _run_motor(self, steps: int):
-        if self._worker and self._worker.isRunning():
-            return
-        self._result_lbl.setText("")
-        self._set_buttons_enabled(False)
-        self._worker = _MotorWorker(steps, parent=self)
-        self._worker.status.connect(self._status_lbl.setText)
-        self._worker.done.connect(self._on_done)
-        self._worker.start()
-
-    def _run_full(self):
-        if self._worker and self._worker.isRunning():
-            return
-        self._result_lbl.setText("")
-        self._set_buttons_enabled(False)
-        self._worker = _FullDispenseWorker(parent=self)
-        self._worker.status.connect(self._status_lbl.setText)
-        self._worker.done.connect(self._on_done)
-        self._worker.start()
-
-    def _on_done(self, success: bool):
-        self._set_buttons_enabled(True)
-        if success:
-            self._result_lbl.setText("✓ 성공")
-            self._result_lbl.setStyleSheet("color: #16a34a;")
-        else:
-            self._result_lbl.setText("✗ 실패")
-            self._result_lbl.setStyleSheet("color: #dc2626;")
-
-
-def main():
-    app = QApplication(sys.argv)
-    window = MotorTestWindow()
-    if FULLSCREEN:
-        window.showFullScreen()
+            logger.error(f"GPIO 초기화 실패: {e}")
     else:
-        window.show()
-    sys.exit(app.exec_())
+        logger.warning("RPi.GPIO 모듈을 찾을 수 없습니다. Mock 모드로 동작합니다.")
 
+def test_stepper_simple():
+    """스텝 모터 단독 테스트 (단순 회전)"""
+    init_gpio()
+    logger.info("--- [단순 회전] 스텝 모터 테스트 시작 (-256 steps) ---")
+    try:
+        # 가감속은 포함된 기본 회전
+        _run_step_motor(-256, delay=0.010)
+        logger.info("[단순 회전] 테스트 완료")
+    except Exception as e:
+        logger.error(f"스텝 모터 테스트 실패: {e}")
+
+def test_stepper_jiggle():
+    """스텝 모터 단독 테스트 (지글링 패턴)"""
+    init_gpio()
+    logger.info("--- [지글링 패턴] 스텝 모터 테스트 시작 (-256 steps) ---")
+    try:
+        # 지글링 패턴 적용 테스트
+        _run_step_motor_with_jiggle(total_steps=-256, chunk_size=64, jiggle_steps=12, delay=0.010)
+        logger.info("[지글링 패턴] 테스트 완료")
+    except Exception as e:
+        logger.error(f"스텝 모터 테스트 실패: {e}")
+
+def test_pump_motor():
+    """펌프 모터 단독 테스트"""
+    init_gpio()
+    logger.info("--- 펌프 모터 테스트 시작 (3 seconds) ---")
+    try:
+        _run_pump_motor(3)
+        logger.info("펌프 모터 테스트 완료 (로그 확인)")
+    except Exception as e:
+        logger.error(f"펌프 모터 테스트 실패: {e}")
+
+def test_full_dispense():
+    """전체 디스펜싱 시퀀스 테스트 (실제 서비스 로직)"""
+    init_gpio()
+    logger.info("--- 전체 디스펜싱 시퀀스 테스트 시작 (지글링 포함) ---")
+    try:
+        success = dispense_medicine(user="TestUser")
+        if success:
+            logger.info("전체 디스펜싱 시퀀스 테스트 완료")
+        else:
+            logger.error("전체 디스펜싱 시퀀스 테스트 실패")
+    except Exception as e:
+        logger.error(f"전체 시퀀스 테스트 중 오류 발생: {e}")
 
 if __name__ == "__main__":
-    main()
+    try:
+        print("========================================")
+        print("   CareFull Motor Hardware Test Tool    ")
+        print("========================================")
+        print("1. 스텝 모터 [단순 회전] 테스트")
+        print("2. 스텝 모터 [지글링 패턴] 테스트")
+        print("3. 펌프 모터 개별 테스트")
+        print("4. 전체 디스펜싱 시퀀스 실행 (실제 복약 흐름)")
+        print("q. 종료")
+        
+        while True:
+            choice = input("\n원하는 테스트 번호를 입력하세요: ")
+            
+            if choice == '1':
+                test_stepper_simple()
+            elif choice == '2':
+                test_stepper_jiggle()
+            elif choice == '3':
+                test_pump_motor()
+            elif choice == '4':
+                test_full_dispense()
+            elif choice == 'q':
+                print("테스트를 종료합니다.")
+                break
+            else:
+                print("잘못된 입력입니다.")
+    finally:
+        if GPIO:
+            logger.info("GPIO 리소스 정리 중...")
+            GPIO.cleanup()
