@@ -64,28 +64,25 @@ class FaceThread(QThread):
         self._running = False
         logger.info("[FACE_THREAD] Stopping...")
 
-    # ──────────────────────────────── auth ───────────────────────────────────
-
     def _run_auth(self):
         """
-        [변경] 실시간 추론 대신 3초 동안 얼굴 프레임을 수집만 함.
-        수집 완료 후 capture_done 시그널로 프레임 리스트 전달.
+        [개선] 얼굴 인식 시 3초 동안 RGB 프레임을 수집.
+        색상 채널(BGR->RGB)을 정확히 맞춰 AI 인식률을 극대화함.
         """
         from camera.camera import get_frame
         from face_detection.mediapipe_detector import detect_face
         import cv2
 
         deadline = None
-        start_time = time.time()
         face_imgs = []
-        max_capture = 10  # 인증용으로 수집할 최대 프레임 수
+        max_capture = 8    # 수집할 베스트 프레임 수
         last_capture_time = 0
-        capture_interval = 0.3 # 0.3초마다 1장씩
+        capture_interval = 0.2 # 0.2초마다 1장씩 수집 (약 2초 소요)
 
-        logger.info("[FACE_THREAD] Starting auth capture (3s window)")
+        logger.info("[FACE_THREAD] Starting auth capture (RGB optimized)")
 
         while self._running and len(face_imgs) < max_capture:
-            frame = get_frame()
+            frame = get_frame() # camera.py에서 BGR로 옴
             if frame is None:
                 self.msleep(10)
                 continue
@@ -96,32 +93,39 @@ class FaceThread(QThread):
             if now > deadline:
                 break
 
-            # 화면 갱신은 계속함
+            # UI 출력용으로 전달 (화면은 계속 부드럽게 나옴)
             self.frame_ready.emit(frame.copy())
 
-            # AI용 저해상도 검출
+            # 캡처 간격 체크
             if now - last_capture_time > capture_interval:
+                # 1. 검출 속도를 위해 해상도 축소
                 small_frame = cv2.resize(frame, (320, 240))
-                faces = detect_face(small_frame)
+                
+                # 2. MediaPipe는 RGB를 원하므로 변환
+                rgb_small = cv2.cvtColor(small_frame, cv2.COLOR_BGR2RGB)
+                faces = detect_face(rgb_small) # 수정된 detect_face 호출
                 
                 if faces:
+                    # 3. 원본 프레임에서 얼굴 영역 크롭
                     sx, sy, sw, sh = faces[0]
                     x, y, w, h = sx*2, sy*2, sw*2, sh*2
                     
-                    face_img = frame[max(0,y):min(480,y+h), max(0,x):min(640,x+w)]
-                    if face_img.size > 0:
-                        face_imgs.append(face_img)
+                    # 4. 중요: AI 모델은 RGB를 학습했으므로 크롭된 이미지를 RGB로 변환!!
+                    face_bgr = frame[max(0,y):min(480,y+h), max(0,x):min(640,x+w)]
+                    if face_bgr.size > 0:
+                        face_rgb = cv2.cvtColor(face_bgr, cv2.COLOR_BGR2RGB)
+                        face_imgs.append(face_rgb)
                         last_capture_time = now
-                        logger.debug(f"[AUTH_CAPTURE] Collected {len(face_imgs)}/{max_capture}")
+                        logger.debug(f"[AUTH_CAPTURE] Collected RGB frame {len(face_imgs)}/{max_capture}")
 
-            self.msleep(10)
+            self.msleep(5)
 
         if self._running:
             if face_imgs:
-                logger.info(f"[FACE_THREAD] Capture done. Total: {len(face_imgs)}")
+                logger.info(f"[FACE_THREAD] Capture done. Emitting {len(face_imgs)} RGB frames.")
                 self.capture_done.emit(face_imgs)
             else:
-                logger.info("[FACE_THREAD] No face captured during timeout")
+                logger.info("[FACE_THREAD] No face detected during auth window.")
                 self.auth_failed.emit()
 
     # ─────────────────────────────── register ────────────────────────────────

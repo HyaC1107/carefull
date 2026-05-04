@@ -19,7 +19,8 @@ class CameraCardWidget(QWidget):
         self.update()
 
     def update_frame(self, bgr_frame):
-        self._frame = cv2.cvtColor(bgr_frame, cv2.COLOR_BGR2RGB)
+        # self._frame = cv2.cvtColor(bgr_frame, cv2.COLOR_BGR2RGB)
+        self._frame = bgr_frame
         self.update()
 
     def paintEvent(self, event):
