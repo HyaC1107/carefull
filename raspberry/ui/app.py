@@ -48,6 +48,16 @@ class _ScheduleSyncWorker(QThread):
             self.sync_done.emit([])
 
 
+class _ModelWarmupWorker(QThread):
+    """앱 시작 시 TFLite 모델을 미리 메모리에 로드 (첫 인증 지연 방지)"""
+    def run(self):
+        try:
+            from face_recognition.model_loader import get_model
+            get_model()
+        except Exception:
+            pass
+
+
 class App(QMainWindow):
     def __init__(self):
         super().__init__()
@@ -57,6 +67,10 @@ class App(QMainWindow):
         self.current_session: dict = _new_session()
         self._cached_schedules: list = []
         self._sync_worker: _ScheduleSyncWorker = None
+
+        # 모델 미리 로드 시작
+        self._warmup_worker = _ModelWarmupWorker()
+        self._warmup_worker.start()
 
         self.stack = QStackedWidget()
         self.setCentralWidget(self.stack)
