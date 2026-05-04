@@ -94,12 +94,19 @@ class App(QMainWindow):
         self._schedule_timer.start(SCHEDULE_POLL_SECONDS * 1000)
 
     def _trigger_sync(self):
-        if self._sync_worker and self._sync_worker.isRunning():
-            return
+        if self._sync_worker is not None:
+            try:
+                if self._sync_worker.isRunning():
+                    return
+            except RuntimeError:
+                self._sync_worker = None
         self._sync_worker = _ScheduleSyncWorker()
         self._sync_worker.sync_done.connect(self._on_sync_done)
-        self._sync_worker.finished.connect(self._sync_worker.deleteLater)
+        self._sync_worker.finished.connect(self._clear_sync_worker)
         self._sync_worker.start()
+
+    def _clear_sync_worker(self):
+        self._sync_worker = None
 
     def _on_sync_done(self, schedules: list):
         if schedules:

@@ -2,10 +2,12 @@ from PyQt5.QtCore import QThread, pyqtSignal
 
 from config.settings import UI_TEST_MODE
 
-_DIST_THRESHOLD = 0.13   # 정규화 거리 (손가락 끝 ↔ 입)
+_DIST_THRESHOLD = 0.20   # 정규화 거리 (코 ↔ 손목)
 _SUCCESS_FRAMES = 5      # 연속 감지 프레임 수
-_FINGER_TIPS    = [4, 8, 12, 16, 20]   # 엄지·검지·중지·약지·소지 끝
-_MOUTH_LM       = 13     # FaceMesh 상순 중앙
+
+_NOSE    = 0
+_L_WRIST = 15
+_R_WRIST = 16
 
 
 class BehaviorThread(QThread):
@@ -29,14 +31,9 @@ class BehaviorThread(QThread):
         import numpy as np
         from camera.camera import get_frame
 
-        hands = mp.solutions.hands.Hands(
-            max_num_hands=2,
-            min_detection_confidence=0.6,
-            min_tracking_confidence=0.6,
-        )
-        face_mesh = mp.solutions.face_mesh.FaceMesh(
-            max_num_faces=1,
-            refine_landmarks=False,
+        pose = mp.solutions.pose.Pose(
+            static_image_mode=False,
+            model_complexity=1,
             min_detection_confidence=0.5,
             min_tracking_confidence=0.5,
         )
@@ -45,7 +42,7 @@ class BehaviorThread(QThread):
 
         try:
             while self._running:
-                frame = get_frame()
+                frame = get_frame()   # BGR
                 if frame is None:
                     self.msleep(50)
                     continue
@@ -55,36 +52,23 @@ class BehaviorThread(QThread):
                 rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
                 h, w = rgb.shape[:2]
 
-                # 입 좌표 (FaceMesh)
-                mouth = None
-                face_res = face_mesh.process(rgb)
-                if face_res.multi_face_landmarks:
-                    lm = face_res.multi_face_landmarks[0].landmark[_MOUTH_LM]
-                    mouth = (lm.x, lm.y)
+                results = pose.process(rgb)
 
-                # 손가락 끝 좌표 (MediaPipe Hands)
-                finger_tip = None
-                if mouth:
-                    hand_res = hands.process(rgb)
-                    if hand_res.multi_hand_landmarks:
-                        best_dist = float('inf')
-                        for hand_lm in hand_res.multi_hand_landmarks:
-                            for tip_idx in _FINGER_TIPS:
-                                tip = hand_lm.landmark[tip_idx]
-                                d = float(np.hypot(tip.x - mouth[0],
-                                                   tip.y - mouth[1]))
-                                if d < best_dist:
-                                    best_dist = d
-                                    finger_tip = (tip.x, tip.y)
+                is_near = False
+                if results.pose_landmarks:
+                    lm      = results.pose_landmarks.landmark
+                    nose    = lm[_NOSE]
+                    l_wrist = lm[_L_WRIST]
+                    r_wrist = lm[_R_WRIST]
 
-                # 거리 판정
-                if mouth and finger_tip:
-                    dist = float(np.hypot(finger_tip[0] - mouth[0],
-                                         finger_tip[1] - mouth[1]))
-                    if dist < _DIST_THRESHOLD:
-                        counter += 1
-                    else:
-                        counter = max(0, counter - 1)
+                    dist_l = float(np.hypot(l_wrist.x - nose.x, l_wrist.y - nose.y))
+                    dist_r = float(np.hypot(r_wrist.x - nose.x, r_wrist.y - nose.y))
+
+                    if min(dist_l, dist_r) < _DIST_THRESHOLD:
+                        is_near = True
+
+                if is_near:
+                    counter += 1
                 else:
                     counter = max(0, counter - 1)
 
@@ -96,8 +80,7 @@ class BehaviorThread(QThread):
                     return
 
         finally:
-            hands.close()
-            face_mesh.close()
+            pose.close()
 
     def _run_test_mode(self):
         for i in range(1, _SUCCESS_FRAMES + 1):

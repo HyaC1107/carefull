@@ -3,7 +3,11 @@
 판단 로직: 코(0) ↔ 왼손목(15) / 오른손목(16) 중 가까운 쪽 거리
 카메라: Raspberry Pi Camera Module 3 (Picamera2, BGR888)
 
-키 조작:
+실행 방법 (SSH):
+  export DISPLAY=:0
+  python test_mp_pose.py
+
+키 조작 (SSH 터미널):
   1 — 트라이얼 시작 (복약 행위 시작)
   2 — 트라이얼 중지 (미감지 처리)
   3 — 종료
@@ -11,6 +15,10 @@
 import csv
 import logging
 import os
+import select
+import sys
+import termios
+import tty
 import time
 from datetime import datetime
 
@@ -20,13 +28,28 @@ import numpy as np
 from picamera2 import Picamera2
 
 # ── 설정 ──────────────────────────────────────────────────────────────────────
-INTAKE_DISTANCE_THRESHOLD = 0.15
+INTAKE_DISTANCE_THRESHOLD = 0.30
 SUCCESS_REQUIRED_FRAMES   = 5
-PRINT_INTERVAL            = 30
+_WIN = "MP Pose | Intake Detection"
 
 NOSE    = 0
 L_WRIST = 15
 R_WRIST = 16
+
+# ── 터미널 non-blocking 입력 (SSH 키보드) ─────────────────────────────────────
+class _TermInput:
+    def __init__(self):
+        self._fd  = sys.stdin.fileno()
+        self._old = termios.tcgetattr(self._fd)
+        tty.setcbreak(self._fd)
+
+    def read(self):
+        if select.select([sys.stdin], [], [], 0)[0]:
+            return os.read(self._fd, 1).decode('utf-8', errors='ignore')
+        return None
+
+    def restore(self):
+        termios.tcsetattr(self._fd, termios.TCSADRAIN, self._old)
 
 # ── 로깅 설정 ─────────────────────────────────────────────────────────────────
 _MODEL    = "mp_pose"
@@ -59,7 +82,7 @@ pose = mp_pose.Pose(
 # ── 카메라 초기화 ──────────────────────────────────────────────────────────────
 picam2 = Picamera2()
 picam2.configure(picam2.create_preview_configuration(
-    main={"format": "BGR888", "size": (640, 480)}
+    main={"format": "RGB888", "size": (640, 480)}
 ))
 picam2.start()
 
@@ -90,29 +113,35 @@ _log.info("  keypoints: nose=%d  wrists=%d/%d", NOSE, L_WRIST, R_WRIST)
 _log.info("  조작: 1=시작  2=중지  3=종료")
 _log.info("  로그파일=%s", _LOG_FILE)
 _log.info("=" * 60)
-print(f"[{_MODEL}] 준비 완료  —  1:시작  2:중지  3:종료")
-print(f"  로그 저장: {_LOG_FILE}")
+print(f"\n[{_MODEL}] 준비 완료  —  SSH 터미널: 1=시작  2=중지  3=종료")
+print(f"  로그: {_LOG_FILE}\n")
+
+_term = _TermInput()
+
+cv2.namedWindow(_WIN, cv2.WINDOW_NORMAL)
+cv2.setWindowProperty(_WIN, cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
 
 try:
+    fps = 0.0
     while True:
-        frame = picam2.capture_array()
+        frame = picam2.capture_array()         # RGB (RGB888)
         frame = cv2.flip(frame, 1)
         total_frames += 1
         h, w  = frame.shape[:2]
-        rgb   = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 
-        results = pose.process(rgb)
+        # MediaPipe는 RGB 그대로 사용, 화면 출력용만 BGR로 변환
+        results = pose.process(frame)
+        disp = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
 
         is_near      = False
         current_dist = 1.0
         closer_pt    = None
 
-        # ── 랜드마크 추출 & 거리 계산 (항상 실행) ─────────────────────────
+        # ── 랜드마크 그리기 & 거리 계산 ───────────────────────────────────
         if results.pose_landmarks:
             lm = results.pose_landmarks.landmark
-
             mp_draw.draw_landmarks(
-                frame, results.pose_landmarks, mp_pose.POSE_CONNECTIONS,
+                disp, results.pose_landmarks, mp_pose.POSE_CONNECTIONS,
                 mp_draw.DrawingSpec(color=(0, 255, 0), thickness=2, circle_radius=3),
                 mp_draw.DrawingSpec(color=(0, 200, 0), thickness=2),
             )
@@ -125,12 +154,12 @@ try:
             lw_pt   = (int(l_wrist.x * w), int(l_wrist.y * h))
             rw_pt   = (int(r_wrist.x * w), int(r_wrist.y * h))
 
-            cv2.circle(frame, nose_pt, 8, (255, 255,   0), -1)
-            cv2.circle(frame, lw_pt,   8, (  0, 255, 255), -1)
-            cv2.circle(frame, rw_pt,   8, (  0, 255, 255), -1)
+            cv2.circle(disp, nose_pt, 8, (255, 255,   0), -1)
+            cv2.circle(disp, lw_pt,   8, (  0, 255, 255), -1)
+            cv2.circle(disp, rw_pt,   8, (  0, 255, 255), -1)
 
-            dist_l = np.hypot(l_wrist.x - nose.x, l_wrist.y - nose.y)
-            dist_r = np.hypot(r_wrist.x - nose.x, r_wrist.y - nose.y)
+            dist_l = float(np.hypot(l_wrist.x - nose.x, l_wrist.y - nose.y))
+            dist_r = float(np.hypot(r_wrist.x - nose.x, r_wrist.y - nose.y))
 
             if dist_l < dist_r:
                 current_dist = dist_l
@@ -139,15 +168,15 @@ try:
                 current_dist = dist_r
                 closer_pt    = rw_pt
 
-            if current_dist < INTAKE_DISTANCE_THRESHOLD and closer_pt:
-                cv2.line(frame, nose_pt, closer_pt, (0, 255, 0), 3)
+            if current_dist < INTAKE_DISTANCE_THRESHOLD:
+                is_near = True
+                cv2.line(disp, nose_pt, closer_pt, (0, 255, 0), 3)
 
         # ── 감지 로직 (ACTIVE 상태에서만) ────────────────────────────────
         if _state == STATE_ACTIVE:
             if results.pose_landmarks:
                 if current_dist < INTAKE_DISTANCE_THRESHOLD:
                     intake_counter += 1
-                    is_near = True
                 else:
                     intake_counter = max(0, intake_counter - 1)
             else:
@@ -156,19 +185,17 @@ try:
             if is_near:
                 near_frames += 1
 
-            # 접근 시작
             if intake_counter >= 1 and _prev_cnt == 0:
                 _approach_t = time.time()
                 _fired      = False
                 _log.info("  접근 시작  frame=%d  dist=%.4f", total_frames, current_dist)
 
-            # 복약 감지
             if intake_counter >= SUCCESS_REQUIRED_FRAMES and not _fired:
                 _fired       = True
                 approach_dur = (time.time() - _approach_t) if _approach_t else 0
                 trial_dur    = time.time() - _trial_t
                 _log.info("  *** 복약감지 ***  dist=%.4f  접근→감지=%.2fs  fps=%.1f",
-                          current_dist, approach_dur, fps if total_frames > 1 else 0)
+                          current_dist, approach_dur, fps)
                 _log.info("Trial #%d 완료 ✓  소요=%.2fs", _trial_no, trial_dur)
                 _trials.append({
                     "no": _trial_no, "detected": True,
@@ -187,10 +214,10 @@ try:
         prev_time = curr_time
         _fps_list.append(fps)
 
-        # ── 키 입력 ───────────────────────────────────────────────────────
-        key = cv2.waitKey(1) & 0xFF
+        # ── SSH 키 입력 ───────────────────────────────────────────────────
+        key = _term.read()
 
-        if key == ord('1') and _state == STATE_IDLE:
+        if key == '1' and _state == STATE_IDLE:
             intake_counter = 0
             _prev_cnt      = 0
             _approach_t    = None
@@ -200,7 +227,7 @@ try:
             _state         = STATE_ACTIVE
             _log.info("Trial #%d 시작", _trial_no)
 
-        elif key == ord('2') and _state == STATE_ACTIVE:
+        elif key == '2' and _state == STATE_ACTIVE:
             trial_dur = time.time() - _trial_t
             _log.info("Trial #%d 중지 (미감지)  소요=%.2fs", _trial_no, trial_dur)
             _trials.append({
@@ -211,41 +238,49 @@ try:
             intake_counter = 0
             _state         = STATE_IDLE
 
-        elif key == ord('3') or key == 27:
+        elif key == '3':
             break
 
-        # ── 화면 표시 ─────────────────────────────────────────────────────
+        # ── Pi 화면 표시 ──────────────────────────────────────────────────
         detected_cnt = sum(1 for t in _trials if t["detected"])
         color        = (0, 255, 0) if is_near else (0, 0, 255)
 
-        if _state == STATE_ACTIVE:
-            if intake_counter >= SUCCESS_REQUIRED_FRAMES:
-                cv2.putText(frame, "INTAKE DETECTED!", (w // 2 - 170, 65),
-                            cv2.FONT_HERSHEY_SIMPLEX, 1.3, (255, 255, 0), 3)
-            cv2.putText(frame, f"Count: {intake_counter}/{SUCCESS_REQUIRED_FRAMES}",
-                        (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 2)
+        if _state == STATE_ACTIVE and intake_counter >= SUCCESS_REQUIRED_FRAMES:
+            cv2.putText(disp, "INTAKE DETECTED!", (w // 2 - 170, 65),
+                        cv2.FONT_HERSHEY_SIMPLEX, 1.3, (255, 255, 0), 3)
 
-        cv2.putText(frame, f"FPS: {fps:.1f}",
+        cv2.putText(disp, f"FPS: {fps:.1f}",
                     (w - 140, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
-        cv2.putText(frame, f"Dist: {current_dist:.4f}",
+        cv2.putText(disp, f"Dist: {current_dist:.4f}",
                     (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 2)
 
-        state_label = f"[측정중] Trial #{_trial_no}  2:중지" if _state == STATE_ACTIVE \
-                      else f"[대기중]  1:시작  |  성공 {detected_cnt}/{_trial_no}"
+        if _state == STATE_ACTIVE:
+            cv2.putText(disp, f"Count: {intake_counter}/{SUCCESS_REQUIRED_FRAMES}",
+                        (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 2)
+
+        state_label = (f"[ACTIVE] Trial #{_trial_no}  Det:{detected_cnt}/{_trial_no}  SSH:2=stop 3=quit"
+                       if _state == STATE_ACTIVE else
+                       f"[IDLE]  Det:{detected_cnt}/{_trial_no}  SSH:1=start 3=quit")
         state_color = (0, 255, 100) if _state == STATE_ACTIVE else (180, 180, 180)
-        cv2.rectangle(frame, (0, h - 40), (w, h), (30, 30, 30), -1)
-        cv2.putText(frame, state_label, (10, h - 12),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.65, state_color, 2)
-        cv2.putText(frame, "3:종료", (w - 80, h - 12),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.65, (100, 100, 255), 2)
+        cv2.rectangle(disp, (0, h - 36), (w, h), (30, 30, 30), -1)
+        cv2.putText(disp, state_label, (8, h - 10),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.58, state_color, 2)
 
-        cv2.imshow("MP Pose | Intake Detection", frame)
+        cv2.imshow(_WIN, disp)
+        cv2.waitKey(1)
 
-        if total_frames % PRINT_INTERVAL == 0 and _state == STATE_ACTIVE:
-            print(f"[{total_frames:5d}f]  FPS={fps:5.1f}  dist={current_dist:.4f}"
-                  f"  count={intake_counter}/{SUCCESS_REQUIRED_FRAMES}")
+        t_status = (f"\r[측정중] Trial#{_trial_no}  dist={current_dist:.4f}  "
+                    f"cnt={intake_counter}/{SUCCESS_REQUIRED_FRAMES}  fps={fps:.1f}  "
+                    f"성공={detected_cnt}/{_trial_no}  | 2:중지 3:종료  "
+                    if _state == STATE_ACTIVE else
+                    f"\r[대기중]  dist={current_dist:.4f}  fps={fps:.1f}  "
+                    f"성공={detected_cnt}/{_trial_no}  | 1:시작 3:종료          ")
+        print(t_status, end="", flush=True)
 
 finally:
+    _term.restore()
+    print()
+
     duration     = time.time() - _t0
     avg_fps      = sum(_fps_list) / len(_fps_list) if _fps_list else 0
     min_fps      = min(_fps_list) if _fps_list else 0
@@ -270,8 +305,8 @@ finally:
     _log.info("  평균 접근시간 : %.2f 초 (접근 시작→감지)", avg_app_s)
     _log.info("  트라이얼 상세:")
     for t in _trials:
-        result = f"✓  소요={t['duration_s']}s  접근→감지={t['approach_s']}s  dist={t['detect_dist']}" \
-                 if t["detected"] else f"✗  소요={t['duration_s']}s (미감지)"
+        result = (f"✓  소요={t['duration_s']}s  접근→감지={t['approach_s']}s  dist={t['detect_dist']}"
+                  if t["detected"] else f"✗  소요={t['duration_s']}s (미감지)")
         _log.info("    [#%d] %s", t["no"], result)
     _log.info("=" * 60)
 
@@ -290,8 +325,9 @@ finally:
                      round(avg_det_dur, 2), round(avg_app_s, 2),
                      INTAKE_DISTANCE_THRESHOLD, SUCCESS_REQUIRED_FRAMES])
 
-    print(f"\n종료  |  트라이얼 {total_trials}회  성공 {detected_cnt}회 ({success_rate:.1f}%)")
-    print(f"로그 저장: {_LOG_FILE}")
-    picam2.stop()
+    print(f"종료  |  트라이얼 {total_trials}회  성공 {detected_cnt}회 ({success_rate:.1f}%)")
+    print(f"로그: {_LOG_FILE}")
+
     cv2.destroyAllWindows()
+    picam2.stop()
     pose.close()

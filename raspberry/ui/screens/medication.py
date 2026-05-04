@@ -1,6 +1,6 @@
 from PyQt5.QtCore import Qt, QTimer
 from PyQt5.QtGui import QColor, QFont, QLinearGradient, QPainter
-from PyQt5.QtWidgets import QLabel, QWidget
+from PyQt5.QtWidgets import QLabel, QPushButton, QWidget
 
 from ui.widgets.camera_card_widget import CameraCardWidget
 from ui.threads.behavior_thread import BehaviorThread

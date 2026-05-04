@@ -4,7 +4,7 @@ import os
 import numpy as np
 from PyQt5.QtCore import Qt, QThread, QTimer, pyqtSignal
 from PyQt5.QtGui import QColor, QFont, QLinearGradient, QPainter
-from PyQt5.QtWidgets import QLabel, QWidget
+from PyQt5.QtWidgets import QLabel, QPushButton, QWidget
 
 from ui.widgets.camera_card_widget import CameraCardWidget
 from ui.threads.face_thread import AUTH_TIMEOUT_SEC, FaceThread, MODE_AUTH, MODE_REGISTER
