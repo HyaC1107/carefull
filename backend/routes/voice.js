@@ -135,7 +135,7 @@ router.post('/upload', verifyToken, upload.single('voice'), async (req, res) => 
 
         const saved_voice = rows[0];
         // 응답 먼저 반환 (ElevenLabs는 시간이 걸리므로 비동기 처리)
-        res.status(201).json({ success: true, voice: saved_voice });
+        sendSuccess(res, 201, { voice: saved_voice });
 
         // ── ElevenLabs 파이프라인 (백그라운드) ──────────────────────────────
         _run_elevenlabs_pipeline(saved_voice.voice_id, req.file.path, patient_id).catch(

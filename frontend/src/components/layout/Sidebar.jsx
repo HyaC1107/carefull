@@ -38,7 +38,6 @@ function Sidebar({ activeMenu = 'dashboard', alertCount = 0 }) {
         navigate('/settings')
         break 
     default:
-        console.log(`${menuKey} 페이지는 나중에 연결 예정`)
         break
     }
   }

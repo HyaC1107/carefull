@@ -123,7 +123,8 @@ const find_existing_missed_notification_for_schedule_date = async (
           AND n.noti_type = $3
           AND existing_activity.patient_id = current_activity.patient_id
           AND existing_activity.sche_id = current_activity.sche_id
-          AND existing_activity.sche_time::date = current_activity.sche_time::date
+          AND (existing_activity.sche_time AT TIME ZONE 'Asia/Seoul')::date =
+              (current_activity.sche_time AT TIME ZONE 'Asia/Seoul')::date
         LIMIT 1
     `;
 
@@ -168,7 +169,8 @@ const find_existing_low_stock_notification_for_medication_date = async (
           AND n.noti_type = $3
           AND existing_activity.patient_id = current_activity.patient_id
           AND existing_schedule.medi_id = current_schedule.medi_id
-          AND n.created_at::date = CURRENT_DATE
+          AND (n.created_at AT TIME ZONE 'Asia/Seoul')::date =
+              (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Seoul')::date
         LIMIT 1
     `;
 
@@ -189,11 +191,23 @@ const create_notification = async (executor, {
     error_code,
     remaining_quantity
 }) => {
+    console.info('[NOTIFICATION-TRIGGER] create requested:', {
+        mem_id,
+        patient_id,
+        activity_id,
+        event_type
+    });
+
     const notification_content = build_notification_content({
         event_type,
         medi_name,
         error_code,
         remaining_quantity
+    });
+
+    console.info('[NOTIFICATION-TRIGGER] content resolved:', {
+        activity_id,
+        noti_type: notification_content.noti_type
     });
 
     const existing_notification = await find_existing_notification(
@@ -203,6 +217,11 @@ const create_notification = async (executor, {
     );
 
     if (existing_notification) {
+        console.info('[NOTIFICATION-TRIGGER] existing notification found:', {
+            activity_id,
+            noti_type: notification_content.noti_type
+        });
+
         return {
             notification: to_notification_response(existing_notification),
             created: false
@@ -217,9 +236,11 @@ const create_notification = async (executor, {
     );
 
     if (existing_missed_notification) {
-        console.log(
-            `[NOTIFICATION-TRIGGER] skipped duplicate MISSED notification - patient_id: ${patient_id}, activity_id: ${activity_id}`
-        );
+        console.info('[NOTIFICATION-TRIGGER] existing missed notification found:', {
+            activity_id,
+            noti_type: notification_content.noti_type
+        });
+
         return {
             notification: to_notification_response(existing_missed_notification),
             created: false
@@ -234,9 +255,11 @@ const create_notification = async (executor, {
     );
 
     if (existing_low_stock_notification) {
-        console.log(
-            `[NOTIFICATION-TRIGGER] skipped duplicate LOW_STOCK notification - patient_id: ${patient_id}, activity_id: ${activity_id}`
-        );
+        console.info('[NOTIFICATION-TRIGGER] existing low stock notification found:', {
+            activity_id,
+            noti_type: notification_content.noti_type
+        });
+
         return {
             notification: to_notification_response(existing_low_stock_notification),
             created: false
@@ -275,6 +298,32 @@ const create_notification = async (executor, {
         notification_content.noti_type
     ]);
 
+    console.info('[NOTIFICATION-TRIGGER] notification created:', {
+        activity_id,
+        noti_id: rows[0]?.noti_id,
+        noti_type: notification_content.noti_type
+    });
+
+    if (
+        [...COMPLETED_STATUSES, ...MISSED_STATUSES].includes(notification_content.noti_type)
+    ) {
+        console.info('[NOTIFICATION-TRIGGER] push firing:', {
+            activity_id,
+            noti_type: notification_content.noti_type
+        });
+
+        const push_result = await send_medication_activity_push_safe(activity_id);
+
+        console.info('[NOTIFICATION-TRIGGER] push result:', {
+            activity_id,
+            noti_type: notification_content.noti_type,
+            sent: push_result?.sent,
+            success_count: push_result?.success_count,
+            failure_count: push_result?.failure_count,
+            reason: push_result?.reason
+        });
+    }
+
     return {
         notification: to_notification_response(rows[0]),
         created: true
@@ -285,38 +334,9 @@ const trigger_activity_notification = async (executor, payload) => {
     return create_notification(executor, payload);
 };
 
-const send_fcm_push_safe = async (mem_id, title, body) => {
-    try {
-        const { rows } = await pool.query(
-            'SELECT fcm_token FROM push_tokens WHERE mem_id = $1 AND is_active IS NOT FALSE',
-            [mem_id]
-        );
-        const tokens = rows.map(r => r.fcm_token).filter(Boolean);
-        if (!tokens.length) {
-            console.log('[NOTIFICATION-TRIGGER] no active FCM tokens for mem_id:', mem_id);
-            return;
-        }
-
-        const { send_push } = require('./fcm.service');
-        for (const token of tokens) {
-            await send_push(token, title, body);
-        }
-    } catch (e) {
-        console.error('[NOTIFICATION-TRIGGER] FCM push failed:', e.message);
-    }
-};
-
 const trigger_activity_notification_safe = async (payload) => {
     try {
         const result = await create_notification(pool, payload);
-
-        if (result.created && result.notification) {
-            send_fcm_push_safe(
-                payload.mem_id,
-                result.notification.noti_title,
-                result.notification.noti_msg
-            );
-        }
 
         return result;
     } catch (error) {
@@ -350,6 +370,5 @@ module.exports = {
     trigger_activity_notification,
     trigger_activity_notification_safe,
     trigger_low_stock_notification,
-    to_notification_response,
-    send_fcm_push_safe
+    to_notification_response
 };

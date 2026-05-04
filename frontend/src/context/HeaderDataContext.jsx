@@ -1,11 +1,19 @@
 import { createContext, useContext, useEffect, useRef, useState } from 'react'
-import { hasStoredToken, requestJson } from '../api'
+import { useLocation } from 'react-router-dom'
+import {
+  getDeviceStatus,
+  getDeviceStatusClass,
+  getDeviceStatusText,
+  hasStoredToken,
+  requestJson,
+} from '../api'
 
 const HeaderDataContext = createContext(null)
 
 export function HeaderDataProvider({ children }) {
   const [headerData, setHeaderData] = useState(null)
   const loadedForToken = useRef('')
+  const location = useLocation()
 
   useEffect(() => {
     const token = hasStoredToken()
@@ -27,8 +35,27 @@ export function HeaderDataProvider({ children }) {
   }
 
   useEffect(() => {
+    if (!hasStoredToken()) {
+      loadedForToken.current = ''
+      setHeaderData(null)
+      return
+    }
+
+    refresh()
+  }, [location.pathname])
+
+  useEffect(() => {
     window.addEventListener('carefull:top-header-refresh', refresh)
     return () => window.removeEventListener('carefull:top-header-refresh', refresh)
+  }, [])
+
+  useEffect(() => {
+    const applyDashboardData = (event) => {
+      setHeaderData(mapHeaderData(event.detail))
+    }
+
+    window.addEventListener('carefull:top-header-data', applyDashboardData)
+    return () => window.removeEventListener('carefull:top-header-data', applyDashboardData)
   }, [])
 
   return (
@@ -43,11 +70,14 @@ export function useHeaderData() {
 }
 
 function mapHeaderData(data) {
+  const deviceStatus = getDeviceStatus(data?.device)
+
   return {
     patientLabel: buildPatientLabel(data?.patient),
     guardianName: data?.patient?.guardian_name || data?.member?.nick || '-',
     profileImg: data?.member?.profile_img || '',
-    deviceStatusText: data?.device?.is_connected ? '기기 연결됨' : '기기 연결 안 됨',
+    deviceStatusText: getDeviceStatusText(deviceStatus),
+    deviceStatusClass: getDeviceStatusClass(deviceStatus),
     lastSyncedText: formatRelativeTime(data?.device?.last_sync_time),
   }
 }

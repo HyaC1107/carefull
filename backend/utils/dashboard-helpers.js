@@ -23,18 +23,35 @@ const TEN_MINUTES_IN_MS = 10 * 60 * 1000;
  * 약통 잔량이 30 이하이면 부족 경고로 봅니다.
  */
 const LOW_MEDICATION_THRESHOLD = 30;
+const KST_TIME_ZONE = 'Asia/Seoul';
+
+const getKstDateString = (date = new Date()) => (
+    new Date(date).toLocaleString('sv-SE', {
+        timeZone: KST_TIME_ZONE,
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+    }).slice(0, 10)
+);
+
+const getKstWallClockDate = (date = new Date()) => (
+    new Date(new Date(date).toLocaleString('en-US', { timeZone: KST_TIME_ZONE }))
+);
+
+const buildKstDateTimeString = (date, timeValue) => {
+    const date_string = getKstDateString(date);
+    const [hours = '00', minutes = '00', seconds = '00'] = String(timeValue || '')
+        .split(':');
+
+    return `${date_string}T${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds || '00').padStart(2, '0')}+09:00`;
+};
 
 /**
  * 오늘 날짜를 YYYY-MM-DD 문자열로 반환합니다.
  * 예: 2026-04-15
  */
 const getTodayDateString = () => {
-    const today = new Date();
-    const year = today.getFullYear();
-    const month = String(today.getMonth() + 1).padStart(2, '0');
-    const day = String(today.getDate()).padStart(2, '0');
-
-    return `${year}-${month}-${day}`;
+    return getKstDateString();
 };
 /**
  * JavaScript 요일(일요일 0 ~ 토요일 6)을
@@ -108,6 +125,10 @@ module.exports = {
     MISSED_STATUSES,
     TEN_MINUTES_IN_MS,
     LOW_MEDICATION_THRESHOLD,
+    KST_TIME_ZONE,
+    getKstDateString,
+    getKstWallClockDate,
+    buildKstDateTimeString,
     getTodayDateString,
     getProjectDayOfWeek,
     getSummaryStatus,

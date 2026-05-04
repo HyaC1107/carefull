@@ -6,6 +6,8 @@ const {
     TEN_MINUTES_IN_MS,
     LOW_MEDICATION_THRESHOLD,
     getTodayDateString,
+    getKstWallClockDate,
+    buildKstDateTimeString,
     getProjectDayOfWeek,
     getSummaryStatus,
     buildScheduleTimestamp,
@@ -20,7 +22,7 @@ const {
 } = require('./stock-calc.service');
 
 const get_today_context = () => {
-    const current_date = new Date();
+    const current_date = getKstWallClockDate();
 
     return {
         current_date,
@@ -29,27 +31,16 @@ const get_today_context = () => {
     };
 };
 
-const log_dashboard_duration = (step_name, started_at) => {
-    console.log(`[dashboard] ${step_name}:`, Date.now() - started_at);
-};
-
-const measure_dashboard_step = async (step_name, callback) => {
-    const started_at = Date.now();
-    const result = await callback();
-    log_dashboard_duration(step_name, started_at);
-
-    return result;
+const measure_dashboard_step = async (_step_name, callback) => {
+    return callback();
 };
 
 const get_dashboard_data_by_mem_id = async (mem_id) => {
-    const dashboard_started_at = Date.now();
     const member = await measure_dashboard_step('get_member_header', () =>
         get_member_header(mem_id)
     );
 
     if (!member) {
-        log_dashboard_duration('before_response', dashboard_started_at);
-        log_dashboard_duration('total', dashboard_started_at);
         return null;
     }
 
@@ -74,9 +65,6 @@ const get_dashboard_data_by_mem_id = async (mem_id) => {
             recent_notifications: await get_recent_notifications(mem_id),
             recent_activities: []
         });
-
-        log_dashboard_duration('before_response', dashboard_started_at);
-        log_dashboard_duration('total', dashboard_started_at);
 
         return dashboard_data;
     }
@@ -134,9 +122,6 @@ const get_dashboard_data_by_mem_id = async (mem_id) => {
         recent_notifications,
         recent_activities
     });
-
-    log_dashboard_duration('before_response', dashboard_started_at);
-    log_dashboard_duration('total', dashboard_started_at);
 
     return dashboard_data;
 };
@@ -309,9 +294,6 @@ const trigger_low_stock_notifications_for_estimated_stock = async (
 ) => {
     for (const medication of low_stock_medications) {
         if (!medication.activity_id) {
-            console.log(
-                `[LOW-STOCK] skipped notification because no activity_id is available for medi_id: ${medication.medi_id}`
-            );
             continue;
         }
 
@@ -352,10 +334,10 @@ const get_dashboard_summary = async (patient_id) => {
           AND start_date <= $2::date
           AND (end_date IS NULL OR end_date >= $2::date)
           AND (
-              $2::date > created_at::date
+              $2::date > (created_at AT TIME ZONE 'Asia/Seoul')::date
               OR (
-                  $2::date = created_at::date
-                  AND ($2::date + time_to_take) >= created_at
+                  $2::date = (created_at AT TIME ZONE 'Asia/Seoul')::date
+                  AND ($2::date + time_to_take) >= (created_at AT TIME ZONE 'Asia/Seoul')
               )
           )
     `;
@@ -370,7 +352,7 @@ const get_dashboard_summary = async (patient_id) => {
             )::int AS missed_count
         FROM activities
         WHERE patient_id = $1
-          AND sche_time::date = $4::date
+          AND (sche_time AT TIME ZONE 'Asia/Seoul')::date = $4::date
     `;
 
     const total_scheduled_result = await pool.query(total_scheduled_query, [
@@ -466,10 +448,10 @@ const get_next_schedule_time_today = async (patient_id) => {
           AND start_date <= $2::date
           AND (end_date IS NULL OR end_date >= $2::date)
           AND (
-              $2::date > created_at::date
+              $2::date > (created_at AT TIME ZONE 'Asia/Seoul')::date
               OR (
-                  $2::date = created_at::date
-                  AND ($2::date + time_to_take) >= created_at
+                  $2::date = (created_at AT TIME ZONE 'Asia/Seoul')::date
+                  AND ($2::date + time_to_take) >= (created_at AT TIME ZONE 'Asia/Seoul')
               )
           )
         ORDER BY time_to_take ASC, sche_id ASC
@@ -481,7 +463,7 @@ const get_next_schedule_time_today = async (patient_id) => {
         const schedule_date = buildScheduleTimestamp(row.time_to_take, current_date);
 
         if (schedule_date && schedule_date.getTime() >= current_date.getTime()) {
-            return schedule_date.toISOString();
+            return buildKstDateTimeString(new Date(), row.time_to_take);
         }
     }
 
@@ -593,16 +575,16 @@ const get_today_schedules = async (patient_id) => {
         LEFT JOIN activities a
             ON a.sche_id = s.sche_id
            AND a.patient_id = s.patient_id
-           AND a.sche_time::date = $2::date
+           AND (a.sche_time AT TIME ZONE 'Asia/Seoul')::date = $2::date
         WHERE s.patient_id = $1
           AND s.status = 'ACTIVE'
           AND s.start_date <= $2::date
           AND (s.end_date IS NULL OR s.end_date >= $2::date)
           AND (
-              $2::date > s.created_at::date
+              $2::date > (s.created_at AT TIME ZONE 'Asia/Seoul')::date
               OR (
-                  $2::date = s.created_at::date
-                  AND ($2::date + s.time_to_take) >= s.created_at
+                  $2::date = (s.created_at AT TIME ZONE 'Asia/Seoul')::date
+                  AND ($2::date + s.time_to_take) >= (s.created_at AT TIME ZONE 'Asia/Seoul')
               )
           )
         ORDER BY s.time_to_take ASC, s.sche_id ASC, a.activity_id DESC
