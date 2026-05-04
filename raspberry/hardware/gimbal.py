@@ -26,29 +26,42 @@ logger = logging.getLogger("Gimbal")
 class Gimbal:
     """
     1축 서보 모터 제어 (19번 핀 전용)
-    사용자의 요청에 따라 19번 핀 하나로 '좌우' 추적을 수행하도록 최적화
     """
     def __init__(self):
         self.servo_pin = TILT_PIN  # 19번 핀
         self.angle = 90            # 초기 각도 (중앙)
         
-        GPIO.setup(self.servo_pin, GPIO.OUT)
-        self.pwm = GPIO.PWM(self.servo_pin, 50)
-        self.pwm.start(self._angle_to_duty(self.angle))
+        # 추적 설정 (이 값이 없으면 track_face에서 에러 발생)
+        self.threshold = 40        # 데드존 (픽셀)
+        self.step = 1.0            # 이동 크기 (도)
         
-        # 추적 설정
-        self.threshold = 40        # 데드존
-        self.step = 1.0            # 이동 크기
-        
-        logger.info(f"Single-axis Gimbal initialized on Pin: {self.servo_pin} (좌우 추적 모드)")
+        # GPIO 설정 보강
+        try:
+            GPIO.setmode(GPIO.BCM)
+            GPIO.setwarnings(False)
+            GPIO.setup(self.servo_pin, GPIO.OUT)
+            self.pwm = GPIO.PWM(self.servo_pin, 50)
+            self.pwm.start(0) # 일단 신호 없이 시작
+            time.sleep(0.1)
+            self.set_angle(self.angle)
+            logger.info(f"Gimbal initialized on Pin: {self.servo_pin}")
+        except Exception as e:
+            logger.error(f"Gimbal GPIO Setup Error: {e}")
 
     def _angle_to_duty(self, angle):
+        # 0도: 2.5, 90도: 7.5, 180도: 12.5 (일반적인 50Hz 서보)
         return 2.5 + (angle / 180.0) * 10.0
 
     def set_angle(self, angle):
         """각도 설정 (0~180)"""
-        self.angle = max(0, min(180, angle))
-        self.pwm.ChangeDutyCycle(self._angle_to_duty(self.angle))
+        try:
+            self.angle = max(0, min(180, angle))
+            duty = self._angle_to_duty(self.angle)
+            self.pwm.ChangeDutyCycle(duty)
+            # 하드웨어 PWM이 아닐 경우 너무 빠른 연속 호출은 무시될 수 있으므로
+            # 상위 루프에서 제어하거나 필요시 짧은 sleep을 줄 수 있음
+        except Exception as e:
+            logger.error(f"Gimbal set_angle Error: {e}")
 
     def track_face(self, face_bbox, frame_w, frame_h):
         """얼굴의 좌우 위치(x)에 따라 19번 핀 모터 제어"""

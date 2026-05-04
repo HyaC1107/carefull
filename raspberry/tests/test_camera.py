@@ -107,16 +107,19 @@ class RobustCameraTester:
             return
 
         print("\n[작동 중] 화면이 뜨는지 확인하세요. 'q'를 누르면 종료됩니다.")
+        print("[TIP] 색상이 이상하면 's' 키를 눌러보세요.")
         
         cv2.namedWindow("CareFull Camera Test", cv2.WINDOW_AUTOSIZE)
+        swap_color = False
         
         try:
             while True:
                 frame = self.get_frame()
                 if frame is None:
-                    print("[WARN] 프레임이 비어있습니다. 재시도 중...")
-                    time.sleep(0.1)
                     continue
+                
+                if swap_color:
+                    frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
                 
                 faces = self.detect_face(frame)
                 
@@ -128,11 +131,12 @@ class RobustCameraTester:
 
                 cv2.imshow("CareFull Camera Test", frame)
                 
-                # 'q' 키를 누르거나 창을 닫으면 종료
                 key = cv2.waitKey(1) & 0xFF
                 if key == ord('q'):
                     break
-                # 창 닫기 버튼 대응
+                elif key == ord('s'):
+                    swap_color = not swap_color
+                
                 if cv2.getWindowProperty("CareFull Camera Test", cv2.WND_PROP_VISIBLE) < 1:
                     break
         except KeyboardInterrupt:
