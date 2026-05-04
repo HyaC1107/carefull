@@ -130,6 +130,7 @@ function SchedulePage() {
         next.add(item.id)
         return next
       })
+      window.dispatchEvent(new Event('carefull:top-header-refresh'))
     } catch (error) {
       console.error('schedule completion save error:', error)
       alert(error.message || '복약 완료 저장에 실패했습니다.')

@@ -3,6 +3,9 @@ const router = express.Router();
 
 const pool = require('../db');
 
+const DEFAULT_SEARCH_LIMIT = 20;
+const MAX_SEARCH_LIMIT = 50;
+
 router.get('/', async (req, res) => {
     try {
         const query = `
@@ -32,6 +35,10 @@ router.get('/', async (req, res) => {
 
 router.get('/search', async (req, res) => {
     const keyword = (req.query.keyword || '').trim();
+    const parsed_limit = Number(req.query.limit);
+    const limit = Number.isSafeInteger(parsed_limit) && parsed_limit > 0
+        ? Math.min(parsed_limit, MAX_SEARCH_LIMIT)
+        : DEFAULT_SEARCH_LIMIT;
 
     if (!keyword) {
         return res.status(400).json({
@@ -49,9 +56,10 @@ router.get('/search', async (req, res) => {
             FROM medications
             WHERE medi_name ILIKE $1
             ORDER BY medi_name, medi_id
+            LIMIT $2
         `;
 
-        const { rows } = await pool.query(query, [`%${keyword}%`]);
+        const { rows } = await pool.query(query, [`%${keyword}%`, limit]);
 
         return res.status(200).json({
             success: true,
