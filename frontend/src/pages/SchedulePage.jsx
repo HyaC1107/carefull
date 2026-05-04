@@ -160,7 +160,7 @@ function SchedulePage() {
             ? newSchedule.time_to_take_list.map(ensureSeconds)
             : undefined,
           start_date: newSchedule.start_date || selectedDate,
-          end_date: newSchedule.end_date || null,
+          end_date: newSchedule.end_date || newSchedule.start_date || selectedDate,
           dose_interval:
             newSchedule.repeatType === 'interval'
               ? Number(newSchedule.dose_interval)

@@ -88,6 +88,14 @@ const parse_schedule_dose_interval = (value) => {
     return parsed_dose_interval;
 };
 
+const resolve_schedule_end_date = (start_date, end_date) => {
+    if (end_date === undefined || end_date === null || end_date === '') {
+        return start_date;
+    }
+
+    return end_date;
+};
+
 const parse_schedule_times = (body) => {
     const raw_times =
         body.time_to_take_list !== undefined
@@ -270,6 +278,8 @@ router.post('/', verifyToken, async (req, res) => {
         return sendError(res, 400, 'dose_interval must be an integer from 1 to 5.');
     }
 
+    const effective_end_date = resolve_schedule_end_date(start_date, end_date);
+
     const registered_at = new Date();
     registered_at.setSeconds(0, 0);
 
@@ -313,7 +323,7 @@ router.post('/', verifyToken, async (req, res) => {
                 for (const parsed_time of parsed_times) {
                     const insert_start_date = resolve_insert_start_date(
                         start_date,
-                        end_date,
+                        effective_end_date,
                         parsed_time,
                         registered_at
                     );
@@ -327,7 +337,7 @@ router.post('/', verifyToken, async (req, res) => {
                         parsed_medi_id,
                         parsed_time,
                         insert_start_date,
-                        end_date,
+                        effective_end_date,
                         parsed_dose_interval,
                         status
                     ]);
