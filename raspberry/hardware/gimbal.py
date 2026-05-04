@@ -66,16 +66,16 @@ class Gimbal:
             
             # 1. 신호 전송
             self.pwm.ChangeDutyCycle(duty)
-            # 2. 서보가 물리적으로 이동할 시간을 잠깐 줌 (0.05~0.1초)
-            time.sleep(0.08)
-            # 3. 신호 차단 (소프트웨어 PWM 떨림의 근본 해결책)
+            # 2. 서보 이동 시간 (0.05초로 단축하여 반응성 향상)
+            time.sleep(0.05)
+            # 3. 신호 차단
             self.pwm.ChangeDutyCycle(0)
             
         except Exception as e:
             logger.error(f"Gimbal set_angle Error: {e}")
 
     def track_face(self, face_bbox, frame_w, frame_h):
-        """반동을 최소화하는 단계별 추적 로직"""
+        """반동 및 급격한 튐 현상을 방지하는 로직"""
         now = time.time()
         
         x, y, w, h = face_bbox
@@ -84,21 +84,33 @@ class Gimbal:
         
         raw_error_x = face_center_x - frame_center_x
         
+        # [추가] 좌표 점프 방지 (Outlier Rejection)
+        # 이전 오차값과 현재 오차값의 차이가 너무 크면(화면의 1/3 이상) 무시
+        if self.smooth_error_x != 0 and abs(raw_error_x - self.smooth_error_x) > (frame_w / 3):
+            return
+
         # 1. 좌표 필터링
         self.smooth_error_x = (self.alpha * raw_error_x) + ((1 - self.alpha) * self.smooth_error_x)
         
         # 2. 데드존 및 쿨다운 체크
-        if abs(self.smooth_error_x) < self.threshold or (now - self.last_move_time < self.move_cooldown()):
+        if abs(self.smooth_error_x) < self.threshold or (now - self.last_move_time < self.move_interval):
             return
 
-        # 3. 목표 방향 결정
+        # 3. 목표 방향 결정 (주의: 휙 돌아간다면 move_dir의 부호를 반대로 해보세요)
+        # 기본값: 얼굴이 오른쪽(error > 0)이면 각도를 줄여서 오른쪽을 보게 함
         move_dir = -1 if not self.reverse else 1
+        
+        # 오차 크기에 따라 보폭 조절 (멀면 더 크게 이동하여 답답함 해소)
+        dynamic_step = self.step_size
+        if abs(self.smooth_error_x) > 150:
+            dynamic_step *= 2
+            
         if self.smooth_error_x > 0:
-            self.target_angle = self.angle + (self.step_size * move_dir)
+            self.target_angle = self.angle + (dynamic_step * move_dir)
         else:
-            self.target_angle = self.angle - (self.step_size * move_dir)
+            self.target_angle = self.angle - (dynamic_step * move_dir)
 
-        # 4. 부드러운 단계 이동 실행
+        # 4. 단계 이동 실행
         self.set_angle(self.target_angle)
         self.last_move_time = now
 

@@ -99,16 +99,17 @@ class FaceThread(QThread):
                     consecutive_face_count = 0
                     last_faces = []
             
-            # 최소 2번 연속(약 6프레임)으로 얼굴이 감지되어야 짐벌 작동 (오인식 방지)
+            # 얼굴 감지 결과 처리
             if last_faces and consecutive_face_count >= 2:
-                # 가장 큰 얼굴 기준 추적
-                last_faces.sort(key=lambda b: b[2] * b[3], reverse=True)
+                # 1. 추적할 메인 얼굴 선정 (중앙에서 가장 가까운 얼굴 우선)
+                # (단순 크기순 정렬은 찰나의 흔들림으로 순위가 바뀔 수 있어 '휙' 돌 수 있음)
+                last_faces.sort(key=lambda b: abs((b[0] + b[2]//2) - fw//2))
                 main_face = last_faces[0]
                 
-                # 짐벌 추적 실행
+                # 2. 짐벌 추적 실행
                 gimbal.track_face(main_face, fw, fh)
 
-                # 인증은 AI가 새로 갱신되었을 때만 수행
+                # 3. 인증 수행 (AI 갱신 주기마다)
                 if frame_count % _DETECT_EVERY_N == 0:
                     x, y, w, h = main_face
                     face_img = frame[y: y + h, x: x + w]
@@ -120,7 +121,7 @@ class FaceThread(QThread):
                             gimbal.stop()
                             return
             else:
-                # 얼굴이 없으면 PWM 신호를 즉시 차단하여 진동/소음 방지
+                # 얼굴이 없으면 PWM 신호 차단
                 gimbal.pwm.ChangeDutyCycle(0)
             
             # 루프 주기 조절 (약 30fps)
