@@ -20,6 +20,14 @@ _FACE_MARGIN = 0.2
 _PHASES = ["정면", "위", "아래", "왼쪽", "오른쪽"]
 _PHOTOS_PER_PHASE = 4
 _PHASE_PAUSE_SEC = 2.0
+_CENTER_TOL = 0.15   # 얼굴 수평 중심이 프레임 중심에서 ±15% 이내일 때만 캡처 (좌우 1축 서보 기준)
+
+
+def _is_centered(face, fw: int) -> bool:
+    """얼굴 수평 중심이 프레임 중앙 ±_CENTER_TOL 범위 안에 있는지 확인 (수직은 무시)."""
+    x, y, w, h = face
+    cx = x + w / 2
+    return abs(cx - fw / 2) < fw * _CENTER_TOL
 
 
 class FaceThread(QThread):
@@ -121,11 +129,12 @@ class FaceThread(QThread):
                         if consecutive_face_count >= 2:
                             gimbal.track_face((x, y, w, h), fw, fh)
 
-                        face_bgr = frame[max(0, y):min(fh, y + h), max(0, x):min(fw, x + w)]
-                        if face_bgr.size > 0:
-                            face_imgs.append(face_bgr)
-                            last_capture_time = now
-                            logger.debug(f"[AUTH_CAPTURE] {len(face_imgs)}/{max_capture}")
+                        if _is_centered((x, y, w, h), fw):
+                            face_bgr = frame[max(0, y):min(fh, y + h), max(0, x):min(fw, x + w)]
+                            if face_bgr.size > 0:
+                                face_imgs.append(face_bgr)
+                                last_capture_time = now
+                                logger.debug(f"[AUTH_CAPTURE] {len(face_imgs)}/{max_capture}")
                     else:
                         consecutive_face_count = 0
                         gimbal.update_idle()
@@ -186,6 +195,10 @@ class FaceThread(QThread):
                     x, y, w, h = sx * 2, sy * 2, sw * 2, sh * 2
 
                     gimbal.track_face((x, y, w, h), fw, fh)
+
+                    if not _is_centered((x, y, w, h), fw):
+                        self.msleep(1)
+                        continue
 
                     mx, my = int(w * _FACE_MARGIN), int(h * _FACE_MARGIN)
                     x1 = max(0, x - mx)

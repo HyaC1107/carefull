@@ -236,6 +236,22 @@ def download_sound(url: str, dest_path: str) -> bool:
         return False
 
 
+def delete_face_embedding(device_uid: str = DEVICE_UID) -> bool:
+    """기기에 등록된 얼굴 임베딩 전체 삭제."""
+    if not device_uid:
+        return False
+    try:
+        r = requests.delete(
+            _url("/api/face-data/device"),
+            params={"device_uid": device_uid},
+            timeout=API_TIMEOUT,
+        )
+        return r.status_code in (200, 204)
+    except Exception as e:
+        _log_error("delete_face_embedding", e)
+        return False
+
+
 def upload_face_embedding(face_vector: list, device_uid: str = DEVICE_UID) -> bool:
     if not device_uid:
         logger.error("upload_face_embedding: CAREFULL_DEVICE_UID not set")

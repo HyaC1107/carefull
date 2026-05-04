@@ -1,3 +1,4 @@
+import json
 import os
 import socket
 import sys
@@ -5,8 +6,8 @@ import sys
 from PyQt5.QtCore import Qt, QThread, pyqtSignal
 from PyQt5.QtGui import QFont, QPixmap
 from PyQt5.QtWidgets import (
-    QApplication, QFrame, QHBoxLayout, QLabel, QPushButton, QScrollArea,
-    QScroller, QSizePolicy, QSlider, QVBoxLayout, QWidget,
+    QApplication, QFrame, QHBoxLayout, QLabel, QMessageBox, QPushButton,
+    QScrollArea, QScroller, QSizePolicy, QSlider, QVBoxLayout, QWidget,
 )
 
 _BG    = "#f5f6fa"
@@ -205,6 +206,137 @@ class _ControlCard(QFrame):
             QApplication.quit()
 
 
+_DB_PATH = os.path.normpath(
+    os.path.join(os.path.dirname(__file__), "..", "..", "db", "user_db.json")
+)
+
+
+class _FaceDeleteWorker(QThread):
+    done = pyqtSignal(bool)
+
+    def run(self):
+        server_ok = False
+        try:
+            from api.client import delete_face_embedding
+            server_ok = delete_face_embedding()
+        except Exception as e:
+            print(f"[FACE DELETE] server: {e}")
+
+        try:
+            with open(_DB_PATH, "w", encoding="utf-8") as f:
+                json.dump({}, f)
+        except Exception as e:
+            print(f"[FACE DELETE] local: {e}")
+
+        try:
+            from auth.authenticate import invalidate_embedding_cache
+            invalidate_embedding_cache()
+        except Exception:
+            pass
+
+        self.done.emit(server_ok)
+
+
+class _FaceCard(QFrame):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._worker = None
+        self.setStyleSheet(f"QFrame {{ background-color: {_CARD}; border-radius: 16px; }}")
+
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(_CARD_PAD_H, _CARD_PAD_V, _CARD_PAD_H, _CARD_PAD_V)
+        outer.setSpacing(12)
+
+        header = QHBoxLayout()
+        header.addWidget(_icon_label("face.png", "👤"))
+        header.addSpacing(12)
+
+        title = QLabel("사용자 얼굴")
+        title.setFont(QFont("Sans Serif", 22, QFont.Bold))
+        title.setStyleSheet(f"color: {_DARK}; background: transparent; border: none;")
+        header.addWidget(title)
+        header.addStretch()
+
+        self._badge = QLabel()
+        self._badge.setFont(QFont("Sans Serif", 18, QFont.Bold))
+        header.addWidget(self._badge)
+        outer.addLayout(header)
+
+        sep = QFrame()
+        sep.setFrameShape(QFrame.HLine)
+        sep.setStyleSheet("color: #e2e8f0;")
+        outer.addWidget(sep)
+
+        self._del_btn = QPushButton("등록된 사용자 삭제")
+        self._del_btn.setMinimumHeight(80)
+        self._del_btn.setFont(QFont("Sans Serif", 22, QFont.Bold))
+        self._del_btn.setStyleSheet(f"""
+            QPushButton {{
+                background-color: #fee2e2;
+                color: {_RED};
+                border: 2px solid #fca5a5;
+                border-radius: 16px;
+            }}
+            QPushButton:pressed {{ background-color: #fecaca; }}
+            QPushButton:disabled {{
+                background-color: #f1f5f9;
+                color: #94a3b8;
+                border-color: #e2e8f0;
+            }}
+        """)
+        self._del_btn.clicked.connect(self._on_delete_clicked)
+        outer.addWidget(self._del_btn)
+
+        self.refresh()
+
+    def _has_face(self) -> bool:
+        try:
+            with open(_DB_PATH, "r", encoding="utf-8") as f:
+                return bool(json.load(f))
+        except Exception:
+            return False
+
+    def refresh(self):
+        has = self._has_face()
+        if has:
+            self._badge.setText("등록됨")
+            self._badge.setStyleSheet(
+                f"background: #dcfce7; color: {_GREEN}; border-radius: 10px; padding: 6px 18px;"
+            )
+        else:
+            self._badge.setText("미등록")
+            self._badge.setStyleSheet(
+                "background: #e2e8f0; color: #64748b; border-radius: 10px; padding: 6px 18px;"
+            )
+        self._del_btn.setEnabled(has)
+
+    def _on_delete_clicked(self):
+        box = QMessageBox(self)
+        box.setWindowTitle("사용자 삭제")
+        box.setText("등록된 사용자 얼굴 정보를\n모두 삭제하시겠습니까?")
+        box.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+        box.setDefaultButton(QMessageBox.No)
+        box.button(QMessageBox.Yes).setText("삭제")
+        box.button(QMessageBox.No).setText("취소")
+        box.setStyleSheet("""
+            QMessageBox { background: white; }
+            QLabel { font-size: 22px; color: #1e293b; }
+            QPushButton { min-height: 60px; min-width: 110px; font-size: 20px; border-radius: 10px; }
+        """)
+        if box.exec_() != QMessageBox.Yes:
+            return
+
+        self._del_btn.setEnabled(False)
+        self._del_btn.setText("삭제 중...")
+        self._worker = _FaceDeleteWorker(parent=self)
+        self._worker.done.connect(self._on_done)
+        self._worker.start()
+
+    def _on_done(self, _server_ok: bool):
+        self._del_btn.setText("등록된 사용자 삭제")
+        self.refresh()
+
+
 class _FingerprintFetchWorker(QThread):
     done = pyqtSignal(list)
 
@@ -385,10 +517,13 @@ class SettingsScreen(QWidget):
         super().__init__(parent)
         self._app = parent
         self._fp_card = None
+        self._face_card = None
         self._build_ui()
 
     def showEvent(self, event):
         super().showEvent(event)
+        if self._face_card:
+            self._face_card.refresh()
         if self._fp_card:
             self._fp_card.refresh()
 
@@ -453,6 +588,9 @@ class SettingsScreen(QWidget):
         c_lay.addWidget(_StatusCard("wifi.png", "WiFi", "WiFi 연결", "연결됨" if wifi_ok else "연결 안됨", wifi_ok))
         c_lay.addWidget(_StatusCard("server.png", "서버", "서버 통신", "통신 가능", True))
         c_lay.addWidget(_VolumeCard())
+
+        self._face_card = _FaceCard()
+        c_lay.addWidget(self._face_card)
 
         self._fp_card = _FingerprintCard(self._app)
         c_lay.addWidget(self._fp_card)
