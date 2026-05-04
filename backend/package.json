@@ -6,6 +6,7 @@
   "scripts": {
     "start": "node server.js",
     "test:ivc": "node scripts/test-elevenlabs-ivc.js",
+    "regen:voice-tts": "node scripts/regenerate-voice-tts.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
