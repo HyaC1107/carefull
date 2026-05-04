@@ -9,7 +9,7 @@ import ScheduleSummaryCard from '../components/schedule/ScheduleSummaryCard'
 import ScheduleList from '../components/schedule/ScheduleList'
 import ScheduleInfoBanner from '../components/schedule/ScheduleInfoBanner'
 import { useUnreadCount } from '../hooks/useUnreadCount'
-import { API_BASE_URL, getStoredToken, hasStoredToken, requestJson } from '../api'
+import { hasStoredToken, requestJson } from '../api'
 import '../styles/SchedulePage.css'
 import '../styles/MobileBottomNav.css'
 
@@ -183,49 +183,6 @@ function SchedulePage() {
     }
   }
 
-  const refreshSchedules = async () => {
-    const refreshedSchedules = await requestJson('/api/schedule', { auth: true })
-    setSchedules(
-      Array.isArray(refreshedSchedules?.schedules)
-        ? refreshedSchedules.schedules
-        : [],
-    )
-  }
-
-  const handlePreviewPrescription = async (file) => {
-    if (!hasStoredToken()) {
-      throw new Error('Authentication token is missing.')
-    }
-
-    const formData = new FormData()
-    formData.append('prescription', file)
-
-    const response = await fetch(new URL('/api/prescription/preview', API_BASE_URL), {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${getStoredToken()}`,
-      },
-      body: formData,
-    })
-    const data = await response.json().catch(() => null)
-
-    if (!response.ok || data?.success === false) {
-      throw new Error(data?.message || 'Prescription preview failed.')
-    }
-
-    return data?.data || { medications: [], warnings: [] }
-  }
-
-  const handleConfirmPrescription = async (payload) => {
-    await requestJson('/api/prescription/confirm', {
-      method: 'POST',
-      auth: true,
-      body: payload,
-    })
-    await refreshSchedules()
-    setIsAddModalOpen(false)
-  }
-
   return (
     <div className="schedule-page">
       <div className="schedule-layout">
@@ -272,8 +229,6 @@ function SchedulePage() {
           selectedDateLabel={selectedDateLabel}
           onClose={() => setIsAddModalOpen(false)}
           onSubmit={handleCreateSchedule}
-          onPreviewPrescription={handlePreviewPrescription}
-          onConfirmPrescription={handleConfirmPrescription}
         />
       ) : null}
     </div>
