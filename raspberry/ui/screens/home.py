@@ -71,8 +71,9 @@ def _next_medication() -> str:
         if t > now_min:
             h, m = divmod(t, 60)
             return f"{h:02d}:{m:02d}"
-    h, m = divmod(times[0], 60)
-    return f"{h:02d}:{m:02d}"
+    
+    # 현재 시각 이후의 스케줄이 없으면 --:-- 반환
+    return "--:--"
 
 
 class _MenuButton(QWidget):
