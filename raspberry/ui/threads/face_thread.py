@@ -1,8 +1,11 @@
 import time
+import logging
 
 from PyQt5.QtCore import QThread, pyqtSignal
 
 from config.settings import UI_TEST_MODE
+
+logger = logging.getLogger(__name__)
 
 MODE_AUTH = "auth"
 MODE_REGISTER = "register"
@@ -29,9 +32,12 @@ class FaceThread(QThread):
 
     def run(self):
         self._running = True
+        logger.info(f"[FACE_THREAD] Started (mode: {self._mode})")
+        
         if UI_TEST_MODE:
             self._run_test_mode()
             return
+            
         if self._mode == MODE_AUTH:
             self._run_auth()
         else:
@@ -42,6 +48,7 @@ class FaceThread(QThread):
         if self._mode == MODE_AUTH:
             self.msleep(2000)
             if self._running:
+                logger.info("[FACE_THREAD] Test mode auth success")
                 self.auth_success.emit("테스트유저", 0.99)
         else:
             for i in range(1, _REGISTER_TARGET + 1):
@@ -50,66 +57,78 @@ class FaceThread(QThread):
                 self.capture_progress.emit(i)
                 self.msleep(100)
             if self._running:
+                logger.info("[FACE_THREAD] Test mode register complete")
                 self.capture_done.emit([])
 
     def stop(self):
         self._running = False
-
-    # ──────────────────────────────── auth ───────────────────────────────────
+        logger.info("[FACE_THREAD] Stopping...")
 
     def _run_auth(self):
+        """
+        [최적화] 2초 동안 15장의 RGB 프레임을 수집.
+        속도와 정확도의 균형을 맞춘 설정.
+        """
         from camera.camera import get_frame
         from face_detection.mediapipe_detector import detect_face
-        from auth.authenticate import authenticate
+        import cv2
 
-        # 카메라 워밍업 시간을 인증 시간으로 소모하지 않도록
-        # 첫 프레임이 도착한 시점부터 AUTH_TIMEOUT_SEC 카운트다운 시작
         deadline = None
-        frame_count = 0
+        face_imgs = []
+        max_capture = 15    # 15장으로 조정
+        last_capture_time = 0
+        capture_interval = 0.13 # 2초 내외로 15장 수집 가능 (0.13 * 15 = 1.95s)
 
-        while self._running:
+        logger.info(f"[FACE_THREAD] Starting auth capture (Target: {max_capture} frames in ~2s)")
+
+        while self._running and len(face_imgs) < max_capture:
             frame = get_frame()
             if frame is None:
-                self.msleep(30)
+                self.msleep(10)
                 continue
 
+            now = time.time()
             if deadline is None:
-                deadline = time.time() + AUTH_TIMEOUT_SEC
-            if time.time() > deadline:
+                deadline = now + AUTH_TIMEOUT_SEC
+            if now > deadline:
+                logger.warning("[FACE_THREAD] Auth timeout during capture")
                 break
 
-            # 항상 화면 갱신 시그널을 먼저 보냄
             self.frame_ready.emit(frame.copy())
-            frame_count += 1
 
-            # N프레임마다 한 번씩만 AI 연산 수행
-            if frame_count % _DETECT_EVERY_N != 0:
-                self.msleep(10) # CPU 부하 감소를 위한 짧은 휴식
-                continue
+            if now - last_capture_time > capture_interval:
+                # 검출은 저해상도로 빠르게
+                small_frame = cv2.resize(frame, (320, 240))
+                rgb_small = cv2.cvtColor(small_frame, cv2.COLOR_BGR2RGB)
+                faces = detect_face(rgb_small)
+                
+                if faces:
+                    sx, sy, sw, sh = faces[0]
+                    x, y, w, h = sx*2, sy*2, sw*2, sh*2
+                    
+                    face_bgr = frame[max(0,y):min(480,y+h), max(0,x):min(640,x+w)]
+                    if face_bgr.size > 0:
+                        # AI용 RGB 변환
+                        face_rgb = cv2.cvtColor(face_bgr, cv2.COLOR_BGR2RGB)
+                        face_imgs.append(face_rgb)
+                        last_capture_time = now
+                        logger.debug(f"[AUTH_CAPTURE] Progress: {len(face_imgs)}/{max_capture}")
 
-            faces = detect_face(frame)
-            if not faces:
-                continue
-
-            x, y, w, h = faces[0]
-            face_img = frame[y: y + h, x: x + w]
-            if face_img.size == 0:
-                continue
-
-            user, score = authenticate(face_img)
-            if user:
-                if self._running:
-                    self.auth_success.emit(user, float(score))
-                return
+            self.msleep(5)
 
         if self._running:
-            self.auth_failed.emit()
+            if face_imgs:
+                logger.info(f"[FACE_THREAD] Capture done. Total {len(face_imgs)} frames collected.")
+                self.capture_done.emit(face_imgs)
+            else:
+                self.auth_failed.emit()
 
     # ─────────────────────────────── register ────────────────────────────────
 
     def _run_register(self):
         from camera.camera import get_frame
         from face_detection.mediapipe_detector import detect_face
+        import cv2
         face_imgs = []
         frame_count = 0
         last_capture_time = 0.0
@@ -117,41 +136,39 @@ class FaceThread(QThread):
         while self._running and len(face_imgs) < _REGISTER_TARGET:
             frame = get_frame()
             if frame is None:
-                self.msleep(30)
+                self.msleep(10)
                 continue
 
-            # 항상 프레임 송출 → 디스플레이 ~30fps 유지
+            # 항상 프레임 송출 (등록 시에도 부드럽게)
             self.frame_ready.emit(frame.copy())
             frame_count += 1
-            self.msleep(33)
 
-            # N프레임마다 + 캡처 쿨다운 지난 경우에만 AI 검출
             now = time.time()
-            if frame_count % _DETECT_EVERY_N != 0:
-                continue
             if now - last_capture_time < _REGISTER_COOLDOWN_SEC:
+                self.msleep(1)
                 continue
 
-            faces = detect_face(frame)
-            if not faces:
-                continue
+            # 등록 시에도 검출 속도 향상을 위해 저해상도 사용
+            small_frame = cv2.resize(frame, (320, 240))
+            faces = detect_face(small_frame)
+            
+            if faces:
+                sx, sy, sw, sh = faces[0]
+                x, y, w, h = sx*2, sy*2, sw*2, sh*2
+                
+                fh, fw = frame.shape[:2]
+                mx, my = int(w * _FACE_MARGIN), int(h * _FACE_MARGIN)
+                x1, y1 = max(0, x - mx), max(0, y - my)
+                x2, y2 = min(fw, x + w + mx), min(fh, y + h + my)
 
-            x, y, w, h = faces[0]
-            fh, fw = frame.shape[:2]
-            mx = int(w * _FACE_MARGIN)
-            my = int(h * _FACE_MARGIN)
-            x1 = max(0, x - mx)
-            y1 = max(0, y - my)
-            x2 = min(fw, x + w + mx)
-            y2 = min(fh, y + h + my)
+                crop = frame[y1:y2, x1:x2]
+                if crop.size > 0:
+                    face_imgs.append(crop)
+                    last_capture_time = now
+                    self.capture_progress.emit(len(face_imgs))
+                    logger.debug(f"[REGISTER] Captured {len(face_imgs)}/20")
 
-            crop = frame[y1:y2, x1:x2]
-            if crop.size == 0:
-                continue
-
-            face_imgs.append(crop)
-            last_capture_time = now
-            self.capture_progress.emit(len(face_imgs))
+            self.msleep(1)
 
         if self._running:
             self.capture_done.emit(face_imgs)

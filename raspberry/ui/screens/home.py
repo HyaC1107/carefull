@@ -48,6 +48,8 @@ def _fmt_ampm(hour: int, minute: int) -> str:
 
 def _next_medication() -> str:
     try:
+        if not os.path.exists(_SCHEDULE_PATH):
+            return "--:--"
         with open(_SCHEDULE_PATH, "r", encoding="utf-8") as f:
             schedules = json.load(f)
     except Exception:
@@ -55,24 +57,34 @@ def _next_medication() -> str:
 
     now = datetime.now()
     now_min = now.hour * 60 + now.minute
+    
     times = []
     for e in schedules:
-        t = e.get("time_to_take") or e.get("time", "")
-        t = str(t)[:5]
+        # time_to_take 또는 time 필드 확인
+        t_str = e.get("time_to_take") or e.get("time", "")
+        if not t_str: continue
+        
         try:
-            h, m = map(int, t.split(":"))
+            # "HH:MM:SS" 또는 "HH:MM" 형식 처리
+            parts = t_str.split(":")
+            h = int(parts[0])
+            m = int(parts[1])
             times.append(h * 60 + m)
-        except Exception:
+        except (ValueError, IndexError):
             continue
-    times.sort()
+            
     if not times:
         return "--:--"
+        
+    times.sort()
+    
+    # 현재 시각보다 늦은 첫 번째 시간 찾기
     for t in times:
         if t > now_min:
             h, m = divmod(t, 60)
             return f"{h:02d}:{m:02d}"
-    h, m = divmod(times[0], 60)
-    return f"{h:02d}:{m:02d}"
+            
+    return "--:--"
 
 
 class _MenuButton(QWidget):
