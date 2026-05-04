@@ -86,7 +86,7 @@ router.get('/', verifyToken, async (req, res) => {
         if (!patient_id) return sendError(res, 404, '환자 정보를 찾을 수 없습니다');
 
         const { rows } = await pool.query(
-            `SELECT voice_id, file_name, file_size, mime_type, status, uploaded_at
+            `SELECT voice_id, file_name, file_size, mime_type, status, uploaded_at, updated_at, elevenlabs_voice_id
              FROM voice_samples
              WHERE patient_id = $1
              ORDER BY uploaded_at DESC
@@ -215,6 +215,13 @@ async function _run_elevenlabs_pipeline(voice_id, audio_abs_path, patient_id) {
             `UPDATE voice_samples SET status = 'error', updated_at = NOW() WHERE voice_id = $1`,
             [voice_id]
         );
+        if (err.message?.includes('paid_plan_required') || err.message?.includes('can_not_use_instant_voice_cloning')) {
+            console.error('[voice] ElevenLabs account permission required:', {
+                voice_id,
+                patient_id,
+                message: err.message,
+            });
+        }
         throw err;
     }
 }

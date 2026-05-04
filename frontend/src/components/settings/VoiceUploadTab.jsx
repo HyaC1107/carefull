@@ -4,6 +4,7 @@ import { TOKEN_STORAGE_KEY } from '../../api'
 const API_BASE = import.meta.env.VITE_API_BASE_URL || ''
 const MAX_FILE_MB = 10
 const ALLOWED_TYPES = /\.(mp3|wav|m4a|webm|ogg)$/i
+const CONVERTING_STATUSES = new Set(['pending', 'processing'])
 
 function VoiceUploadTab() {
   const [mode, setMode] = useState('idle') // idle | recording | previewing | uploading | done | error
@@ -20,6 +21,7 @@ function VoiceUploadTab() {
   const chunksRef = useRef([])
   const streamRef = useRef(null)
   const timerRef = useRef(null)
+  const pollingRef = useRef(null)
 
   useEffect(() => {
     fetchUploadedVoice()
@@ -27,8 +29,20 @@ function VoiceUploadTab() {
       if (audioUrl) URL.revokeObjectURL(audioUrl)
       stopStream()
       clearInterval(timerRef.current)
+      clearInterval(pollingRef.current)
     }
   }, [])
+
+  useEffect(() => {
+    clearInterval(pollingRef.current)
+    if (!CONVERTING_STATUSES.has(uploadedVoice?.status)) return undefined
+
+    pollingRef.current = setInterval(() => {
+      fetchUploadedVoice()
+    }, 3000)
+
+    return () => clearInterval(pollingRef.current)
+  }, [uploadedVoice?.status])
 
   function stopStream() {
     if (streamRef.current) {
@@ -45,9 +59,19 @@ function VoiceUploadTab() {
       })
       if (res.ok) {
         const data = await res.json()
-        setUploadedVoice(data.voice || null)
+        const voice = data.voice || null
+        setUploadedVoice(voice)
+        return voice
       }
     } catch {}
+    return null
+  }
+
+  function getVoiceStatusText(status) {
+    if (status === 'ready') return '디바이스 적용 준비 완료'
+    if (status === 'error') return '음성 변환 실패'
+    if (CONVERTING_STATUSES.has(status)) return '음성 변환 중'
+    return '적용 중'
   }
 
   function validateFile(file) {
@@ -135,7 +159,8 @@ function VoiceUploadTab() {
         throw new Error(errData.message || '업로드에 실패했습니다')
       }
       const data = await res.json()
-      setUploadedVoice(data.voice || { file_name: fileName, uploaded_at: new Date().toISOString() })
+      const voice = data.voice || { file_name: fileName, uploaded_at: new Date().toISOString(), status: 'pending' }
+      setUploadedVoice(voice)
       setMode('done')
       setAudioBlob(null)
       if (audioUrl) URL.revokeObjectURL(audioUrl)
@@ -176,7 +201,7 @@ function VoiceUploadTab() {
               </p>
             )}
           </div>
-          <span className="voice-current__badge">적용 중</span>
+          <span className="voice-current__badge">{getVoiceStatusText(uploadedVoice.status)}</span>
         </div>
       )}
 
@@ -186,7 +211,7 @@ function VoiceUploadTab() {
           <div className="voice-done__check">✓</div>
           <div className="voice-done__text">
             <p className="voice-done__title">목소리 등록 완료</p>
-            <p className="voice-done__desc">AI가 목소리를 학습 후 복약 알림에 적용합니다</p>
+            <p className="voice-done__desc">{getVoiceStatusText(uploadedVoice?.status)}</p>
           </div>
           <button className="voice-done__retry" onClick={() => { setMode('idle'); setUploadedVoice(null) }}>
             다시 업로드

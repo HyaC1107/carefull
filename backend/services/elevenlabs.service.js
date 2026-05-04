@@ -35,9 +35,16 @@ async function clone_voice(audio_file_path, voice_name) {
             timeout: 60_000,
         }));
     } catch (err) {
+        const response_message = err.response?.data?.detail || err.response?.data?.message || err.message;
+        const message_text = typeof response_message === 'string'
+            ? response_message
+            : JSON.stringify(response_message);
+        if (message_text.includes('paid_plan_required') || message_text.includes('can_not_use_instant_voice_cloning')) {
+            err.message = `ElevenLabs paid_plan_required: ${message_text}`;
+        }
         console.error('[ElevenLabs] clone_voice failed:', {
             status: err.response?.status,
-            message: err.response?.data?.detail || err.response?.data?.message || err.message,
+            message: message_text,
         });
         throw err;
     }
