@@ -98,6 +98,7 @@ class App(QMainWindow):
             return
         self._sync_worker = _ScheduleSyncWorker()
         self._sync_worker.sync_done.connect(self._on_sync_done)
+        self._sync_worker.finished.connect(self._sync_worker.deleteLater)
         self._sync_worker.start()
 
     def _on_sync_done(self, schedules: list):

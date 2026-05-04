@@ -47,11 +47,15 @@ def stop_alarm():
     if _alarm_process:
         logger.info("Stopping alarm sound...")
         try:
-            if _alarm_process.poll() is None: # 프로세스가 아직 실행 중이면
+            if _alarm_process.poll() is None:
                 _alarm_process.terminate()
                 _alarm_process.wait(timeout=1)
         except Exception:
-            if _alarm_process:
-                _alarm_process.kill()
+            try:
+                if _alarm_process:
+                    _alarm_process.kill()
+                    _alarm_process.wait(timeout=1)
+            except Exception as e:
+                logger.warning("alarm process kill failed: %s", e)
         finally:
             _alarm_process = None

@@ -1,6 +1,7 @@
 import time
 import logging
 from pyfingerprint.pyfingerprint import PyFingerprint
+from config.settings import FINGERPRINT_SCAN_TIMEOUT
 
 logger = logging.getLogger("Fingerprint")
 
@@ -32,9 +33,9 @@ class FingerprintManager:
             logger.error(f"Fingerprint sensor connection failed: {e}")
             return None
 
-    def search(self):
+    def search(self, timeout: float = FINGERPRINT_SCAN_TIMEOUT):
         """
-        지문 스캔 후 (ID, score) 튜플 반환. 
+        지문 스캔 후 (ID, score) 튜플 반환.
         미등록 또는 실패 시 (-1, 0).
         """
         if not self.sensor:
@@ -43,8 +44,11 @@ class FingerprintManager:
 
         try:
             logger.info("Waiting for finger...")
-            # 센서가 지문을 읽을 때까지 대기 (UI에서 사용 시 Non-blocking 고려 필요)
+            deadline = time.time() + timeout
             while not self.sensor.readImage():
+                if time.time() > deadline:
+                    logger.warning("Fingerprint search timed out after %ss.", timeout)
+                    return -1, 0
                 time.sleep(0.1)
 
             self.sensor.convertImage(0x01)
@@ -73,7 +77,7 @@ class FingerprintManager:
             logger.error(f"Error deleting fingerprint template: {e}")
             return False
 
-    def enroll(self, position):
+    def enroll(self, position, timeout: float = FINGERPRINT_SCAN_TIMEOUT):
         """
         새로운 지문을 특정 위치(ID)에 등록
         :param position: 저장할 ID 번호 (0~1000 등)
@@ -85,16 +89,24 @@ class FingerprintManager:
         try:
             # 1. 첫 번째 지문 스캔
             logger.info(f"Enroll start for ID #{position}. Place finger.")
+            deadline = time.time() + timeout
             while not self.sensor.readImage():
+                if time.time() > deadline:
+                    logger.warning("Fingerprint first scan timed out.")
+                    return False
                 time.sleep(0.1)
             self.sensor.convertImage(0x01)
-            
+
             logger.info("First scan done. Remove finger.")
             time.sleep(2)
-            
+
             # 2. 두 번째 지문 스캔 (확인용)
             logger.info("Place the same finger again.")
+            deadline = time.time() + timeout
             while not self.sensor.readImage():
+                if time.time() > deadline:
+                    logger.warning("Fingerprint second scan timed out.")
+                    return False
                 time.sleep(0.1)
             self.sensor.convertImage(0x02)
 

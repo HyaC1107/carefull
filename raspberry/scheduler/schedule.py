@@ -49,8 +49,11 @@ def check_schedule(schedules: list = None) -> list:
 
     due = []
     for s in schedules:
-        sche_id = s.get("sche_id") or s.get("user")
-        time_val = s.get("time_to_take") or s.get("time", "")
+        sche_id = s.get("sche_id")
+        time_val = s.get("time_to_take", "")
+        if not sche_id or not time_val:
+            logger.warning("schedule missing sche_id or time_to_take: %s", s)
+            continue
         sche_time = _to_hhmm(time_val)
 
         key = f"{sche_id}_{sche_time}"
