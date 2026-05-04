@@ -33,6 +33,15 @@ const upload = multer({
     },
 });
 
+// ─── 서버 간 콜백 인증 ────────────────────────────────────────────────────────
+function verifyCallbackSecret(req, res, next) {
+    const secret = process.env.VOICE_CALLBACK_SECRET;
+    if (secret && req.headers['x-callback-secret'] !== secret) {
+        return sendError(res, 401, '인증되지 않은 요청입니다');
+    }
+    next();
+}
+
 // ─── 공통 헬퍼 ────────────────────────────────────────────────────────────────
 async function get_patient_id(mem_id) {
     const { rows } = await pool.query(
@@ -190,6 +199,7 @@ async function _run_elevenlabs_pipeline(voice_id, audio_abs_path, patient_id) {
         console.log(`[voice] 파이프라인 완료 patient_id=${patient_id}`);
 
     } catch (err) {
+        remove_file(audio_abs_path);
         await pool.query(
             `UPDATE voice_samples SET status = 'error', updated_at = NOW() WHERE voice_id = $1`,
             [voice_id]
@@ -221,7 +231,7 @@ router.delete('/', verifyToken, async (req, res) => {
 
 // ─── PATCH /api/voice/status ──────────────────────────────────────────────────
 // AI 처리 결과 상태 업데이트 (AI 서버 → 백엔드 콜백용)
-router.patch('/status', async (req, res) => {
+router.patch('/status', verifyCallbackSecret, async (req, res) => {
     const { voice_id, status } = req.body;
     const allowed = ['pending', 'processing', 'ready', 'error'];
     if (!voice_id || !allowed.includes(status)) {
