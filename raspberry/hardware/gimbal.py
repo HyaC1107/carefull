@@ -26,11 +26,11 @@ class Gimbal:
         self.reverse = GIMBAL_REVERSE
         
         # [사용자 최적화 파라미터 유지]
-        self.threshold = 70        
+        self.threshold = 30        
         self.alpha = 0.1           
         self.smooth_error_x = 0
         self.step_size = 0.8       
-        self.move_interval = 0.15  
+        self.move_interval = 0.05  
         self.last_move_time = 0
         
         # pigpio 초기화
