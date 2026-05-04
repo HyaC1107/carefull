@@ -3,7 +3,7 @@ const path = require('path');
 const axios = require('axios');
 
 const BASE_URL      = 'https://api.elevenlabs.io/v1';
-const FIXED_MESSAGE = '약 먹을 시간이에요';
+const FIXED_MESSAGE = '약 먹을 시간이에요. 보호자님이 알려드려요. 물과 함께 천천히 약을 복용해주세요.';
 const MODEL_ID      = 'eleven_multilingual_v2';
 
 function api_key() {
