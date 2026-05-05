@@ -130,7 +130,12 @@ class FaceThread(QThread):
                             gimbal.track_face((x, y, w, h), fw, fh)
 
                         if _is_centered((x, y, w, h), fw):
-                            face_bgr = frame[max(0, y):min(fh, y + h), max(0, x):min(fw, x + w)]
+                            mx, my = int(w * _FACE_MARGIN), int(h * _FACE_MARGIN)
+                            x1 = max(0, x - mx)
+                            y1 = max(0, y - my)
+                            x2 = min(fw, x + w + mx)
+                            y2 = min(fh, y + h + my)
+                            face_bgr = frame[y1:y2, x1:x2]
                             if face_bgr.size > 0:
                                 face_imgs.append(face_bgr)
                                 last_capture_time = now

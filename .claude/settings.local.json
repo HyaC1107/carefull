@@ -27,7 +27,10 @@
       "Bash(xargs grep *)",
       "Bash(npm install *)",
       "Bash(xargs -I {} bash -c \"wc -l '{}' && echo '---'\")",
-      "WebFetch(domain:pypi.org)"
+      "WebFetch(domain:pypi.org)",
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\smhrd\\\\Desktop\\\\carefull\\\\raspberry\" -Recurse -Force)",
+      "Bash(Select-Object -Property FullName, PSIsContainer)",
+      "Bash(ConvertTo-Json -Depth 100)"
     ]
   }
 }

@@ -4,7 +4,7 @@ import os
 import numpy as np
 from PyQt5.QtCore import Qt, QThread, QTimer, pyqtSignal
 from PyQt5.QtGui import QColor, QFont, QLinearGradient, QPainter
-from PyQt5.QtWidgets import QLabel, QPushButton, QVBoxLayout, QWidget
+from PyQt5.QtWidgets import QHBoxLayout, QLabel, QPushButton, QVBoxLayout, QWidget
 
 from ui.widgets.camera_card_widget import CameraCardWidget
 from ui.threads.face_thread import AUTH_TIMEOUT_SEC, FaceThread, MODE_AUTH, MODE_REGISTER
@@ -37,7 +37,9 @@ class _EmbeddingSaveWorker(QThread):
             db["_latest"] = mean_emb
             with open(_DB_PATH, "w", encoding="utf-8") as f: json.dump(db, f, indent=2)
             from api.client import upload_face_embedding
+            from auth.authenticate import invalidate_embedding_cache
             ok = upload_face_embedding(mean_emb)
+            invalidate_embedding_cache()
             self.done.emit(ok)
         except Exception: self.done.emit(False)
 
@@ -95,8 +97,8 @@ class _AuthWorker(QThread):
                 best_user = user
                 highest_avg = avg_score
 
-        # 보안 강화: 매칭 비율이 60% 이상이어야만 승인 (FAR 감소 핵심)
-        STRICT_RATIO_THRESHOLD = 0.6
+        # 매칭 비율 임계값: 전체 프레임 중 이 비율 이상이 threshold를 넘으면 승인
+        STRICT_RATIO_THRESHOLD = 0.45
         final_ratio = max_votes / total_count
 
         if final_ratio >= STRICT_RATIO_THRESHOLD:
@@ -187,13 +189,73 @@ class CameraViewScreen(QWidget):
         self._processing_overlay = QWidget(parent=self)
         self._processing_overlay.setStyleSheet("background-color: #1e293b;")
         self._processing_overlay.hide()
-        
+
         proc_lay = QVBoxLayout(self._processing_overlay)
         self._proc_msg = QLabel("사용자 확인 중입니다...\n잠시만 기다려 주세요", self._processing_overlay)
         self._proc_msg.setFont(QFont("Sans Serif", 40, QFont.Bold))
         self._proc_msg.setAlignment(Qt.AlignCenter)
         self._proc_msg.setStyleSheet("color: white;")
         proc_lay.addWidget(self._proc_msg)
+
+        # ── 업로드 실패 오버레이 (등록 모드, 서버 전송 실패 시) ──────────────
+        self._upload_error_overlay = QWidget(parent=self)
+        self._upload_error_overlay.setStyleSheet("background-color: #1e293b;")
+        self._upload_error_overlay.hide()
+
+        err_lay = QVBoxLayout(self._upload_error_overlay)
+        err_lay.setAlignment(Qt.AlignCenter)
+        err_lay.setSpacing(20)
+
+        _err_title = QLabel("서버 저장에 실패했습니다", self._upload_error_overlay)
+        _err_title.setFont(QFont("Sans Serif", 36, QFont.Bold))
+        _err_title.setAlignment(Qt.AlignCenter)
+        _err_title.setStyleSheet("color: white;")
+        err_lay.addWidget(_err_title)
+
+        _err_sub = QLabel("로컬 저장은 완료됐습니다\n다시 시도하거나 계속 진행할 수 있습니다",
+                          self._upload_error_overlay)
+        _err_sub.setFont(QFont("Sans Serif", 26))
+        _err_sub.setAlignment(Qt.AlignCenter)
+        _err_sub.setStyleSheet("color: #94a3b8;")
+        err_lay.addWidget(_err_sub)
+
+        err_btn_row = QHBoxLayout()
+        err_btn_row.setSpacing(24)
+        err_btn_row.setAlignment(Qt.AlignCenter)
+
+        self._btn_upload_retry = QPushButton("다시 시도", self._upload_error_overlay)
+        self._btn_upload_retry.setFont(QFont("Sans Serif", 28, QFont.Bold))
+        self._btn_upload_retry.setFixedHeight(90)
+        self._btn_upload_retry.setFixedWidth(320)
+        self._btn_upload_retry.setStyleSheet("""
+            QPushButton {
+                background-color: #3b82f6;
+                color: white;
+                border-radius: 16px;
+                border: none;
+            }
+            QPushButton:pressed { background-color: #2563eb; }
+        """)
+        self._btn_upload_retry.clicked.connect(self._on_upload_retry)
+
+        self._btn_upload_continue = QPushButton("계속 진행", self._upload_error_overlay)
+        self._btn_upload_continue.setFont(QFont("Sans Serif", 28, QFont.Bold))
+        self._btn_upload_continue.setFixedHeight(90)
+        self._btn_upload_continue.setFixedWidth(320)
+        self._btn_upload_continue.setStyleSheet("""
+            QPushButton {
+                background-color: transparent;
+                color: white;
+                border-radius: 16px;
+                border: 2px solid white;
+            }
+            QPushButton:pressed { background-color: rgba(255,255,255,30); }
+        """)
+        self._btn_upload_continue.clicked.connect(self._on_upload_continue)
+
+        err_btn_row.addWidget(self._btn_upload_retry)
+        err_btn_row.addWidget(self._btn_upload_continue)
+        err_lay.addLayout(err_btn_row)
 
         self._apply_theme()
 
@@ -208,6 +270,7 @@ class CameraViewScreen(QWidget):
         self._sub_lbl.setGeometry(0, h - int(h * 0.12), w, 52)
         self._loading_lbl.setGeometry((w-400)//2, (h-100)//2, 400, 100)
         self._processing_overlay.setGeometry(0, 0, w, h)
+        self._upload_error_overlay.setGeometry(0, 0, w, h)
 
     def _apply_theme(self):
         t = _THEMES.get(self._mode, _THEMES[MODE_AUTH])
@@ -220,6 +283,8 @@ class CameraViewScreen(QWidget):
     def showEvent(self, event):
         super().showEvent(event)
         self._processing_overlay.hide()
+        self._upload_error_overlay.hide()
+        self._last_face_imgs = []
         self._apply_theme()
         self._start_thread()
 
@@ -285,6 +350,7 @@ class CameraViewScreen(QWidget):
         self._stop_thread()
         
         if self._mode == MODE_REGISTER:
+            self._last_face_imgs = face_imgs
             self._sub_lbl.setText("저장 중...")
             self._save_worker = _EmbeddingSaveWorker(face_imgs, parent=self)
             self._save_worker.done.connect(self._on_save_done)
@@ -324,4 +390,18 @@ class CameraViewScreen(QWidget):
             self._sub_lbl.setStyleSheet("color: #93c5fd; background: transparent;")
 
     def _on_save_done(self, ok: bool):
+        if ok:
+            if self._app: self._app.show_screen("fingerprint_register")
+        else:
+            self._upload_error_overlay.show()
+
+    def _on_upload_retry(self):
+        self._upload_error_overlay.hide()
+        self._sub_lbl.setText("재업로드 중...")
+        self._save_worker = _EmbeddingSaveWorker(self._last_face_imgs, parent=self)
+        self._save_worker.done.connect(self._on_save_done)
+        self._save_worker.start()
+
+    def _on_upload_continue(self):
+        self._upload_error_overlay.hide()
         if self._app: self._app.show_screen("fingerprint_register")

@@ -163,10 +163,12 @@ class FingerprintAuthScreen(QWidget):
         retry_row = QHBoxLayout(self._retry_widget)
         retry_row.setContentsMargins(0, 0, 0, 0)
         retry_row.setSpacing(24)
+        retry_row.setAlignment(Qt.AlignCenter)
 
         self._btn_retry = QPushButton("다시 시도")
         self._btn_retry.setFont(QFont("Sans Serif", 28, QFont.Bold))
         self._btn_retry.setFixedHeight(100)
+        self._btn_retry.setFixedWidth(380)
         self._btn_retry.setStyleSheet(f"""
             QPushButton {{
                 background-color: {_BLUE};
@@ -178,9 +180,10 @@ class FingerprintAuthScreen(QWidget):
         """)
         self._btn_retry.clicked.connect(self._on_retry)
 
-        self._btn_give_up = QPushButton("포기")
+        self._btn_give_up = QPushButton("취소")
         self._btn_give_up.setFont(QFont("Sans Serif", 28, QFont.Bold))
         self._btn_give_up.setFixedHeight(100)
+        self._btn_give_up.setFixedWidth(380)
         self._btn_give_up.setStyleSheet(f"""
             QPushButton {{
                 background-color: white;
@@ -192,11 +195,71 @@ class FingerprintAuthScreen(QWidget):
         """)
         self._btn_give_up.clicked.connect(self._on_auth_failure)
 
-        retry_row.addWidget(self._btn_retry, 1)
-        retry_row.addWidget(self._btn_give_up, 1)
+        retry_row.addWidget(self._btn_retry)
+        retry_row.addWidget(self._btn_give_up)
 
         self._retry_widget.hide()
         root.addWidget(self._retry_widget)
+
+        # ── 전체 재시도 확인 영역 (얼굴 + 지문 모두 실패 시) ─────────────
+        self._full_retry_widget = QWidget()
+        full_retry_lay = QVBoxLayout(self._full_retry_widget)
+        full_retry_lay.setContentsMargins(0, 0, 0, 0)
+        full_retry_lay.setSpacing(16)
+        full_retry_lay.setAlignment(Qt.AlignCenter)
+
+        self._full_retry_title_lbl = QLabel("다시 시도하시겠습니까?")
+        self._full_retry_title_lbl.setFont(QFont("Sans Serif", 36, QFont.Bold))
+        self._full_retry_title_lbl.setAlignment(Qt.AlignCenter)
+        self._full_retry_title_lbl.setStyleSheet(f"color: {_DARK};")
+        full_retry_lay.addWidget(self._full_retry_title_lbl)
+
+        self._full_retry_sub_lbl = QLabel("얼굴 인증부터 다시 시작합니다")
+        self._full_retry_sub_lbl.setFont(QFont("Sans Serif", 26))
+        self._full_retry_sub_lbl.setAlignment(Qt.AlignCenter)
+        self._full_retry_sub_lbl.setStyleSheet("color: #6b7280;")
+        full_retry_lay.addWidget(self._full_retry_sub_lbl)
+
+        full_retry_btn_row = QHBoxLayout()
+        full_retry_btn_row.setSpacing(24)
+        full_retry_btn_row.setAlignment(Qt.AlignCenter)
+
+        self._btn_full_retry_yes = QPushButton("예, 처음부터")
+        self._btn_full_retry_yes.setFont(QFont("Sans Serif", 28, QFont.Bold))
+        self._btn_full_retry_yes.setFixedHeight(100)
+        self._btn_full_retry_yes.setFixedWidth(380)
+        self._btn_full_retry_yes.setStyleSheet(f"""
+            QPushButton {{
+                background-color: {_BLUE};
+                color: white;
+                border-radius: 18px;
+                border: none;
+            }}
+            QPushButton:pressed {{ background-color: #2563eb; }}
+        """)
+        self._btn_full_retry_yes.clicked.connect(self._on_full_retry)
+
+        self._btn_full_retry_no = QPushButton("아니오")
+        self._btn_full_retry_no.setFont(QFont("Sans Serif", 28, QFont.Bold))
+        self._btn_full_retry_no.setFixedHeight(100)
+        self._btn_full_retry_no.setFixedWidth(380)
+        self._btn_full_retry_no.setStyleSheet(f"""
+            QPushButton {{
+                background-color: white;
+                color: {_RED};
+                border-radius: 18px;
+                border: 2px solid {_RED};
+            }}
+            QPushButton:pressed {{ background-color: #fef2f2; }}
+        """)
+        self._btn_full_retry_no.clicked.connect(self._on_auth_failure_final)
+
+        full_retry_btn_row.addWidget(self._btn_full_retry_yes)
+        full_retry_btn_row.addWidget(self._btn_full_retry_no)
+        full_retry_lay.addLayout(full_retry_btn_row)
+
+        self._full_retry_widget.hide()
+        root.addWidget(self._full_retry_widget)
 
         root.addStretch(2)
 
@@ -223,6 +286,7 @@ class FingerprintAuthScreen(QWidget):
         self._sub_lbl.setText(f"남은 시도 {_MAX_RETRIES - self._retry_count}회")
         self._sub_lbl.setStyleSheet(f"color: {_BLUE};")
         self._retry_widget.hide()
+        self._full_retry_widget.hide()
 
     def _start_auth(self):
         self._stop_thread()
@@ -251,7 +315,7 @@ class FingerprintAuthScreen(QWidget):
         self._stop_thread()
 
     def _show_retry_ui(self, msg: str):
-        """실패 메시지 표시 + 재시도/포기 버튼 노출."""
+        """실패 메시지 표시 + 재시도/취소 버튼 노출."""
         self._title_lbl.setText(msg)
         remaining = _MAX_RETRIES - self._retry_count
         if remaining > 0:
@@ -322,7 +386,27 @@ class FingerprintAuthScreen(QWidget):
         self._app.show_screen("auth_result")
 
     def _on_auth_failure(self):
+        """취소/실패 → 전체 재시도 확인 다이얼로그 표시."""
         self._stop_timers()
+        self._retry_widget.hide()
+        self._title_lbl.setText("인증에 실패했습니다")
+        self._sub_lbl.setText("얼굴 인증부터 다시 시도할 수 있습니다")
+        self._sub_lbl.setStyleSheet(f"color: {_RED};")
+        self._full_retry_widget.show()
+
+    def _on_full_retry(self):
+        """처음부터 (얼굴 인증 화면으로 이동) 재시도."""
+        self._full_retry_widget.hide()
+        if self._app:
+            if self._app.current_session.get("fp_test_mode"):
+                self._app.current_session["fp_test_mode"] = False
+                self._app.show_screen("home")
+                return
+            self._app.show_screen("camera_view")
+
+    def _on_auth_failure_final(self):
+        """최종 포기 → auth_result 실패 화면으로 이동."""
+        self._full_retry_widget.hide()
         if not self._app:
             return
         if self._app.current_session.get("fp_test_mode"):
