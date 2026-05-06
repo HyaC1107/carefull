@@ -1,64 +1,72 @@
+import logging
 import os
 import subprocess
-import logging
-from config.settings import VOICES_DIR
+
+from config.settings import SOUNDS_DIR, VOICES_DIR
 
 logger = logging.getLogger("Alarm")
 
 _alarm_process = None
 
-def play_alarm(filename=None):
-    """
-    알람 소리 재생
-    우선순위:
-    1. filename이 명시된 경우 (예: voice_1.mp3)
-    2. 서버와 동기화된 커스텀 알림음 (alarm1.mp3)
-    3. 로컬 기본 알림음 (default_alarm.mp3)
+
+def play_alarm(filename: str = None, loop: bool = False):
+    """알람 재생.
+
+    파일 탐색 순서:
+      1. assets/sounds/default_alarm.mp3  (기본 내장음)
+      2. voices/default_alarm.mp3         (이전 경로 fallback)
+      filename 지정 시 위 두 디렉토리에서 먼저 탐색.
+
+    loop=True 이면 stop_alarm() 호출 전까지 반복 재생.
     """
     global _alarm_process
     stop_alarm()
-    
-    # 1. 파일 후보 리스트 (순서대로 확인)
+
     candidates = []
     if filename:
-        candidates.append(filename)
-    candidates.append("alarm1.mp3")
-    candidates.append("default_alarm.mp3")
-    
-    file_path = None
-    for cand in candidates:
-        path = os.path.join(VOICES_DIR, cand)
-        if os.path.exists(path):
-            file_path = path
-            break
-            
+        candidates.append(os.path.join(SOUNDS_DIR, filename))
+        candidates.append(os.path.join(VOICES_DIR, filename))
+    candidates.append(os.path.join(SOUNDS_DIR, "default_alarm.mp3"))
+    candidates.append(os.path.join(VOICES_DIR, "default_alarm.mp3"))
+
+    file_path = next((p for p in candidates if os.path.exists(p)), None)
     if not file_path:
-        logger.error("No alarm files found (alarm1.mp3, default_alarm.mp3 both missing)")
+        logger.error("알람 파일을 찾을 수 없습니다: %s", candidates)
         return
 
-    # 3. 재생
-    logger.info(f"Playing alarm: {file_path}")
+    logger.info("알람 재생: %s (loop=%s)", file_path, loop)
     try:
-        # mpg123을 사용하여 비동기 재생
-        _alarm_process = subprocess.Popen(["mpg123", "-q", file_path])
+        cmd = ["mpg123", "-q"]
+        if loop:
+            cmd += ["--loop", "-1"]
+        cmd.append(file_path)
+        _alarm_process = subprocess.Popen(cmd)
+    except FileNotFoundError:
+        logger.error("mpg123 미설치 — sudo apt install mpg123")
     except Exception as e:
-        logger.error(f"Failed to play alarm: {e}")
+        logger.error("알람 재생 실패: %s", e)
+
 
 def stop_alarm():
-    """알람 소리 정지"""
+    """재생 중인 알람을 즉시 정지."""
     global _alarm_process
-    if _alarm_process:
-        logger.info("Stopping alarm sound...")
+    if _alarm_process is None:
+        return
+    logger.info("알람 정지")
+    try:
+        if _alarm_process.poll() is None:
+            _alarm_process.terminate()
+            _alarm_process.wait(timeout=1)
+    except Exception:
         try:
-            if _alarm_process.poll() is None:
-                _alarm_process.terminate()
-                _alarm_process.wait(timeout=1)
-        except Exception:
-            try:
-                if _alarm_process:
-                    _alarm_process.kill()
-                    _alarm_process.wait(timeout=1)
-            except Exception as e:
-                logger.warning("alarm process kill failed: %s", e)
-        finally:
-            _alarm_process = None
+            _alarm_process.kill()
+            _alarm_process.wait(timeout=1)
+        except Exception as e:
+            logger.warning("알람 프로세스 강제종료 실패: %s", e)
+    finally:
+        _alarm_process = None
+
+
+def is_playing() -> bool:
+    """현재 알람이 재생 중인지 확인."""
+    return _alarm_process is not None and _alarm_process.poll() is None
