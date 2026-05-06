@@ -404,23 +404,16 @@ class TestWindow(QWidget):
         self._mode = _M_DONE
 
         def _run():
-            srv_ok = False
-            try:
-                from api.client import delete_face_embedding
-                srv_ok = delete_face_embedding()
-            except Exception as e:
-                print(f"[DELETE] server: {e}")
             try:
                 with open(_USER_DB_PATH, "w", encoding="utf-8") as f:
                     json.dump({}, f)
-            except Exception as e:
-                print(f"[DELETE] local: {e}")
-            try:
                 from auth.authenticate import invalidate_embedding_cache
                 invalidate_embedding_cache()
-            except Exception:
-                pass
-            self._async_res[0] = srv_ok
+                print("[DELETE] 로컬 임베딩 삭제 완료")
+                self._async_res[0] = True
+            except Exception as e:
+                print(f"[DELETE] {e}")
+                self._async_res[0] = False
 
         threading.Thread(target=_run, daemon=True).start()
 
@@ -450,14 +443,14 @@ class TestWindow(QWidget):
                 self._async_res[0] = None
                 if self._done_mode == _M_REGISTER:
                     self._done_passed = ok
-                    self._done_detail = "서버+로컬 저장 완료" if ok else "로컬 저장됨 (서버 업로드 실패)"
+                    self._done_detail = "로컬 저장 완료" if ok else "저장 실패"
                     self._embeddings  = _load_embeddings()
-                    print(f"[REG] {'완료' if ok else '서버 실패'}")
+                    print(f"[REG] {'로컬 저장 완료' if ok else '저장 실패'}")
                 elif self._done_mode == "delete":
-                    self._done_passed = True
-                    self._done_detail = "서버+로컬 삭제 완료" if ok else "로컬만 삭제됨 (서버 오류)"
+                    self._done_passed = ok
+                    self._done_detail = "로컬 삭제 완료" if ok else "삭제 실패"
                     self._embeddings  = _load_embeddings()
-                    print(f"[DEL] {'완료' if ok else '서버 실패'}")
+                    print(f"[DEL] {'완료' if ok else '실패'}")
                 self._set_buttons_enabled(True)
 
             if self._done_detail in ("삭제 중...", "서버 업로드 중..."):
@@ -503,9 +496,23 @@ class TestWindow(QWidget):
                 self._mode = _M_DONE
                 imgs = list(self._reg_imgs)
 
-                def _upload():
+                def _save_local():
                     try:
-                        mean_emb = np.mean(np.array(imgs), axis=0)
+                        embeddings = []
+                        for img in imgs:
+                            try:
+                                emb = _get_embedding(img)
+                                embeddings.append(emb)
+                            except Exception as e:
+                                print(f"[EMB SKIP] {e}")
+                        if not embeddings:
+                            print("[SAVE ERR] 임베딩 추출 실패")
+                            self._async_res[0] = False
+                            return
+                        mean_emb = np.mean(np.array(embeddings), axis=0)
+                        norm = np.linalg.norm(mean_emb)
+                        if norm > 0:
+                            mean_emb = mean_emb / norm
                         try:
                             with open(_USER_DB_PATH, "r", encoding="utf-8") as f:
                                 db = json.load(f)
@@ -514,16 +521,15 @@ class TestWindow(QWidget):
                         db["_latest"] = mean_emb.tolist()
                         with open(_USER_DB_PATH, "w", encoding="utf-8") as f:
                             json.dump(db, f, indent=2)
-                        from api.client import upload_face_embedding
                         from auth.authenticate import invalidate_embedding_cache
-                        ok = upload_face_embedding(mean_emb.tolist())
                         invalidate_embedding_cache()
-                        self._async_res[0] = ok
+                        print(f"[SAVE] 로컬 저장 완료 (임베딩 {len(embeddings)}개 평균)")
+                        self._async_res[0] = True
                     except Exception as e:
-                        print(f"[UPLOAD ERR] {e}")
+                        print(f"[SAVE ERR] {e}")
                         self._async_res[0] = False
 
-                threading.Thread(target=_upload, daemon=True).start()
+                threading.Thread(target=_save_local, daemon=True).start()
 
         return _render_register(frame, _PHASES[self._reg_phase],
                                 self._reg_captured, self._reg_status)
