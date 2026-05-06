@@ -341,11 +341,14 @@ class TestWindow(QWidget):
                 self._done_passed = ok
                 self._embeddings = _load_embeddings()
                 if self._done_mode == _M_AUTH:
-                    _save_log("AUTH", ok, self._done_detail, np.mean(self._auth_scores) if self._auth_scores else 0)
+                    # 인증 로그 저장
+                    avg_score = float(np.mean(self._auth_scores)) if self._auth_scores else 0.0
+                    _save_log("AUTH", ok, self._done_detail, avg_score)
                 elif self._done_mode == _M_REGISTER:
-                    _save_log("REGISTER", ok, "성공" if ok else "실패")
-                elif self._done_mode == "delete":
-                    _save_log("DELETE", ok, "성공" if ok else "실패")
+                    # 등록 로그 저장
+                    _save_log("REGISTER", ok, "로컬 멀티 템플릿 저장 완료")
+                
+                self._done_detail = "처리 완료" if ok else "처리 실패"
                 self._set_buttons_enabled(True)
             disp = _render_done(frame, self._done_mode, self._done_passed, self._done_detail)
         self._show(disp)
