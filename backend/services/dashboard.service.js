@@ -662,7 +662,7 @@ const get_dashboard_summary = async (patient_id) => {
         WHERE patient_id = $1
           AND status = 'ACTIVE'
           AND start_date <= $2::date
-          AND (end_date IS NULL OR end_date >= $2::date)
+          AND COALESCE(end_date, start_date) >= $2::date
           AND (
               $2::date > (created_at AT TIME ZONE 'Asia/Seoul')::date
               OR (
@@ -675,14 +675,20 @@ const get_dashboard_summary = async (patient_id) => {
     const today_activity_summary_query = `
         SELECT
             COUNT(*) FILTER (
-                WHERE UPPER(status) = ANY($2::text[])
+                WHERE UPPER(a.status) = ANY($2::text[])
             )::int AS completed_count,
             COUNT(*) FILTER (
-                WHERE UPPER(status) = ANY($3::text[])
+                WHERE UPPER(a.status) = ANY($3::text[])
             )::int AS missed_count
-        FROM activities
-        WHERE patient_id = $1
-          AND (sche_time AT TIME ZONE 'Asia/Seoul')::date = $4::date
+        FROM activities a
+        INNER JOIN schedules s
+            ON s.sche_id = a.sche_id
+           AND s.patient_id = a.patient_id
+        WHERE a.patient_id = $1
+          AND (a.sche_time AT TIME ZONE 'Asia/Seoul')::date = $4::date
+          AND s.status = 'ACTIVE'
+          AND s.start_date <= (a.sche_time AT TIME ZONE 'Asia/Seoul')::date
+          AND COALESCE(s.end_date, s.start_date) >= (a.sche_time AT TIME ZONE 'Asia/Seoul')::date
     `;
 
     const total_scheduled_result = await pool.query(total_scheduled_query, [
