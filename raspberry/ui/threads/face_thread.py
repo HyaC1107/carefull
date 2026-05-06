@@ -122,19 +122,20 @@ class FaceThread(QThread):
 
                     if faces:
                         consecutive_face_count += 1
-                        sx, sy, sw, sh = faces[0]
-                        x, y, w, h = sx * 2, sy * 2, sw * 2, sh * 2
+                        sx, sy, sw, h_det = faces[0]
+                        x, y, w, h = sx * 2, sy * 2, sw * 2, h_det * 2
 
                         # 2프레임 연속 감지 후 짐벌 추적 시작
                         if consecutive_face_count >= 2:
                             gimbal.track_face((x, y, w, h), fw, fh)
 
                         if _is_centered((x, y, w, h), fw):
-                            mx, my = int(w * _FACE_MARGIN), int(h * _FACE_MARGIN)
-                            x1 = max(0, x - mx)
-                            y1 = max(0, y - my)
-                            x2 = min(fw, x + w + mx)
-                            y2 = min(fh, y + h + my)
+                            # --- 고도화: 정사각형 고정 배율 크롭 (거리 편차 방지) ---
+                            cx, cy = x + w / 2, y + h / 2
+                            side = max(w, h) * 1.45
+                            x1, y1 = int(max(0, cx - side / 2)), int(max(0, cy - side / 2))
+                            x2, y2 = int(min(fw, cx + side / 2)), int(min(fh, cy + side / 2))
+
                             face_bgr = frame[y1:y2, x1:x2]
                             if face_bgr.size > 0:
                                 face_imgs.append(face_bgr)
@@ -196,8 +197,8 @@ class FaceThread(QThread):
                 if faces:
                     # 가장 큰 얼굴 선택 (면적 기준)
                     faces.sort(key=lambda b: b[2] * b[3], reverse=True)
-                    sx, sy, sw, sh = faces[0]
-                    x, y, w, h = sx * 2, sy * 2, sw * 2, sh * 2
+                    sx, sy, sw, h_det = faces[0]
+                    x, y, w, h = sx * 2, sy * 2, sw * 2, h_det * 2
 
                     gimbal.track_face((x, y, w, h), fw, fh)
 
@@ -240,4 +241,3 @@ class FaceThread(QThread):
 
         if self._running:
             self.capture_done.emit(face_imgs)
-lf.capture_done.emit(face_imgs)
