@@ -417,7 +417,7 @@ class TestWindow(QWidget):
 
     def _show(self, bgr):
         h, w, ch = bgr.shape
-        q = QImage(bgr.data, w, h, ch * w, QImage.Format_RGB888).rgbSwapped()
+        q = QImage(bgr.data, w, h, ch * w, QImage.Format_RGB888)
         self._img_lbl.setPixmap(QPixmap.fromImage(q).scaled(SCREEN_WIDTH, SCREEN_HEIGHT, Qt.KeepAspectRatio))
 
     def closeEvent(self, event):
@@ -426,6 +426,19 @@ class TestWindow(QWidget):
         release_camera(); super().closeEvent(event)
 
 if __name__ == "__main__":
+    run_test()
+ap(QPixmap.fromImage(q).scaled(SCREEN_WIDTH, SCREEN_HEIGHT, Qt.KeepAspectRatio))
+
+def closeEvent(self, event):
+    self._timer.stop()
+    from camera.camera import release_camera
+    release_camera()
+    super().closeEvent(event)
+
+def run_test():
     app = QApplication(sys.argv)
     win = TestWindow(); win.show()
     sys.exit(app.exec_())
+
+if __name__ == "__main__":
+    run_test()
