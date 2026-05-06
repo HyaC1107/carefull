@@ -206,7 +206,7 @@ function SchedulePage() {
     })
 
     try {
-      await requestJson(`/api/schedule/${item.sche_id}`, {
+      await requestJson(`/api/schedule/${item.sche_id}?date=${encodeURIComponent(selectedDate)}`, {
         method: 'DELETE',
         auth: true,
       })
