@@ -6,7 +6,8 @@
   - BGR->RGB 변환 (정확도 향상)
   - 정사각형 고정 배율 크롭 (거리 편차 감소)
   - 멀티 템플릿 저장 및 매칭 (상위 10개 프레임)
-  - 콘솔 로그 및 파일 로그 저장 기능
+  - 등록(REGISTER) / 인증(AUTH) 로그 별도 파일 저장
+  - 전체화면 모드 지원 및 하단 배치 UI 레이아웃
 
 단축키
   1 = 사용자 등록
@@ -31,7 +32,7 @@ if _HERE not in sys.path:
 
 from config.settings import (
     CAMERA_WIDTH, CAMERA_HEIGHT, FACE_MATCH_THRESHOLD,
-    DB_DIR, SCREEN_WIDTH, SCREEN_HEIGHT,
+    DB_DIR, SCREEN_WIDTH, SCREEN_HEIGHT, FULLSCREEN
 )
 
 from PyQt5.QtCore import Qt, QTimer, pyqtSignal
@@ -48,7 +49,7 @@ _PHASES            = ["정면", "위", "아래", "왼쪽", "오른쪽"]
 _PHOTOS_PER_PHASE  = 4
 _AUTH_MAX_CAPTURE  = 15
 _AUTH_CAPTURE_INT  = 0.13
-_AUTH_VOTE_MIN     = 0.3
+_AUTH_VOTE_MIN     = 0.5
 _AUTH_TIMEOUT      = 10
 
 _USER_DB_PATH = os.path.join(DB_DIR, "user_db.json")
@@ -111,26 +112,35 @@ def _load_embeddings():
 
 
 def _save_log(mode, success, detail, score=0.0):
+    """등록(REGISTER)과 인증(AUTH) 로그를 별도 파일로 분리 저장"""
     log_dir = os.path.join(_HERE, "logs")
     os.makedirs(log_dir, exist_ok=True)
-    log_path = os.path.join(log_dir, "test_auth_log.json")
+    
+    if mode == "REGISTER":
+        log_path = os.path.join(log_dir, "register_history.json")
+    elif mode == "AUTH":
+        log_path = os.path.join(log_dir, "auth_history.json")
+    else:
+        return # 삭제 로그 등은 저장 안 함
+
     entry = {
         "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
-        "mode": mode,
         "success": success,
         "detail": detail,
-        "score": round(float(score), 4)
+        "score": round(float(score), 4) if mode == "AUTH" else None
     }
+    
     logs = []
     if os.path.exists(log_path):
         try:
             with open(log_path, "r", encoding="utf-8") as f:
                 logs = json.load(f)
         except Exception: pass
+    
     logs.append(entry)
     with open(log_path, "w", encoding="utf-8") as f:
         json.dump(logs, f, indent=2, ensure_ascii=False)
-    print(f"\n[LOG] 결과 저장 완료: {log_path}\n")
+    print(f"[LOG] {mode} 결과 기록됨: {os.path.basename(log_path)}")
 
 
 # ══════════════════════════ OpenCV 렌더링 헬퍼 ══════════════════════════════
@@ -155,53 +165,60 @@ def _cv_bar(img, filled, y, color=(0, 200, 0)):
 
 def _render_standby(frame, emb_count):
     d = frame.copy()
-    _cv_panel(d, 0, 95)
-    _cv_txt(d, "[ Face Test - High Precision ]", (10, 35), 0.9, (255, 255, 100), bold=True)
+    fh, fw = d.shape[:2]
+    _cv_panel(d, fh - 100, fh)
+    _cv_txt(d, "[ Face Test - High Precision ]", (10, fh - 70), 0.8, (255, 255, 100), bold=True)
+    emb_col = (80, 220, 80) if emb_count else (80, 80, 255)
     emb_str = f"Templates: {emb_count}" if emb_count else "Templates: 없음 (1번 등록 필요)"
-    _cv_txt(d, emb_str, (10, 65), 0.7, (80, 220, 80) if emb_count else (80, 80, 255))
-    _cv_txt(d, f"Threshold: {FACE_MATCH_THRESHOLD}   VoteRatio: {_AUTH_VOTE_MIN}", (10, 90), 0.65)
+    _cv_txt(d, emb_str, (10, fh - 40), 0.7, emb_col)
+    _cv_txt(d, f"Threshold: {FACE_MATCH_THRESHOLD}", (fw - 200, fh - 40), 0.6)
     return d
 
 def _render_register(frame, phase, captured, status):
     d = frame.copy()
-    _cv_panel(d, 0, 105)
-    _cv_txt(d, "REGISTER (Square-Crop)", (10, 35), 0.95, (100, 255, 200), bold=True)
-    _cv_txt(d, f"Direction: {phase}   Captured: {captured}/{_REG_TARGET}", (10, 65), 0.75)
-    _cv_txt(d, status, (10, 95), 0.68, (200, 220, 100))
-    _cv_bar(d, captured / _REG_TARGET, d.shape[0] - 22, color=(0, 200, 180))
+    fh, fw = d.shape[:2]
+    _cv_panel(d, fh - 110, fh)
+    _cv_txt(d, f"REGISTER: {phase}", (10, fh - 75), 0.9, (100, 255, 200), bold=True)
+    _cv_txt(d, f"Captured: {captured}/{_REG_TARGET}", (10, fh - 45), 0.7)
+    _cv_bar(d, captured / _REG_TARGET, fh - 20, color=(0, 200, 180))
     return d
 
 def _render_auth(frame, face, centered, score, votes, total, remaining):
     d = frame.copy()
+    fh, fw = d.shape[:2]
     if face is not None:
         x, y, w, h = face
         cv2.rectangle(d, (x, y), (x + w, y + h), (0, 220, 0) if centered else (0, 200, 200), 2)
         if score is not None:
             sc = (0, 220, 0) if score >= FACE_MATCH_THRESHOLD else (0, 100, 255)
             _cv_txt(d, f"{score:.3f}", (x, max(y - 8, 18)), 0.8, sc, bold=True)
-    _cv_panel(d, 0, 105)
-    _cv_txt(d, "AUTH (Multi-Match)", (10, 35), 0.95, (100, 220, 255), bold=True)
+    
+    _cv_panel(d, fh - 110, fh)
+    _cv_txt(d, "AUTH: Multi-Match", (10, fh - 75), 0.9, (100, 220, 255), bold=True)
     pct = f"{votes/max(total,1)*100:.0f}%"
-    _cv_txt(d, f"Captured: {total}/{_AUTH_MAX_CAPTURE}   Votes: {votes} ({pct})", (10, 65), 0.75)
-    _cv_txt(d, f"Timeout: {remaining:.1f}s", (10, 95), 0.7, (200, 200, 100))
-    bar_col = (0, 200, 0) if (votes / max(total, 1)) >= _AUTH_VOTE_MIN else (0, 100, 255)
-    _cv_bar(d, total / _AUTH_MAX_CAPTURE, d.shape[0] - 22, color=bar_col)
+    _cv_txt(d, f"Votes: {votes}/{total} ({pct}) | Time: {remaining:.1fs}", (10, fh - 45), 0.7)
+    _cv_bar(d, total / _AUTH_MAX_CAPTURE, fh - 20, color=(0, 200, 0) if (votes / max(total, 1)) >= _AUTH_VOTE_MIN else (0, 100, 255))
     return d
 
 def _render_done(frame, mode, passed, detail):
     d = frame.copy()
     fh, fw = d.shape[:2]
+    tint = (10, 40, 10) if passed else (40, 10, 10)
     ov = d.copy()
-    cv2.rectangle(ov, (0, 0), (fw, fh), (10, 40, 10) if passed else (40, 10, 10), -1)
+    cv2.rectangle(ov, (0, 0), (fw, fh), tint, -1)
     cv2.addWeighted(ov, 0.45, d, 0.55, 0, d)
+    
     label = "SUCCESS" if passed else "FAIL"
     if mode == "delete": label = "DELETED"
     elif mode == _M_REGISTER: label = "REGISTERED" if passed else "FAIL"
-    (tw, _), _ = cv2.getTextSize(label, cv2.FONT_HERSHEY_DUPLEX, 2.2, 4)
-    rx, ry = (fw - tw) // 2, fh // 2 - 20
-    cv2.putText(d, label, (rx, ry), cv2.FONT_HERSHEY_DUPLEX, 2.2, (0, 0, 0), 7)
-    cv2.putText(d, label, (rx, ry), cv2.FONT_HERSHEY_DUPLEX, 2.2, (60, 230, 60) if passed else (60, 60, 230), 4)
-    _cv_txt(d, detail, (fw // 2 - 200, ry + 52), 0.72, (220, 220, 220))
+    
+    (tw, _), _ = cv2.getTextSize(label, cv2.FONT_HERSHEY_DUPLEX, 2.5, 5)
+    rx, ry = (fw - tw) // 2, fh // 2
+    cv2.putText(d, label, (rx, ry), cv2.FONT_HERSHEY_DUPLEX, 2.5, (0, 0, 0), 8)
+    cv2.putText(d, label, (rx, ry), cv2.FONT_HERSHEY_DUPLEX, 2.5, (60, 230, 60) if passed else (60, 60, 230), 5)
+    
+    _cv_txt(d, detail, (fw // 2 - 180, ry + 70), 0.8, (220, 220, 220))
+    _cv_txt(d, "Press 1, 2, 3 to continue", (fw // 2 - 150, fh - 50), 0.7, (180, 180, 180))
     return d
 
 
@@ -341,24 +358,30 @@ class TestWindow(QWidget):
                 self._done_passed = ok
                 self._embeddings = _load_embeddings()
                 if self._done_mode == _M_AUTH:
-                    # 인증 로그 저장
                     avg_score = float(np.mean(self._auth_scores)) if self._auth_scores else 0.0
                     _save_log("AUTH", ok, self._done_detail, avg_score)
                 elif self._done_mode == _M_REGISTER:
-                    # 등록 로그 저장
                     _save_log("REGISTER", ok, "로컬 멀티 템플릿 저장 완료")
-                
-                self._done_detail = "처리 완료" if ok else "처리 실패"
                 self._set_buttons_enabled(True)
             disp = _render_done(frame, self._done_mode, self._done_passed, self._done_detail)
+        else:
+            disp = frame.copy()
         self._show(disp)
 
     def _tick_register(self, frame, fh, fw, now):
         small = cv2.resize(frame, (320, 240))
         faces = self._detect_face(small)
         if faces:
-            sx, sy, sw, sh = faces[0]
-            face = (sx*2, sy*2, sw*2, sh*2)
+            sx, sy, sw, h_detect = faces[0]
+            face = (sx*2, sy*2, sw*2, h_detect*2)
+            x, y, w, h = face
+            cv2.rectangle(frame, (x, y), (x+w, y+h), (255, 0, 0), 2)
+            cx, cy = x + w/2, y + h/2
+            side = max(w, h) * 1.45
+            x1, y1 = int(max(0, cx-side/2)), int(max(0, cy-side/2))
+            x2, y2 = int(min(fw, cx+side/2)), int(min(fh, cy+side/2))
+            color = (0, 255, 0) if _is_centered(face, fw) else (0, 255, 255)
+            cv2.rectangle(frame, (x1, y1), (x2, y2), color, 1, cv2.LINE_AA)
             if _is_centered(face, fw) and now - self._reg_last_t >= _REG_COOLDOWN:
                 c = _crop_square(frame, face, fh, fw)
                 if c is not None:
@@ -393,9 +416,16 @@ class TestWindow(QWidget):
         small = cv2.resize(frame, (320, 240))
         faces = self._detect_face(small)
         if faces:
-            sx, sy, sw, sh = faces[0]
-            face_det = (sx*2, sy*2, sw*2, sh*2)
+            sx, sy, sw, h_detect = faces[0]
+            face_det = (sx*2, sy*2, sw*2, h_detect*2)
+            x, y, w, h = face_det
             centered = _is_centered(face_det, fw)
+            cv2.rectangle(frame, (x, y), (x+w, y+h), (255, 0, 0), 2)
+            cx, cy = x + w/2, y + h/2
+            side = max(w, h) * 1.45
+            x1, y1 = int(max(0, cx-side/2)), int(max(0, cy-side/2))
+            x2, y2 = int(min(fw, cx+side/2)), int(min(fh, cy+side/2))
+            cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0) if centered else (0, 255, 255), 1)
             if centered and now - self._auth_last_t >= _AUTH_CAPTURE_INT:
                 c = _crop_square(frame, face_det, fh, fw)
                 if c is not None:
@@ -420,7 +450,7 @@ class TestWindow(QWidget):
 
     def _show(self, bgr):
         h, w, ch = bgr.shape
-        q = QImage(bgr.data, w, h, ch * w, QImage.Format_RGB888)
+        q = QImage(bgr.data, w, h, ch * w, QImage.Format_RGB888).rgbSwapped()
         self._img_lbl.setPixmap(QPixmap.fromImage(q).scaled(SCREEN_WIDTH, SCREEN_HEIGHT, Qt.KeepAspectRatio))
 
     def closeEvent(self, event):
@@ -430,5 +460,9 @@ class TestWindow(QWidget):
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
-    win = TestWindow(); win.show()
+    win = TestWindow()
+    if FULLSCREEN:
+        win.showFullScreen()
+    else:
+        win.show()
     sys.exit(app.exec_())
