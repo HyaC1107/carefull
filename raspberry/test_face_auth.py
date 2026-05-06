@@ -391,6 +391,16 @@ class TestWindow(QWidget):
                 self._async_res[0] = None
                 self._done_passed = ok
                 self._embeddings  = _load_embeddings()
+                
+                # 로그 저장 로직 추가
+                if self._done_mode == _M_AUTH:
+                    avg_score = float(np.mean(self._auth_scores)) if self._auth_scores else 0.0
+                    _save_log("AUTH", ok, self._done_detail, avg_score)
+                elif self._done_mode == _M_REGISTER:
+                    _save_log("REGISTER", ok, "로컬 저장 완료" if ok else "실패")
+                elif self._done_mode == "delete":
+                    _save_log("DELETE", ok, "삭제 완료" if ok else "실패")
+                
                 self._done_detail = "처리 완료" if ok else "처리 실패"
                 self._set_buttons_enabled(True)
             disp = _render_done(frame, self._done_mode, self._done_passed, self._done_detail)
@@ -495,4 +505,22 @@ def run_test():
     sys.exit(app.exec_())
 
 if __name__ == "__main__":
+    run_test()
+ap(QPixmap.fromImage(q).scaled(SCREEN_WIDTH, SCREEN_HEIGHT, Qt.KeepAspectRatio))
+
+    def closeEvent(self, event):
+        self._timer.stop()
+        from camera.camera import release_camera
+        release_camera()
+        super().closeEvent(event)
+
+def run_test():
+    app = QApplication(sys.argv)
+    win = TestWindow()
+    win.show()
+    sys.exit(app.exec_())
+
+if __name__ == "__main__":
+    run_test()
+ain__":
     run_test()
