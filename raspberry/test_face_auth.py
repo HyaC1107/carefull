@@ -28,9 +28,11 @@ from config.settings import (
     DB_DIR, SCREEN_WIDTH, SCREEN_HEIGHT,
 )
 
-from PyQt5.QtCore import Qt, QTimer, pyqtSignal, QObject
-from PyQt5.QtGui import QColor, QFont, QImage, QKeySequence, QPainter, QPixmap
-from PyQt5.QtWidgets import QApplication, QLabel, QVBoxLayout, QWidget
+from PyQt5.QtCore import Qt, QTimer, pyqtSignal, QObject, QMetaObject, Q_ARG
+from PyQt5.QtGui import QColor, QFont, QImage, QPixmap
+from PyQt5.QtWidgets import (
+    QApplication, QHBoxLayout, QLabel, QPushButton, QVBoxLayout, QWidget,
+)
 
 # ── 상수 ──────────────────────────────────────────────────────────────────────
 _FACE_MARGIN       = 0.2
@@ -213,18 +215,67 @@ def _render_processing(frame, msg):
 # ══════════════════════════ PyQt5 메인 윈도우 ═════════════════════════════════
 
 class TestWindow(QWidget):
+    # SSH 스레드 → 메인 스레드 안전 호출용 시그널
+    _cmd_signal = pyqtSignal(str)
+
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Face Test")
         self.setFixedSize(SCREEN_WIDTH, SCREEN_HEIGHT)
         self.setStyleSheet("background: black;")
 
-        lay = QVBoxLayout(self)
-        lay.setContentsMargins(0, 0, 0, 0)
+        root = QVBoxLayout(self)
+        root.setContentsMargins(0, 0, 0, 0)
+        root.setSpacing(0)
 
+        # 카메라 피드
         self._img_lbl = QLabel()
         self._img_lbl.setAlignment(Qt.AlignCenter)
-        lay.addWidget(self._img_lbl)
+        root.addWidget(self._img_lbl, stretch=1)
+
+        # 하단 버튼 행
+        btn_row = QHBoxLayout()
+        btn_row.setContentsMargins(8, 4, 8, 8)
+        btn_row.setSpacing(8)
+
+        _btn_style = """
+            QPushButton {{
+                background-color: {bg};
+                color: white;
+                font-size: 26px;
+                font-weight: bold;
+                border-radius: 12px;
+                border: none;
+            }}
+            QPushButton:pressed {{ background-color: {press}; }}
+            QPushButton:disabled {{ background-color: #444; color: #888; }}
+        """
+        self._btn1 = QPushButton("1  등록")
+        self._btn1.setFixedHeight(64)
+        self._btn1.setStyleSheet(_btn_style.format(bg="#0d6efd", press="#0a58ca"))
+        self._btn1.clicked.connect(lambda: self._handle_cmd("1"))
+
+        self._btn2 = QPushButton("2  인증")
+        self._btn2.setFixedHeight(64)
+        self._btn2.setStyleSheet(_btn_style.format(bg="#198754", press="#146c43"))
+        self._btn2.clicked.connect(lambda: self._handle_cmd("2"))
+
+        self._btn3 = QPushButton("3  삭제")
+        self._btn3.setFixedHeight(64)
+        self._btn3.setStyleSheet(_btn_style.format(bg="#dc3545", press="#b02a37"))
+        self._btn3.clicked.connect(lambda: self._handle_cmd("3"))
+
+        btn_q = QPushButton("Q  종료")
+        btn_q.setFixedHeight(64)
+        btn_q.setFixedWidth(120)
+        btn_q.setStyleSheet(_btn_style.format(bg="#6c757d", press="#565e64"))
+        btn_q.clicked.connect(self.close)
+
+        btn_row.addWidget(self._btn1)
+        btn_row.addWidget(self._btn2)
+        btn_row.addWidget(self._btn3)
+        btn_row.addWidget(btn_q)
+        root.addLayout(btn_row)
 
         # ── 상태 변수 ────────────────────────────────────────────────────────
         self._mode       = _M_STANDBY
@@ -268,25 +319,57 @@ class TestWindow(QWidget):
 
         self._embeddings = _load_embeddings()
         print(f"[EMB] {len(self._embeddings)}개 임베딩 로드")
+        print("\n  SSH 터미널에서: 1=등록  2=인증  3=삭제  q=종료  (Enter)\n")
+
+        # SSH stdin 리더 스레드
+        self._cmd_signal.connect(self._handle_cmd)
+        t = threading.Thread(target=self._stdin_reader, daemon=True)
+        t.start()
 
         self._timer = QTimer(self)
         self._timer.timeout.connect(self._tick)
         self._timer.start(33)   # ~30fps
 
-    # ── 키 입력 ───────────────────────────────────────────────────────────────
+    # ── SSH stdin 리더 (별도 스레드) ─────────────────────────────────────────
 
-    def keyPressEvent(self, event):
-        key = event.key()
-        if key == Qt.Key_Q:
+    def _stdin_reader(self):
+        while True:
+            try:
+                line = sys.stdin.readline()
+                if not line:
+                    break
+                cmd = line.strip().lower()
+                if cmd:
+                    self._cmd_signal.emit(cmd)
+            except Exception:
+                break
+
+    # ── 명령 처리 (메인 스레드에서 실행) ─────────────────────────────────────
+
+    def _handle_cmd(self, cmd: str):
+        if cmd == "q":
             self.close()
-        elif key == Qt.Key_1 and self._mode in (_M_STANDBY, _M_DONE):
+        elif cmd == "1" and self._mode in (_M_STANDBY, _M_DONE):
             self._start_register()
-        elif key == Qt.Key_2 and self._mode in (_M_STANDBY, _M_DONE):
+        elif cmd == "2" and self._mode in (_M_STANDBY, _M_DONE):
             self._start_auth()
-        elif key == Qt.Key_3 and self._mode in (_M_STANDBY, _M_DONE):
+        elif cmd == "3" and self._mode in (_M_STANDBY, _M_DONE):
             self._start_delete()
 
+    # ── 키 입력 (물리 키보드 연결 시) ────────────────────────────────────────
+
+    def keyPressEvent(self, event):
+        mapping = {Qt.Key_1: "1", Qt.Key_2: "2", Qt.Key_3: "3", Qt.Key_Q: "q"}
+        cmd = mapping.get(event.key())
+        if cmd:
+            self._handle_cmd(cmd)
+
     # ── 모드 전환 ─────────────────────────────────────────────────────────────
+
+    def _set_buttons_enabled(self, enabled: bool):
+        self._btn1.setEnabled(enabled)
+        self._btn2.setEnabled(enabled)
+        self._btn3.setEnabled(enabled)
 
     def _start_register(self):
         print("\n[MODE] 등록 시작\n")
@@ -295,6 +378,7 @@ class TestWindow(QWidget):
         self._reg_captured = 0
         self._reg_last_t   = 0.0
         self._reg_status   = f"얼굴을 '{_PHASES[0]}' 방향으로 향해주세요"
+        self._set_buttons_enabled(False)
         self._mode = _M_REGISTER
 
     def _start_auth(self):
@@ -307,10 +391,12 @@ class TestWindow(QWidget):
         self._auth_votes  = 0
         self._auth_start  = None
         self._auth_last_t = 0.0
+        self._set_buttons_enabled(False)
         self._mode = _M_AUTH
 
     def _start_delete(self):
         print("\n[MODE] 삭제 시작\n")
+        self._set_buttons_enabled(False)
         self._async_res[0] = None
         self._done_mode   = "delete"
         self._done_passed = False
@@ -372,6 +458,7 @@ class TestWindow(QWidget):
                     self._done_detail = "서버+로컬 삭제 완료" if ok else "로컬만 삭제됨 (서버 오류)"
                     self._embeddings  = _load_embeddings()
                     print(f"[DEL] {'완료' if ok else '서버 실패'}")
+                self._set_buttons_enabled(True)
 
             if self._done_detail in ("삭제 중...", "서버 업로드 중..."):
                 disp = _render_processing(frame, self._done_detail)
