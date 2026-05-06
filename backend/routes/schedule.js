@@ -514,21 +514,23 @@ router.delete('/:id', verifyToken, async (req, res) => {
         }
 
         const delete_query = `
-            DELETE FROM schedules
-            WHERE sche_id = $1
-              AND patient_id = $2
+            DELETE FROM schedules s
+            USING patients p
+            WHERE s.sche_id = $1
+              AND s.patient_id = p.patient_id
+              AND p.mem_id = $2
             RETURNING
-                sche_id,
-                patient_id,
-                medi_id,
-                time_to_take,
-                start_date,
-                end_date,
-                dose_interval,
-                status
+                s.sche_id,
+                s.patient_id,
+                s.medi_id,
+                s.time_to_take,
+                s.start_date,
+                s.end_date,
+                s.dose_interval,
+                s.status
         `;
 
-        const { rows } = await pool.query(delete_query, [parsed_sche_id, patient_id]);
+        const { rows } = await pool.query(delete_query, [parsed_sche_id, mem_id]);
 
         if (rows.length === 0) {
             return sendError(res, 404, 'Schedule not found or access denied.');
