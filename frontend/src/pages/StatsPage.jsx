@@ -21,6 +21,7 @@ import '../styles/MobileBottomNav.css'
 
 const PIE_COLORS = ['#10b981', '#0ea5e9', '#f59e0b', '#ef4444', '#8b5cf6']
 const PATIENT_REGISTRATION_LABEL = '환자를 등록해주세요.'
+const KST_TIME_ZONE = 'Asia/Seoul'
 
 function StatsPage() {
   const unreadCount = useUnreadCount()
@@ -125,10 +126,10 @@ function StatsPage() {
 }
 
 function buildRecentSixMonthActivityLogPath() {
-  const today = new Date()
-  const from = new Date(today.getFullYear(), today.getMonth() - 5, 1)
+  const today = getKstDateParts()
+  const from = shiftKstMonth(today, -5)
   const params = new URLSearchParams({
-    from: formatDateQueryValue(from),
+    from: formatDateQueryValue({ ...from, day: 1 }),
     to: formatDateQueryValue(today),
   })
 
@@ -137,9 +138,15 @@ function buildRecentSixMonthActivityLogPath() {
 }
 
 function formatDateQueryValue(date) {
-  const year = date.getFullYear()
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  const day = String(date.getDate()).padStart(2, '0')
+  const parts = date instanceof Date ? getKstDateParts(date) : date
+
+  if (!parts) {
+    return ''
+  }
+
+  const year = parts.year
+  const month = String(parts.month).padStart(2, '0')
+  const day = String(parts.day).padStart(2, '0')
 
   return `${year}-${month}-${day}`
 }
@@ -302,7 +309,13 @@ function buildMonthlyTrendData(activities, statistics) {
       return
     }
 
-    const bucketKey = `${date.getFullYear()}-${date.getMonth()}`
+    const dateParts = getKstDateParts(date)
+
+    if (!dateParts) {
+      return
+    }
+
+    const bucketKey = getKstMonthBucketKey(dateParts)
     const bucket = monthBuckets.find((item) => item.key === bucketKey)
 
     if (!bucket) {
@@ -352,7 +365,13 @@ function buildTimePatternData(activities) {
         return
       }
 
-      const hour = date.getHours()
+      const dateParts = getKstDateParts(date)
+
+      if (!dateParts) {
+        return
+      }
+
+      const hour = dateParts.hour
       const bucket = buckets.find((item) => hour >= item.start && hour <= item.end)
 
       if (bucket) {
@@ -510,15 +529,15 @@ function getActivitiesWithinDays(activities, days) {
 }
 
 function getRecentMonthBuckets(count) {
-  const now = new Date()
+  const now = getKstDateParts()
   const buckets = []
 
   for (let index = count - 1; index >= 0; index -= 1) {
-    const date = new Date(now.getFullYear(), now.getMonth() - index, 1)
+    const date = shiftKstMonth(now, -index)
 
     buckets.push({
-      key: `${date.getFullYear()}-${date.getMonth()}`,
-      month: date.getMonth() + 1,
+      key: getKstMonthBucketKey(date),
+      month: date.month,
       total: 0,
       successCount: 0,
       missedCount: 0,
@@ -543,10 +562,13 @@ function getBestCompletionDay(activities) {
       return acc
     }
 
-    const key = date.toLocaleDateString('ko-KR', {
-      month: 'numeric',
-      day: 'numeric',
-    })
+    const dateParts = getKstDateParts(date)
+
+    if (!dateParts) {
+      return acc
+    }
+
+    const key = `${dateParts.month}. ${dateParts.day}.`
 
     acc[key] = (acc[key] || 0) + 1
     return acc
@@ -559,6 +581,49 @@ function getBestCompletionDay(activities) {
     label: label || '-',
     count: count || 0,
   }
+}
+
+function getKstDateParts(value = new Date()) {
+  const date = value instanceof Date ? value : new Date(value)
+
+  if (Number.isNaN(date.getTime())) {
+    return null
+  }
+
+  const formatter = new Intl.DateTimeFormat('en-US', {
+    timeZone: KST_TIME_ZONE,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    hourCycle: 'h23',
+  })
+  const parts = formatter.formatToParts(date)
+  const getPart = (type) => Number(parts.find((part) => part.type === type)?.value)
+
+  return {
+    year: getPart('year'),
+    month: getPart('month'),
+    day: getPart('day'),
+    hour: getPart('hour'),
+  }
+}
+
+function shiftKstMonth(parts, diff) {
+  const monthIndex = parts.year * 12 + (parts.month - 1) + diff
+  const year = Math.floor(monthIndex / 12)
+  const month = (monthIndex % 12) + 1
+
+  return {
+    year,
+    month,
+    day: parts.day,
+    hour: parts.hour,
+  }
+}
+
+function getKstMonthBucketKey(parts) {
+  return `${parts.year}-${parts.month - 1}`
 }
 
 function isSuccessStatus(activity) {
