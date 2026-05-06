@@ -33,7 +33,9 @@
       "Bash(ConvertTo-Json -Depth 100)",
       "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\smhrd\\\\Desktop\\\\carefull\\\\backend\" -Recurse -Directory)",
       "Bash(Select-Object -First 20)",
-      "PowerShell(Get-ChildItem -Path \"C:\\\\Users\\\\smhrd\\\\Desktop\\\\carefull\\\\backend\" -Recurse | Where-Object {$_.PSIsContainer} | Select-Object -First 30 FullName)"
+      "PowerShell(Get-ChildItem -Path \"C:\\\\Users\\\\smhrd\\\\Desktop\\\\carefull\\\\backend\" -Recurse | Where-Object {$_.PSIsContainer} | Select-Object -First 30 FullName)",
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\smhrd\\\\Desktop\\\\carefull\\\\raspberry\" -Recurse -File)",
+      "Bash(Select-Object FullName)"
     ]
   }
 }
