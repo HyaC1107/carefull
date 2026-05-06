@@ -205,11 +205,14 @@ class FaceThread(QThread):
                         self.msleep(1)
                         continue
 
-                    mx, my = int(w * _FACE_MARGIN), int(h * _FACE_MARGIN)
-                    x1 = max(0, x - mx)
-                    y1 = max(0, y - my)
-                    x2 = min(fw, x + w + mx)
-                    y2 = min(fh, y + h + my)
+                    # --- 등록 시에도 동일한 정밀 크롭 적용 ---
+                    cx, cy = x + w / 2, y + h / 2
+                    side = max(w, h) * 1.45
+                    
+                    x1 = int(max(0, cx - side / 2))
+                    y1 = int(max(0, cy - side / 2))
+                    x2 = int(min(fw, cx + side / 2))
+                    y2 = int(min(fh, cy + side / 2))
 
                     crop = frame[y1:y2, x1:x2]
                     if crop.size > 0:
@@ -229,6 +232,18 @@ class FaceThread(QThread):
                                 self.msleep(1000)
                             if self._running:
                                 self.phase_changed.emit(phase_idx, _PHASES[phase_idx])
+                            last_capture_time = time.time()
+                else:
+                    gimbal.update_idle()
+
+                self.msleep(1)
+
+        finally:
+            gimbal.stop()
+
+        if self._running:
+            self.capture_done.emit(face_imgs)
+hanged.emit(phase_idx, _PHASES[phase_idx])
                             last_capture_time = time.time()
                 else:
                     gimbal.update_idle()
