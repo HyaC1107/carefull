@@ -49,7 +49,7 @@ _PHASES            = ["정면", "위", "아래", "왼쪽", "오른쪽"]
 _PHOTOS_PER_PHASE  = 4
 _AUTH_MAX_CAPTURE  = 15
 _AUTH_CAPTURE_INT  = 0.13
-_AUTH_VOTE_MIN     = 0.3
+_AUTH_VOTE_MIN     = 0.5
 _AUTH_TIMEOUT      = 10
 
 _USER_DB_PATH = os.path.join(DB_DIR, "user_db.json")
