@@ -450,7 +450,7 @@ class TestWindow(QWidget):
 
     def _show(self, bgr):
         h, w, ch = bgr.shape
-        q = QImage(bgr.data, w, h, ch * w, QImage.Format_RGB888).rgbSwapped()
+        q = QImage(bgr.data, w, h, ch * w, QImage.Format_RGB888)
         self._img_lbl.setPixmap(QPixmap.fromImage(q).scaled(SCREEN_WIDTH, SCREEN_HEIGHT, Qt.KeepAspectRatio))
 
     def closeEvent(self, event):
