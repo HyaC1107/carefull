@@ -34,7 +34,8 @@ FINGERPRINT_SCAN_TIMEOUT = int(os.getenv("CAREFULL_FINGERPRINT_SCAN_TIMEOUT", "3
 # Voice & TTS Settings
 VOICES_DIR = os.path.join(BASE_DIR, "voices")
 TTS_LANG = os.getenv("CAREFULL_TTS_LANG", "ko")
-TTS_FILE_PATH = os.path.join(VOICES_DIR, "default_alarm.mp3")
+# 서버에서 동기화된 커스텀 알림음은 alarm1.mp3로 저장
+TTS_FILE_PATH = os.path.join(VOICES_DIR, "alarm1.mp3")
 # ── GPIO 핀 번호 (BCM 기준) ── 여기서만 수정하면 전체 반영
 STEP_PINS  = [
     int(os.getenv("CAREFULL_STEP_PIN1", "12")),

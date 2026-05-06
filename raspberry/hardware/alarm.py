@@ -10,28 +10,31 @@ _alarm_process = None
 def play_alarm(filename=None):
     """
     알람 소리 재생
-    1. filename이 없으면: default_alarm.mp3 재생
-    2. filename이 있으면: 해당 파일 재생 (ElevenLabs 생성 파일)
+    우선순위:
+    1. filename이 명시된 경우 (예: voice_1.mp3)
+    2. 서버와 동기화된 커스텀 알림음 (alarm1.mp3)
+    3. 로컬 기본 알림음 (default_alarm.mp3)
     """
     global _alarm_process
     stop_alarm()
     
-    # 1. 파일 이름 결정
-    target_file = filename if filename else "default_alarm.mp3"
-    file_path = os.path.join(VOICES_DIR, target_file)
+    # 1. 파일 후보 리스트 (순서대로 확인)
+    candidates = []
+    if filename:
+        candidates.append(filename)
+    candidates.append("alarm1.mp3")
+    candidates.append("default_alarm.mp3")
     
-    # 2. 파일 존재 여부 확인
-    if not os.path.exists(file_path):
-        logger.error(f"Alarm file not found: {file_path}")
-        # 만약 요청한 파일이 없는데 그게 custom 파일이었다면 default로라도 시도
-        if target_file != "default_alarm.mp3":
-            logger.info("Attempting to play default_alarm.mp3 as fallback.")
-            file_path = os.path.join(VOICES_DIR, "default_alarm.mp3")
-            if not os.path.exists(file_path):
-                logger.error("Default alarm file also missing.")
-                return
-        else:
-            return
+    file_path = None
+    for cand in candidates:
+        path = os.path.join(VOICES_DIR, cand)
+        if os.path.exists(path):
+            file_path = path
+            break
+            
+    if not file_path:
+        logger.error("No alarm files found (alarm1.mp3, default_alarm.mp3 both missing)")
+        return
 
     # 3. 재생
     logger.info(f"Playing alarm: {file_path}")
