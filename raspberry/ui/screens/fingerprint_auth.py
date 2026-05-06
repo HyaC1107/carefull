@@ -349,28 +349,34 @@ class FingerprintAuthScreen(QWidget):
         self._stop_timers()
         self._retry_count += 1
         if self._retry_count >= _MAX_RETRIES:
-            self._show_retry_ui("등록되지 않은 지문입니다")
-            QTimer.singleShot(2000, self._on_auth_failure)
+            print(f"[FP_AUTH] Max retries ({_MAX_RETRIES}) reached. Showing final failure UI.")
+            self._on_auth_failure() # 3회 실패 시 자동으로 전체 재시도 확인 화면으로
         else:
-            self._show_retry_ui("등록되지 않은 지문입니다")
+            print(f"[FP_AUTH] Not found. Retry {self._retry_count}/{_MAX_RETRIES}")
+            self._title_lbl.setText("지문이 일치하지 않습니다")
+            self._sub_lbl.setText(f"다시 센서에 손가락을 올려주세요 ({self._retry_count}/{_MAX_RETRIES})")
+            QTimer.singleShot(1500, self._on_retry)
 
     def _on_failed(self, msg: str):
         self._stop_timers()
         self._retry_count += 1
         if self._retry_count >= _MAX_RETRIES:
-            self._show_retry_ui(f"오류: {msg}")
-            QTimer.singleShot(2000, self._on_auth_failure)
+            print(f"[FP_AUTH] Error: {msg}. Max retries reached.")
+            self._on_auth_failure()
         else:
-            self._show_retry_ui(f"오류: {msg}")
+            print(f"[FP_AUTH] Error: {msg}. Retry {self._retry_count}/{_MAX_RETRIES}")
+            self._title_lbl.setText("인증 중 오류 발생")
+            QTimer.singleShot(1500, self._on_retry)
 
     def _on_timeout(self):
         self._stop_thread()
         self._retry_count += 1
         if self._retry_count >= _MAX_RETRIES:
-            self._show_retry_ui("시간이 초과되었습니다")
-            QTimer.singleShot(2000, self._on_auth_failure)
+            print("[FP_AUTH] Timeout. Max retries reached.")
+            self._on_auth_failure()
         else:
-            self._show_retry_ui("시간이 초과되었습니다")
+            print(f"[FP_AUTH] Timeout. Retry {self._retry_count}/{_MAX_RETRIES}")
+            self._on_retry()
 
     def _on_retry(self):
         self._retry_widget.hide()
