@@ -67,6 +67,7 @@
 
 .sidebar__menu-button:hover {
   background: #eff6ff;
+  color: black;
 }
 
 .sidebar__menu-button--active {
