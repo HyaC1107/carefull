@@ -97,9 +97,16 @@ class _MockApp(QMainWindow):
 
         # 지문 폴백 요청 시 실패 결과로 처리
         if name == "fingerprint_auth":
-            self.screens["auth_result"].set_result(success=False)
+            score = self.current_session.get("similarity_score", 0.0)
+            self.screens["auth_result"].set_result(success=False, score=score)
             self.stack.setCurrentWidget(self.screens["auth_result"])
             return
+
+        # 성공 시 결과 업데이트
+        if name == "auth_result":
+            score = self.current_session.get("similarity_score", 0.0)
+            # CameraViewScreen에서 성공 시 세션에 점수를 담아둠
+            self.screens["auth_result"].set_result(success=True, score=score)
 
         self.stack.setCurrentWidget(screen)
 
