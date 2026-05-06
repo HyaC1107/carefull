@@ -5,6 +5,7 @@ const jwt = require('jsonwebtoken');
 const router = express.Router();
 const pool = require('../db');
 const { verifyToken } = require('../middleware/auth');
+const { sendSuccess, sendError } = require('../utils/response');
 
 const {
     JWT_SECRET,
@@ -387,10 +388,7 @@ router.post('/dev-login', async (req, res) => {
     const resolved_nick = nick || nickname;
 
     if (!social_id || !provider || !resolved_nick) {
-        return res.status(400).json({
-            success: false,
-            message: 'social_id, provider, and nick are required.'
-        });
+        return sendError(res, 400, 'social_id, provider, and nick are required.');
     }
 
     const login_result = await handle_social_login({
@@ -401,10 +399,14 @@ router.post('/dev-login', async (req, res) => {
     }, provider);
 
     if (!login_result.success) {
-        return res.status(500).json(login_result);
+        return sendError(res, 500, login_result.message || 'Server error while processing dev login.');
     }
 
-    return res.status(200).json(login_result);
+    return sendSuccess(res, 200, {
+        ...login_result,
+        message: 'Dev login completed successfully.',
+        data: login_result
+    });
 });
 
 router.post('/register-patient', verifyToken, async (req, res) => {
@@ -488,19 +490,16 @@ router.post('/register-patient', verifyToken, async (req, res) => {
 
         await client.query('COMMIT');
 
-        return res.status(200).json({
-            success: true,
+        return sendSuccess(res, 200, {
             message: 'Patient and device registration completed.',
-            patient_id
+            patient_id,
+            data: { patient_id }
         });
     } catch (error) {
         await client.query('ROLLBACK');
         console.error('Patient registration error:', error);
 
-        return res.status(400).json({
-            success: false,
-            message: error.message
-        });
+        return sendError(res, 400, error.message);
     } finally {
         client.release();
     }

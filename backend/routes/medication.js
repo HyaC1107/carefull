@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 
 const pool = require('../db');
+const { sendSuccess, sendError } = require('../utils/response');
 
 const DEFAULT_SEARCH_LIMIT = 20;
 const MAX_SEARCH_LIMIT = 50;
@@ -19,17 +20,14 @@ router.get('/', async (req, res) => {
 
         const { rows } = await pool.query(query);
 
-        return res.status(200).json({
-            success: true,
+        return sendSuccess(res, 200, {
+            message: 'Medications fetched successfully.',
             data: rows
         });
     } catch (error) {
-        console.error('??紐⑸줉 議고쉶 以??ㅻ쪟媛 諛쒖깮?덉뒿?덈떎:', error);
+        console.error('Medication list fetch error:', error);
 
-        return res.status(500).json({
-            success: false,
-            message: '??紐⑸줉 議고쉶 以??쒕쾭 ?ㅻ쪟媛 諛쒖깮?덉뒿?덈떎.'
-        });
+        return sendError(res, 500, 'Failed to fetch medications.');
     }
 });
 
@@ -41,10 +39,7 @@ router.get('/search', async (req, res) => {
         : DEFAULT_SEARCH_LIMIT;
 
     if (!keyword) {
-        return res.status(400).json({
-            success: false,
-            message: 'keyword 荑쇰━ ?뚮씪誘명꽣???꾩닔?낅땲??'
-        });
+        return sendError(res, 400, 'keyword is required.');
     }
 
     try {
@@ -61,17 +56,14 @@ router.get('/search', async (req, res) => {
 
         const { rows } = await pool.query(query, [`%${keyword}%`, limit]);
 
-        return res.status(200).json({
-            success: true,
+        return sendSuccess(res, 200, {
+            message: 'Medication search completed successfully.',
             data: rows
         });
     } catch (error) {
-        console.error('??寃??以??ㅻ쪟媛 諛쒖깮?덉뒿?덈떎:', error);
+        console.error('Medication search error:', error);
 
-        return res.status(500).json({
-            success: false,
-            message: '??寃??以??쒕쾭 ?ㅻ쪟媛 諛쒖깮?덉뒿?덈떎.'
-        });
+        return sendError(res, 500, 'Failed to search medications.');
     }
 });
 
