@@ -32,9 +32,10 @@ class _FaceWatchThread(QThread):
                 frame = get_frame()
                 if frame is not None:
                     small = cv2.resize(frame, (320, 240))
-                    if detect_face(small):
+                    # stop() 호출 후 detect 결과가 늦게 오는 경우 emit 방지
+                    if self._running and detect_face(small):
                         self.face_detected.emit()
-                        return   # 감지 후 스레드 종료
+                        return
             except Exception:
                 pass
             time.sleep(_FACE_DETECT_INTERVAL)
@@ -164,9 +165,15 @@ class MedicationStartScreen(QWidget):
         self._face_thread.start()
 
     def _stop_face_watch(self):
-        if self._face_thread and self._face_thread.isRunning():
-            self._face_thread.stop()
-            self._face_thread.wait(1000)
+        if self._face_thread:
+            # 시그널 먼저 끊어서 늦은 emit이 다른 화면에 영향 못 주게 함
+            try:
+                self._face_thread.face_detected.disconnect()
+            except Exception:
+                pass
+            if self._face_thread.isRunning():
+                self._face_thread.stop()
+                self._face_thread.wait(1500)
         self._face_thread = None
 
     # ── 시그널 핸들러 ─────────────────────────────────────────────────────────
