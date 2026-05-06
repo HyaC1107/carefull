@@ -87,6 +87,10 @@ class _AuthWorker(QThread):
 
         for i, img in enumerate(self._face_imgs):
             user, score = authenticate(img)
+            # --- 고도화: 콘솔에 실시간 점수 출력 ---
+            status = "MATCH" if user else "FAIL"
+            print(f"[AUTH_FRAME] {i+1:02d}/{total_count} | Score: {score:.4f} ({status})")
+            
             if user:
                 if user not in results:
                     results[user] = []

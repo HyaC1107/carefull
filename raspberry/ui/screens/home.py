@@ -405,12 +405,10 @@ class HomeScreen(QWidget):
     def _on_status_ready(self, is_paired: bool, has_face: bool):
         if not is_paired:
             self._btn_register.hide()
-        elif not has_face:
+        else:
+            # 상시 활성화: 이미 등록된 데이터가 있어도 재등록이 가능하도록 변경
             self._btn_register.show()
             self._btn_register.set_enabled(True)
-        else:
-            self._btn_register.show()
-            self._btn_register.set_enabled(False)
 
     def _go(self, screen: str):
         if self._app:

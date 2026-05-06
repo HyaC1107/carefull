@@ -122,19 +122,20 @@ class FaceThread(QThread):
 
                     if faces:
                         consecutive_face_count += 1
-                        sx, sy, sw, sh = faces[0]
-                        x, y, w, h = sx * 2, sy * 2, sw * 2, sh * 2
+                        sx, sy, sw, h_det = faces[0]
+                        x, y, w, h = sx * 2, sy * 2, sw * 2, h_det * 2
 
                         # 2프레임 연속 감지 후 짐벌 추적 시작
                         if consecutive_face_count >= 2:
                             gimbal.track_face((x, y, w, h), fw, fh)
 
                         if _is_centered((x, y, w, h), fw):
-                            mx, my = int(w * _FACE_MARGIN), int(h * _FACE_MARGIN)
-                            x1 = max(0, x - mx)
-                            y1 = max(0, y - my)
-                            x2 = min(fw, x + w + mx)
-                            y2 = min(fh, y + h + my)
+                            # --- 고도화: 정사각형 고정 배율 크롭 (거리 편차 방지) ---
+                            cx, cy = x + w / 2, y + h / 2
+                            side = max(w, h) * 1.45
+                            x1, y1 = int(max(0, cx - side / 2)), int(max(0, cy - side / 2))
+                            x2, y2 = int(min(fw, cx + side / 2)), int(min(fh, cy + side / 2))
+
                             face_bgr = frame[y1:y2, x1:x2]
                             if face_bgr.size > 0:
                                 face_imgs.append(face_bgr)
@@ -161,7 +162,7 @@ class FaceThread(QThread):
     def _run_register(self):
         """
         5방향 × 4장 = 20장 등록.
-        방향 전환 시 2초 카운트다운 안내 + 짐벌 추적.
+        방향 전환 시 카메라 화면을 끊지 않고 안내 + 짐벌 추적 유지.
         """
         from camera.camera import get_frame
         from face_detection.mediapipe_detector import detect_face
@@ -172,6 +173,7 @@ class FaceThread(QThread):
         face_imgs = []
         last_capture_time = 0.0
         phase_idx = 0
+        pause_until = 0.0  # 방향 전환 대기 시간
 
         self.phase_changed.emit(0, _PHASES[0])
 
@@ -182,22 +184,28 @@ class FaceThread(QThread):
                     self.msleep(10)
                     continue
 
+                # ── UX 개선: 대기 중에도 카메라 화면은 끊김 없이 송출 ──
                 self.frame_ready.emit(frame.copy())
 
                 now = time.time()
+                
+                # 방향 전환 대기 중이면 검출/캡처 건너뜀
+                if now < pause_until:
+                    self.msleep(5)
+                    continue
+
                 if now - last_capture_time < _REGISTER_COOLDOWN_SEC:
                     self.msleep(1)
                     continue
 
                 fh, fw = frame.shape[:2]
                 small_frame = cv2.resize(frame, (320, 240))
-                faces = detect_face(small_frame)   # BGR 그대로 전달
+                faces = detect_face(small_frame)
 
                 if faces:
-                    # 가장 큰 얼굴 선택 (면적 기준)
                     faces.sort(key=lambda b: b[2] * b[3], reverse=True)
-                    sx, sy, sw, sh = faces[0]
-                    x, y, w, h = sx * 2, sy * 2, sw * 2, sh * 2
+                    sx, sy, sw, h_det = faces[0]
+                    x, y, w, h = sx * 2, sy * 2, sw * 2, h_det * 2
 
                     gimbal.track_face((x, y, w, h), fw, fh)
 
@@ -205,31 +213,27 @@ class FaceThread(QThread):
                         self.msleep(1)
                         continue
 
-                    mx, my = int(w * _FACE_MARGIN), int(h * _FACE_MARGIN)
-                    x1 = max(0, x - mx)
-                    y1 = max(0, y - my)
-                    x2 = min(fw, x + w + mx)
-                    y2 = min(fh, y + h + my)
+                    cx, cy = x + w / 2, y + h / 2
+                    side = max(w, h) * 1.45
+                    x1, y1 = int(max(0, cx - side / 2)), int(max(0, cy - side / 2))
+                    x2, y2 = int(min(fw, cx + side / 2)), int(min(fh, cy + side / 2))
 
                     crop = frame[y1:y2, x1:x2]
                     if crop.size > 0:
                         face_imgs.append(crop)
                         last_capture_time = now
                         self.capture_progress.emit(len(face_imgs))
-                        logger.debug(f"[REGISTER] {len(face_imgs)}/20  phase={_PHASES[phase_idx]}")
+                        logger.debug(f"[REGISTER] {len(face_imgs)}/20 phase={_PHASES[phase_idx]}")
 
-                        # 이 페이즈 완료 → 다음 방향으로 전환
+                        # 이 페이즈 완료 → 다음 방향 안내 (비차단 대기 방식)
                         next_phase = len(face_imgs) // _PHOTOS_PER_PHASE
                         if next_phase != phase_idx and next_phase < len(_PHASES):
                             phase_idx = next_phase
-                            for countdown in range(int(_PHASE_PAUSE_SEC), 0, -1):
-                                if not self._running:
-                                    break
-                                self.phase_changed.emit(-countdown, _PHASES[phase_idx])
-                                self.msleep(1000)
-                            if self._running:
-                                self.phase_changed.emit(phase_idx, _PHASES[phase_idx])
-                            last_capture_time = time.time()
+                            # 카운트다운 안내 (여기서는 시각적 안내만 하고 루프는 계속 돌림)
+                            self.phase_changed.emit(-2, _PHASES[phase_idx])
+                            pause_until = now + _PHASE_PAUSE_SEC
+                            # 1초 후 -1초 안내를 위한 스케줄링은 불가능하므로, 
+                            # 단순하게 다음 루프들에서 처리하거나 단일 메시지 유지
                 else:
                     gimbal.update_idle()
 

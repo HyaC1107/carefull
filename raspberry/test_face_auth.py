@@ -196,7 +196,7 @@ def _render_auth(frame, face, centered, score, votes, total, remaining):
     _cv_panel(d, fh - 110, fh)
     _cv_txt(d, "AUTH: Multi-Match", (10, fh - 75), 0.9, (100, 220, 255), bold=True)
     pct = f"{votes/max(total,1)*100:.0f}%"
-    _cv_txt(d, f"Votes: {votes}/{total} ({pct}) | Time: {remaining:.1fs}", (10, fh - 45), 0.7)
+    _cv_txt(d, f"Votes: {votes}/{total} ({pct}) | Time: {remaining:.1f}s", (10, fh - 45), 0.7)
     _cv_bar(d, total / _AUTH_MAX_CAPTURE, fh - 20, color=(0, 200, 0) if (votes / max(total, 1)) >= _AUTH_VOTE_MIN else (0, 100, 255))
     return d
 
@@ -450,7 +450,7 @@ class TestWindow(QWidget):
 
     def _show(self, bgr):
         h, w, ch = bgr.shape
-        q = QImage(bgr.data, w, h, ch * w, QImage.Format_RGB888).rgbSwapped()
+        q = QImage(bgr.data, w, h, ch * w, QImage.Format_RGB888)
         self._img_lbl.setPixmap(QPixmap.fromImage(q).scaled(SCREEN_WIDTH, SCREEN_HEIGHT, Qt.KeepAspectRatio))
 
     def closeEvent(self, event):
