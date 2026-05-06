@@ -2,6 +2,10 @@ import json
 import os
 from datetime import datetime
 
+_USER_DB_PATH = os.path.normpath(
+    os.path.join(os.path.dirname(__file__), "..", "..", "db", "user_db.json")
+)
+
 from PyQt5.QtCore import Qt, QThread, QTimer, pyqtSignal
 from PyQt5.QtGui import QColor, QFont, QPainter, QPen, QPixmap
 from PyQt5.QtWidgets import (
@@ -35,9 +39,18 @@ class _DeviceStatusWorker(QThread):
         try:
             from api.client import fetch_device_status
             s = fetch_device_status()
-            self.status_ready.emit(s["is_paired"], s["has_face"])
+            is_paired = s["is_paired"]
         except Exception:
             self.status_ready.emit(False, False)
+            return
+
+        try:
+            with open(_USER_DB_PATH, "r", encoding="utf-8") as f:
+                has_face = bool(json.load(f))
+        except Exception:
+            has_face = False
+
+        self.status_ready.emit(is_paired, has_face)
 
 
 def _fmt_ampm(hour: int, minute: int) -> str:

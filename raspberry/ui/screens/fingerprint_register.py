@@ -13,7 +13,7 @@ _ICONS_DIR = os.path.normpath(
     os.path.join(os.path.dirname(__file__), "..", "..", "assets", "icons")
 )
 
-_BG     = "#ede8ff"
+_BG     = "#F5EBFF"
 _PURPLE = "#7c3aed"
 _DARK   = "#1e1b4b"
 _GREEN  = "#16a34a"
@@ -39,7 +39,7 @@ class _FingerprintWidget(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self._progress = 0
-        self.setFixedSize(160, 160)
+        self.setFixedSize(220, 220)
 
     def set_progress(self, pct: int):
         self._progress = max(0, min(100, pct))
@@ -58,13 +58,13 @@ class _FingerprintWidget(QWidget):
         cx, cy = w / 2, h / 2
 
         arcs = [
-            (10,  -30 * 16, 240 * 16),
-            (17,  -40 * 16, 260 * 16),
-            (24,  -50 * 16, 280 * 16),
-            (31,  -55 * 16, 290 * 16),
-            (38,  -55 * 16, 290 * 16),
-            (45,  -50 * 16, 280 * 16),
-            (52,  -40 * 16, 250 * 16),
+            (14,  -30 * 16, 240 * 16),
+            (23,  -40 * 16, 260 * 16),
+            (33,  -50 * 16, 280 * 16),
+            (43,  -55 * 16, 290 * 16),
+            (52,  -55 * 16, 290 * 16),
+            (62,  -50 * 16, 280 * 16),
+            (72,  -40 * 16, 250 * 16),
         ]
         for i, (r, start, span) in enumerate(arcs):
             arc_alpha = min(255, 60 + int((self._progress / 100) * 195) + i * 10)
@@ -103,7 +103,7 @@ class FingerprintRegisterScreen(QWidget):
         if os.path.exists(_fp_path):
             self._fp_widget = QLabel()
             self._fp_widget.setAlignment(Qt.AlignCenter)
-            _pix = QPixmap(_fp_path).scaled(180, 180, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+            _pix = QPixmap(_fp_path).scaled(240, 240, Qt.KeepAspectRatio, Qt.SmoothTransformation)
             self._fp_widget.setPixmap(_pix)
         else:
             self._fp_widget = _FingerprintWidget()
@@ -115,6 +115,7 @@ class FingerprintRegisterScreen(QWidget):
         self._progress_bar.setRange(0, 100)
         self._progress_bar.setValue(0)
         self._progress_bar.setFixedHeight(8)
+        self._progress_bar.setFixedWidth(600)
         self._progress_bar.setTextVisible(False)
         self._progress_bar.setStyleSheet(f"""
             QProgressBar {{
@@ -127,7 +128,11 @@ class FingerprintRegisterScreen(QWidget):
                 border-radius: 4px;
             }}
         """)
-        root.addWidget(self._progress_bar)
+        _prog_row = QHBoxLayout()
+        _prog_row.addStretch()
+        _prog_row.addWidget(self._progress_bar)
+        _prog_row.addStretch()
+        root.addLayout(_prog_row)
         root.addSpacing(16)
 
         # ── 안내 텍스트 ──────────────────────────────────────────────────────
