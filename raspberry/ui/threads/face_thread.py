@@ -205,14 +205,11 @@ class FaceThread(QThread):
                         self.msleep(1)
                         continue
 
-                    # --- 등록 시에도 동일한 정밀 크롭 적용 ---
-                    cx, cy = x + w / 2, y + h / 2
-                    side = max(w, h) * 1.45
-                    
-                    x1 = int(max(0, cx - side / 2))
-                    y1 = int(max(0, cy - side / 2))
-                    x2 = int(min(fw, cx + side / 2))
-                    y2 = int(min(fh, cy + side / 2))
+                    mx, my = int(w * _FACE_MARGIN), int(h * _FACE_MARGIN)
+                    x1 = max(0, x - mx)
+                    y1 = max(0, y - my)
+                    x2 = min(fw, x + w + mx)
+                    y2 = min(fh, y + h + my)
 
                     crop = frame[y1:y2, x1:x2]
                     if crop.size > 0:
