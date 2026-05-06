@@ -15,7 +15,7 @@ import '../styles/MobileBottomNav.css'
 
 const SCHEDULE_INFO_BANNER = {
   title: '일정 안내',
-  description: '백엔드에 저장된 복약 일정이 달력과 목록에 표시됩니다.',
+  description: '저장된 복약 일정이 달력과 목록에 표시됩니다.',
 }
 
 function SchedulePage() {

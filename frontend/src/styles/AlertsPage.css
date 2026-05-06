@@ -226,36 +226,6 @@
   color: #f97316;
 }
 
-/* 하단 안내 배너 */
-.alerts-info-banner {
-  background: #eefcff;
-  border: 1px solid #d2f1f7;
-  border-radius: 16px;
-  padding: 16px 18px;
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-}
-
-.alerts-info-banner__icon {
-  color: #0891b2;
-  flex-shrink: 0;
-}
-
-.alerts-info-banner__title {
-  margin: 0 0 6px;
-  font-size: 0.85rem;
-  font-weight: 800;
-  color: #0f172a;
-}
-
-.alerts-info-banner__description {
-  margin: 0;
-  font-size: 0.78rem;
-  color: #64748b;
-  line-height: 1.45;
-}
-
 /* 반응형 */
 @media (max-width: 1200px) {
   .alerts-content {
@@ -286,8 +256,7 @@
   }
 
   .alert-filter-tabs,
-  .alert-list-card,
-  .alerts-info-banner {
+  .alert-list-card {
     border-radius: 14px;
     padding: 14px;
   }

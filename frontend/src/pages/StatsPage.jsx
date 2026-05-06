@@ -57,24 +57,24 @@ function StatsPage() {
   }, [])
 
   const statsSummaryCards = useMemo(
-    () => buildStatsSummaryCards(dashboardSummary, activities),
-    [dashboardSummary, activities],
+    () => buildStatsSummaryCards(dashboardSummary, activities, dashboardData?.statistics),
+    [dashboardSummary, activities, dashboardData],
   )
   const monthlyTrendData = useMemo(
-    () => buildMonthlyTrendData(activities),
-    [activities],
+    () => buildMonthlyTrendData(activities, dashboardData?.statistics),
+    [activities, dashboardData],
   )
   const timePatternData = useMemo(
     () => buildTimePatternData(activities),
     [activities],
   )
   const medicineRateData = useMemo(
-    () => buildMedicineRateData(activities, schedules),
-    [activities, schedules],
+    () => buildMedicineRateData(activities, schedules, dashboardData?.statistics),
+    [activities, schedules, dashboardData],
   )
   const weeklyInsights = useMemo(
-    () => buildWeeklyInsights(activities),
-    [activities],
+    () => buildWeeklyInsights(activities, dashboardData?.statistics),
+    [activities, dashboardData],
   )
   const headerData = useMemo(
     () =>
@@ -237,10 +237,12 @@ function formatRelativeTime(value) {
   return `${Math.floor(diffHours / 24)}일 전`
 }
 
-function buildStatsSummaryCards(summary, activities) {
+function buildStatsSummaryCards(summary, activities, statistics) {
   const lastSevenDays = getActivitiesWithinDays(activities, 7)
-  const weeklyCompleted = lastSevenDays.filter(isSuccessStatus).length
-  const weeklyMissed = lastSevenDays.filter(isMissedStatus).length
+  const weeklyCompleted = statistics?.weekly?.success_count ?? lastSevenDays.filter(isSuccessStatus).length
+  const weeklyMissed = statistics?.weekly
+    ? Number(statistics.weekly.missed_count || 0) + Number(statistics.weekly.failed_count || 0)
+    : lastSevenDays.filter(isMissedStatus).length
 
   return [
     {
@@ -278,7 +280,19 @@ function buildStatsSummaryCards(summary, activities) {
   ]
 }
 
-function buildMonthlyTrendData(activities) {
+function buildMonthlyTrendData(activities, statistics) {
+  if (Array.isArray(statistics?.monthly_trend) && statistics.monthly_trend.length > 0) {
+    return statistics.monthly_trend.map((bucket) => ({
+      month: bucket.month || `${Number(String(bucket.month_key || bucket.key || '').slice(5, 7))}월`,
+      success: Number(bucket.success_rate) || 0,
+      missed: Number(bucket.missed_rate) || 0,
+      planned_count: Number(bucket.planned_count) || 0,
+      success_count: Number(bucket.success_count) || 0,
+      missed_count: Number(bucket.missed_count) || 0,
+      failed_count: Number(bucket.failed_count) || 0,
+    }))
+  }
+
   const monthBuckets = getRecentMonthBuckets(6)
 
   activities.forEach((activity) => {
@@ -352,7 +366,19 @@ function buildTimePatternData(activities) {
   }))
 }
 
-function buildMedicineRateData(activities, schedules) {
+function buildMedicineRateData(activities, schedules, statistics) {
+  if (Array.isArray(statistics?.medication_rates) && statistics.medication_rates.length > 0) {
+    return statistics.medication_rates.map((stat, index) => ({
+      name: stat.medi_name || `약물 ${stat.medi_id}`,
+      value: Number(stat.success_rate) || 0,
+      fill: PIE_COLORS[index % PIE_COLORS.length],
+      planned_count: Number(stat.planned_count) || 0,
+      success_count: Number(stat.success_count) || 0,
+      missed_count: Number(stat.missed_count) || 0,
+      failed_count: Number(stat.failed_count) || 0,
+    }))
+  }
+
   const scheduleMedicationMap = schedules.reduce((acc, schedule) => {
     acc[schedule.sche_id] = {
       medi_id: schedule.medi_id,
@@ -397,7 +423,44 @@ function buildMedicineRateData(activities, schedules) {
     .slice(0, 5)
 }
 
-function buildWeeklyInsights(activities) {
+function buildWeeklyInsights(activities, statistics) {
+  if (statistics?.weekly) {
+    const weekly = statistics.weekly
+    const bestDay = getBestCompletionDay(
+      getActivitiesWithinDays(activities, 7).filter(isSuccessStatus),
+    )
+    return [
+      {
+        id: 'weekly-success',
+        label: '주간 성공 기록',
+        value: `${weekly.success_count ?? 0}건`,
+        subText: '최근 7일 성공 복약 수',
+        type: 'success',
+      },
+      {
+        id: 'weekly-missed',
+        label: '주간 미복약 기록',
+        value: `${Number(weekly.missed_count || 0) + Number(weekly.failed_count || 0)}건`,
+        subText: '실패 및 미복약 포함',
+        type: 'primary',
+      },
+      {
+        id: 'weekly-rate',
+        label: '주간 성공률',
+        value: `${weekly.success_rate ?? 0}%`,
+        subText: '최근 7일 활동 기준',
+        type: 'mint',
+      },
+      {
+        id: 'weekly-best-day',
+        label: '가장 많은 복약일',
+        value: bestDay.label,
+        subText: `${bestDay.count}건 완료`,
+        type: 'growth',
+      },
+    ]
+  }
+
   const lastSevenDays = getActivitiesWithinDays(activities, 7)
   const completed = lastSevenDays.filter(isSuccessStatus)
   const missed = lastSevenDays.filter(isMissedStatus)
@@ -499,7 +562,9 @@ function getBestCompletionDay(activities) {
 }
 
 function isSuccessStatus(activity) {
-  return String(activity?.status || '').toUpperCase() === 'SUCCESS'
+  return ['SUCCESS', 'COMPLETED', 'TAKEN'].includes(
+    String(activity?.status || '').toUpperCase(),
+  )
 }
 
 function isMissedStatus(activity) {
