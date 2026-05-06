@@ -69,6 +69,7 @@ function SchedulePage() {
     totalCount === 0 ? 0 : Math.round((completedCount / totalCount) * 100)
 
   const selectedDateLabel = formatSelectedDateLabel(selectedDate)
+  const todayDateKey = getTodayDateKey()
 
   const handleSelectDate = (dateKey) => {
     setCalendarState((prev) => ({
@@ -214,6 +215,7 @@ function SchedulePage() {
             <ScheduleList
               schedules={selectedSchedules}
               selectedDate={selectedDate}
+              isTodaySelected={selectedDate === todayDateKey}
               onToggle={handleToggleSchedule}
             />
 
@@ -243,6 +245,11 @@ function createInitialCalendarState() {
     month: today.month,
     selectedDate: formatDateKey(today.year, today.month, today.day),
   }
+}
+
+function getTodayDateKey() {
+  const today = getKstDateParts()
+  return formatDateKey(today.year, today.month, today.day)
 }
 
 function buildMonthActivityLogPath(year, month) {
