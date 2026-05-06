@@ -138,12 +138,6 @@ def _render_standby(frame, emb_count):
     _cv_txt(d, f"Threshold: {FACE_MATCH_THRESHOLD}   VoteRatio: {_AUTH_VOTE_MIN}", (10, 90), 0.65)
 
     ov = d.copy()
-    cv2.rectangle(ov, (fw // 2 - 250, fh // 2 - 65), (fw // 2 + 250, fh // 2 + 55),
-                  (10, 10, 10), -1)
-    cv2.addWeighted(ov, 0.65, d, 0.35, 0, d)
-    _cv_txt(d, "1 : Register    2 : Authenticate    3 : Delete",
-            (fw // 2 - 240, fh // 2 - 20), 0.8, (200, 200, 200), bold=True)
-    _cv_txt(d, "Q : Quit", (fw // 2 - 40, fh // 2 + 30), 0.75, (160, 160, 160))
     return d
 
 

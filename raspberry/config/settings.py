@@ -9,7 +9,7 @@ DB_DIR = os.path.join(BASE_DIR, "db")
 MODELS_DIR = os.path.join(BASE_DIR, "models")
 ENV_DIR = os.path.join(BASE_DIR, ".env")
 
-MODEL_PATH = os.path.join(MODELS_DIR, "mobilefacenet_fp32.tflite")
+MODEL_PATH = os.path.join(MODELS_DIR, "mobilefacenet.tflite")
 CAMERA_WIDTH = int(os.getenv("CAREFULL_CAMERA_WIDTH", "640"))
 CAMERA_HEIGHT = int(os.getenv("CAREFULL_CAMERA_HEIGHT", "480"))
 CAMERA_WARMUP_SECONDS = float(os.getenv("CAREFULL_CAMERA_WARMUP_SECONDS", "2"))
