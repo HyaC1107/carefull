@@ -433,12 +433,17 @@ function buildMedicineRateData(activities, schedules, statistics) {
   })
 
   return Object.entries(medicationStats)
+    .sort(([, a], [, b]) => {
+      const aRate = a.total === 0 ? 0 : Math.round((a.success / a.total) * 100)
+      const bRate = b.total === 0 ? 0 : Math.round((b.success / b.total) * 100)
+
+      return b.total - a.total || aRate - bRate || a.name.localeCompare(b.name)
+    })
     .map(([medicationId, stat], index) => ({
       name: stat.name || `약물 ${medicationId}`,
       value: stat.total === 0 ? 0 : Math.round((stat.success / stat.total) * 100),
       fill: PIE_COLORS[index % PIE_COLORS.length],
     }))
-    .sort((a, b) => b.value - a.value)
     .slice(0, 5)
 }
 

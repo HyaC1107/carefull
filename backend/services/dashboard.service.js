@@ -307,7 +307,11 @@ const get_dashboard_statistics = async (patient_id) => {
                 ? Math.round((item.success_count / item.planned_count) * 100)
                 : 0
         }))
-        .sort((a, b) => b.success_rate - a.success_rate)
+        .sort((a, b) =>
+            b.planned_count - a.planned_count ||
+            a.success_rate - b.success_rate ||
+            String(a.medi_name || '').localeCompare(String(b.medi_name || ''))
+        )
         .slice(0, 5);
 
     weekly.success_rate = weekly.planned_count > 0
