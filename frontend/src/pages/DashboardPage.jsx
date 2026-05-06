@@ -167,7 +167,7 @@ function buildSummaryCards(summary = DEFAULT_SUMMARY) {
     {
       id: 'today-missed',
       title: '오늘 미복용',
-      value: String(summary?.today_missed_count ?? 0),
+      value: String(summary?.today_remaining_count ?? summary?.today_missed_count ?? 0),
       subText: '미복용 및 실패 건수',
       trendText: '',
       type: 'danger',
