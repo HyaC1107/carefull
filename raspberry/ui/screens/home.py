@@ -91,13 +91,15 @@ def _next_medication() -> str:
         
     times.sort()
     
-    # 현재 시각보다 늦은 첫 번째 시간 찾기
+    # 1. 오늘 남은 복약 중 가장 빠른 시간 찾기
     for t in times:
         if t > now_min:
             h, m = divmod(t, 60)
             return f"{h:02d}:{m:02d}"
             
-    return "--:--"
+    # 2. 오늘 남은 복약이 없다면 내일의 첫 복약 시간 반환
+    h, m = divmod(times[0], 60)
+    return f"{h:02d}:{m:02d}"
 
 
 class _MenuButton(QWidget):

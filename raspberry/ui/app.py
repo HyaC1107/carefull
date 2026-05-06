@@ -127,7 +127,7 @@ class App(QMainWindow):
             self._cached_schedules = schedules
 
         from scheduler.schedule import check_schedule
-        due = check_schedule(self._cached_schedules or None)
+        due = check_schedule(self._cached_schedules or None, caller_id="ui")
         if not due:
             return
 

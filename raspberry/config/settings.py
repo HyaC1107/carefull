@@ -16,7 +16,7 @@ CAMERA_WARMUP_SECONDS = float(os.getenv("CAREFULL_CAMERA_WARMUP_SECONDS", "2"))
 SCHEDULE_POLL_SECONDS = int(os.getenv("CAREFULL_SCHEDULE_POLL_SECONDS", "30"))
 AUTH_RETRY_COUNT = int(os.getenv("CAREFULL_AUTH_RETRY_COUNT", "5"))
 AUTH_RETRY_DELAY_SECONDS = float(os.getenv("CAREFULL_AUTH_RETRY_DELAY_SECONDS", "1"))
-FACE_MATCH_THRESHOLD = float(os.getenv("CAREFULL_FACE_MATCH_THRESHOLD", "0.75"))
+FACE_MATCH_THRESHOLD = float(os.getenv("CAREFULL_FACE_MATCH_THRESHOLD", "0.85"))
 
 SCREEN_WIDTH = int(os.getenv("CAREFULL_SCREEN_WIDTH", "1280"))
 SCREEN_HEIGHT = int(os.getenv("CAREFULL_SCREEN_HEIGHT", "600"))
@@ -34,7 +34,8 @@ FINGERPRINT_SCAN_TIMEOUT = int(os.getenv("CAREFULL_FINGERPRINT_SCAN_TIMEOUT", "3
 # Voice & TTS Settings
 VOICES_DIR = os.path.join(BASE_DIR, "voices")
 TTS_LANG = os.getenv("CAREFULL_TTS_LANG", "ko")
-TTS_FILE_PATH = os.path.join(VOICES_DIR, "default_alarm.mp3")
+# 서버에서 동기화된 커스텀 알림음은 alarm1.mp3로 저장
+TTS_FILE_PATH = os.path.join(VOICES_DIR, "alarm1.mp3")
 # ── GPIO 핀 번호 (BCM 기준) ── 여기서만 수정하면 전체 반영
 STEP_PINS  = [
     int(os.getenv("CAREFULL_STEP_PIN1", "12")),

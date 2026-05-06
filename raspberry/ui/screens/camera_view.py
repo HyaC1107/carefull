@@ -15,7 +15,6 @@ _DB_PATH = os.path.normpath(
 
 
 class _EmbeddingSaveWorker(QThread):
-    # ... (기존과 동일하므로 생략하지 않고 전체 구조에 맞게 유지)
     done = pyqtSignal(bool)
     def __init__(self, face_imgs: list, parent=None):
         super().__init__(parent)
@@ -23,25 +22,46 @@ class _EmbeddingSaveWorker(QThread):
     def run(self):
         try:
             from face_recognition.embedding import get_embedding
+            # 1. 품질(이미지 크기) 순으로 정렬하여 상위 10장 선택
+            # face_imgs는 [H, W, C] 형태의 ndarray 리스트
+            self._face_imgs.sort(key=lambda img: img.shape[0] * img.shape[1], reverse=True)
+            best_imgs = self._face_imgs[:10]
+            
             embeddings = []
-            for img in self._face_imgs:
-                try: embeddings.append(get_embedding(img))
+            for img in best_imgs:
+                try: 
+                    emb = get_embedding(img)
+                    embeddings.append(emb.tolist())
                 except Exception: pass
+                
             if not embeddings:
                 self.done.emit(False)
                 return
-            mean_emb = np.mean(np.array(embeddings), axis=0).tolist()
+            
+            # 2. 평균 대신 리스트(Multi-Template)로 저장
             try:
                 with open(_DB_PATH, "r", encoding="utf-8") as f: db = json.load(f)
             except Exception: db = {}
-            db["_latest"] = mean_emb
-            with open(_DB_PATH, "w", encoding="utf-8") as f: json.dump(db, f, indent=2)
+            
+            # "_latest" 키에 벡터 리스트 저장
+            db["_latest"] = embeddings
+            
+            with open(_DB_PATH, "w", encoding="utf-8") as f: 
+                json.dump(db, f, indent=2)
+                
+            # 서버 업로드 (서버도 리스트를 받을 수 있도록 처리 - 여기서는 대표로 평균값 전송하거나 리스트 전송)
             from api.client import upload_face_embedding
             from auth.authenticate import invalidate_embedding_cache
+            
+            # 서버에는 호환성을 위해 상위 10개의 평균을 보냄
+            mean_emb = np.mean(np.array(embeddings), axis=0).tolist()
             ok = upload_face_embedding(mean_emb)
+            
             invalidate_embedding_cache()
-            self.done.emit(ok)
-        except Exception: self.done.emit(False)
+            self.done.emit(True) # 로컬 저장 성공 시 True
+        except Exception as e:
+            print(f"[SAVE_WORKER] Error: {e}")
+            self.done.emit(False)
 
 
 class _AuthWorker(QThread):
@@ -63,7 +83,7 @@ class _AuthWorker(QThread):
         results = {}  # {user_name: [scores]}
         total_count = len(self._face_imgs)
         
-        print(f"[AUTH_WORKER] Analyzing {total_count} frames (Strict Mode)...")
+        print(f"[AUTH_WORKER] Analyzing {total_count} frames (Multi-Template Mode)...")
 
         for i, img in enumerate(self._face_imgs):
             user, score = authenticate(img)
@@ -97,8 +117,8 @@ class _AuthWorker(QThread):
                 best_user = user
                 highest_avg = avg_score
 
-        # 매칭 비율 임계값: 전체 프레임 중 이 비율 이상이 threshold를 넘으면 승인
-        STRICT_RATIO_THRESHOLD = 0.45
+        # 매칭 비율 임계값 완화: 30% 이상이면 승인
+        STRICT_RATIO_THRESHOLD = 0.30
         final_ratio = max_votes / total_count
 
         if final_ratio >= STRICT_RATIO_THRESHOLD:

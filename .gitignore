@@ -96,13 +96,10 @@ backend/.env.local
 # 🔥 데이터베이스 (라즈베리파이나 백엔드 SQLite 등)
 *.sqlite3
 *.db
-!raspberry/db/README.md # 폴더 구조 유지를 위해 README만 허용하는 센스!
-raspberry/db/
 .gemini.md
 claude.md
 docs
 raspberry/core
 raspberry/voices
 dev_test/behavior/logs/summary.csv
-raspberry/db
-raspberry/db/schedule.json
+raspberry/db/

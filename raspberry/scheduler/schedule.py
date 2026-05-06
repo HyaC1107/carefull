@@ -38,8 +38,10 @@ def _load_cached() -> list:
         return []
 
 
-def check_schedule(schedules: list = None) -> list:
-    """현재 시각에 맞는 스케줄 목록 반환 (중복 트리거 방지)."""
+def check_schedule(schedules: list = None, caller_id: str = "default") -> list:
+    """현재 시각에 맞는 스케줄 목록 반환 (중복 트리거 방지).
+    caller_id를 통해 여러 호출처(UI, Controller 등)가 독립적으로 트리거 여부를 관리함.
+    """
     now = datetime.now()
     now_time = now.strftime("%H:%M")
     today = now.strftime("%Y-%m-%d")
@@ -56,7 +58,8 @@ def check_schedule(schedules: list = None) -> list:
             continue
         sche_time = _to_hhmm(time_val)
 
-        key = f"{sche_id}_{sche_time}"
+        # 호출처별로 별도의 트리거 기록 관리
+        key = f"{caller_id}_{sche_id}_{sche_time}"
         if sche_time == now_time and last_triggered.get(key) != today:
             due.append(s)
             last_triggered[key] = today

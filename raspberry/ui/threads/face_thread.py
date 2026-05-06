@@ -240,3 +240,15 @@ class FaceThread(QThread):
 
         if self._running:
             self.capture_done.emit(face_imgs)
+hanged.emit(phase_idx, _PHASES[phase_idx])
+                            last_capture_time = time.time()
+                else:
+                    gimbal.update_idle()
+
+                self.msleep(1)
+
+        finally:
+            gimbal.stop()
+
+        if self._running:
+            self.capture_done.emit(face_imgs)
