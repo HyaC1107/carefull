@@ -5,23 +5,31 @@ const {
     trigger_activity_notification_safe
 } = require('../services/notification-trigger.service');
 
-const GRACE_MINUTES = 30;
+const GRACE_MINUTES = parseInt(process.env.DELAY_LIMIT_MINUTES) || 30;
 const JOB_INTERVAL_MS = 60 * 1000;
+const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
 
 const getProjectDayOfWeek = (date) => {
     const day = date.getDay();
     return day === 0 ? 7 : day;
 };
 
+// KST 기준 날짜 문자열 반환 (YYYY-MM-DD)
+const getKSTDateString = (date) => {
+    return new Date(date.getTime() + KST_OFFSET_MS).toISOString().slice(0, 10);
+};
+
+// time_string(KST HH:MM:SS)을 오늘 KST 날짜에 결합해 UTC Date로 반환
 const buildTodayDateTime = (time_string, now) => {
     const [hours = 0, minutes = 0, seconds = 0] = String(time_string)
         .split(':')
         .map(Number);
 
-    const target = new Date(now);
-    target.setHours(hours, minutes, seconds, 0);
+    const kst_date_str = getKSTDateString(now);
+    const pad = (n) => String(n).padStart(2, '0');
 
-    return target;
+    // "+09:00" 지정으로 KST 시각임을 명시 → 내부적으로 UTC로 변환됨
+    return new Date(`${kst_date_str}T${pad(hours)}:${pad(minutes)}:${pad(seconds)}+09:00`);
 };
 
 const findActiveScheduleCandidates = async () => {
@@ -59,7 +67,7 @@ const hasAnyActivityForScheduleTime = async (sche_id, patient_id, today_date_str
         FROM activities
         WHERE sche_id = $1
           AND patient_id = $2
-          AND sche_time::date = $3::date
+          AND (sche_time AT TIME ZONE 'Asia/Seoul')::date = $3::date
         LIMIT 1
     `;
 
@@ -139,7 +147,7 @@ const insertMissedActivity = async (client, target) => {
 
 const filterMissedTargets = (candidates) => {
     const now = new Date();
-    const today_date_string = now.toISOString().slice(0, 10);
+    const today_date_string = getKSTDateString(now);
     return candidates
         .filter((item) => {
             const start_date_string = item.start_date instanceof Date
@@ -199,7 +207,7 @@ const runMissedLogJob = async () => {
 
     try {
         const now = new Date();
-        const today_date_string = now.toISOString().slice(0, 10);
+        const today_date_string = getKSTDateString(now);
 
         const candidates = await findActiveScheduleCandidates();
         const targets = filterMissedTargets(candidates);

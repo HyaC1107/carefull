@@ -30,7 +30,10 @@
       "WebFetch(domain:pypi.org)",
       "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\smhrd\\\\Desktop\\\\carefull\\\\raspberry\" -Recurse -Force)",
       "Bash(Select-Object -Property FullName, PSIsContainer)",
-      "Bash(ConvertTo-Json -Depth 100)"
+      "Bash(ConvertTo-Json -Depth 100)",
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\smhrd\\\\Desktop\\\\carefull\\\\backend\" -Recurse -Directory)",
+      "Bash(Select-Object -First 20)",
+      "PowerShell(Get-ChildItem -Path \"C:\\\\Users\\\\smhrd\\\\Desktop\\\\carefull\\\\backend\" -Recurse | Where-Object {$_.PSIsContainer} | Select-Object -First 30 FullName)"
     ]
   }
 }
