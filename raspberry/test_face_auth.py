@@ -590,7 +590,8 @@ class TestWindow(QWidget):
     # ── 화면 출력 ─────────────────────────────────────────────────────────────
 
     def _show(self, bgr_frame):
-        rgb = cv2.cvtColor(bgr_frame, cv2.COLOR_BGR2RGB)
+        # rgb = cv2.cvtColor(bgr_frame, cv2.COLOR_BGR2RGB)
+        rgb = bgr_frame
         h, w, ch = rgb.shape
         qimg = QImage(rgb.data, w, h, ch * w, QImage.Format_RGB888)
         pix  = QPixmap.fromImage(qimg).scaled(
