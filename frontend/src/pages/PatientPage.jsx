@@ -257,7 +257,9 @@ function mapPatientProfile(patient, nickname) {
 
   return {
     patient_name: patient.patient_name || nickname || '등록 사용자',
-    ageGenderBlood: `${patient.birthdate || '-'} · ${patient.gender || '-'} · ${
+    ageGenderBlood: `생년월일 : ${formatBirthdate(
+      patient.birthdate,
+    )} · 성별 : ${formatGender(patient.gender)} · 혈액형 : ${
       patient.bloodtype || '-'
     }`,
     phone: patient.phone || '-',
@@ -383,6 +385,38 @@ function formatDate(value) {
   }
 
   return date.toLocaleDateString('ko-KR')
+}
+
+function formatBirthdate(value) {
+  if (!value) {
+    return '-'
+  }
+
+  const match = String(value).match(/^(\d{4})-(\d{2})-(\d{2})/)
+  if (!match) {
+    return '-'
+  }
+
+  const [, year, month, day] = match
+  return `${year}년${Number(month)}월${Number(day)}일`
+}
+
+function formatGender(value) {
+  const normalized = String(value || '').trim().toLowerCase()
+
+  if (!normalized) {
+    return '-'
+  }
+
+  if (['m', 'male', '남', '남자'].includes(normalized)) {
+    return '남'
+  }
+
+  if (['f', 'female', '여', '여자'].includes(normalized)) {
+    return '여'
+  }
+
+  return value
 }
 
 function formatTime(value) {
