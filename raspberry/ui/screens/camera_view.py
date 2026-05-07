@@ -430,5 +430,3 @@ class CameraViewScreen(QWidget):
     def _on_upload_continue(self):
         self._upload_error_overlay.hide()
         if self._app: self._app.show_screen("fingerprint_register")
-()
-        if self._app: self._app.show_screen("fingerprint_register")
