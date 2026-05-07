@@ -221,6 +221,26 @@ def fetch_sound_meta(device_uid: str = DEVICE_UID) -> dict | None:
         return None
 
 
+def fetch_voice_meta(device_uid: str = DEVICE_UID) -> dict | None:
+    """서버에서 현재 TTS 음성 메타 조회. 파일 없으면 None 반환."""
+    if not device_uid:
+        return None
+    try:
+        r = requests.get(
+            _url("/api/device/voice"),
+            params={"device_uid": device_uid},
+            timeout=API_TIMEOUT,
+        )
+        r.raise_for_status()
+        voice = r.json().get("voice")
+        if voice and voice.get("file_path"):
+            voice["url"] = f"{API_BASE_URL.rstrip('/')}/{voice['file_path'].replace(os.sep, '/')}"
+        return voice
+    except Exception as e:
+        logger.warning("fetch_voice_meta failed: %s", e)
+        return None
+
+
 def download_sound(url: str, dest_path: str) -> bool:
     """url에서 음원 파일을 dest_path로 다운로드."""
     try:

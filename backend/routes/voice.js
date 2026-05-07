@@ -157,16 +157,6 @@ router.post('/generate', verifyToken, async (req, res) => {
             ]
         );
 
-        // 기기 alarm_sound 갱신
-        await pool.query(
-            `UPDATE devices
-             SET alarm_sound_path       = $1,
-                 alarm_sound_name       = $2,
-                 alarm_sound_updated_at = NOW()
-             WHERE patient_id = $3`,
-            [relative_sound, filename, patient_id]
-        );
-
         return sendSuccess(res, 201, { voice: rows[0] });
     } catch (err) {
         console.error('[POST /api/voice/generate]', err.message);

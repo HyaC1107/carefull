@@ -532,6 +532,34 @@ router.get('/sound', async (req, res) => {
     }
 });
 
+// GET /api/device/voice  — TTS 음성 메타 조회 (voice_samples 기반)
+//   Raspberry Pi: ?device_uid=XXX
+router.get('/voice', async (req, res) => {
+    const { device_uid } = req.query;
+    if (!device_uid) return sendError(res, 400, 'device_uid required.');
+
+    try {
+        const { rows } = await pool.query(
+            `SELECT vs.file_path, vs.file_name, vs.updated_at
+             FROM voice_samples vs
+             INNER JOIN devices d ON d.patient_id = vs.patient_id
+             WHERE d.device_uid = $1
+             ORDER BY vs.uploaded_at DESC
+             LIMIT 1`,
+            [String(device_uid).trim()]
+        );
+
+        if (!rows[0]?.file_path) {
+            return sendSuccess(res, 200, { voice: null });
+        }
+
+        return sendSuccess(res, 200, { voice: rows[0] });
+    } catch (err) {
+        console.error('Voice fetch error:', err);
+        return sendError(res, 500, 'Server error while fetching voice.');
+    }
+});
+
 // POST /api/device/sound  — 알림음 업로드 (프론트엔드, JWT 필요)
 router.post('/sound', verifyToken, sound_upload.single('sound'), async (req, res) => {
     if (!req.file) return sendError(res, 400, '업로드된 파일이 없습니다.');

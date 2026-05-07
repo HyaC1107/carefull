@@ -3,7 +3,7 @@ import os
 import re
 import subprocess
 
-from config.settings import SOUNDS_DIR, VOICES_DIR, AUDIO_DEVICE
+from config.settings import SOUNDS_DIR, VOICES_DIR, ALARM_SOUND_PATH, TTS_VOICE_PATH, AUDIO_DEVICE
 
 logger = logging.getLogger("Alarm")
 
@@ -67,9 +67,9 @@ def play_alarm(filename: str = None, loop: bool = False):
     """알람 재생.
 
     파일 탐색 순서:
-      1. assets/sounds/default_alarm.mp3
-      2. voices/default_alarm.mp3
-      filename 지정 시 위 두 디렉토리에서 먼저 탐색.
+      1. filename 지정 시 assets/sounds/, assets/voices/ 에서 탐색
+      2. assets/sounds/alarm.mp3  (보호자 업로드 알림음)
+      3. assets/voices/voice.mp3  (보호자 TTS 음성)
 
     loop=True 이면 stop_alarm() 호출 전까지 반복.
     """
@@ -78,10 +78,7 @@ def play_alarm(filename: str = None, loop: bool = False):
     candidates = []
     if filename:
         candidates += [os.path.join(SOUNDS_DIR, filename), os.path.join(VOICES_DIR, filename)]
-    candidates += [
-        os.path.join(SOUNDS_DIR, "default_alarm.mp3"),
-        os.path.join(VOICES_DIR, "default_alarm.mp3"),
-    ]
+    candidates += [ALARM_SOUND_PATH, TTS_VOICE_PATH]
 
     file_path = next((p for p in candidates if os.path.exists(p)), None)
     if not file_path:
