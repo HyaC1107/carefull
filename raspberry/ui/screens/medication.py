@@ -1,5 +1,5 @@
 from PyQt5.QtCore import Qt, QTimer
-from PyQt5.QtGui import QColor, QFont, QLinearGradient, QPainter
+from PyQt5.QtGui import QColor, QFont, QFontMetrics, QLinearGradient, QPainter
 from PyQt5.QtWidgets import QLabel, QPushButton, QWidget
 
 from ui.widgets.camera_card_widget import CameraCardWidget
@@ -73,10 +73,17 @@ class MedicationScreen(QWidget):
         # 우측 상단 중단 버튼 배치
         self._btn_cancel.setGeometry(w - 160, 20, 140, _fs(60))
 
-        overlay_h = int(h * 0.32)
-        self._gradient.setGeometry(0, h - overlay_h, w, overlay_h)
-        self._title_lbl.setGeometry(0, h - int(h * 0.24), w, _fs(72))
-        self._sub_lbl.setGeometry(0, h - int(h * 0.12), w, _fs(60))
+        # 폰트 실측 높이 기반으로 label geometry 계산 (고정px 쓰면 잘림)
+        title_h = QFontMetrics(self._title_lbl.font()).height() + 16
+        sub_h   = QFontMetrics(self._sub_lbl.font()).height() + 14
+        pad_bot = 24
+        sub_y   = h - pad_bot - sub_h
+        title_y = sub_y - 12 - title_h
+
+        gradient_top = max(0, title_y - 24)
+        self._gradient.setGeometry(0, gradient_top, w, h - gradient_top)
+        self._title_lbl.setGeometry(0, title_y, w, title_h)
+        self._sub_lbl.setGeometry(0, sub_y, w, sub_h)
 
     def showEvent(self, event):
         super().showEvent(event)

@@ -3,7 +3,7 @@ import os
 from PyQt5.QtCore import Qt, QTimer, QRectF
 from PyQt5.QtGui import QColor, QFont, QPainter, QPen, QPixmap
 from PyQt5.QtWidgets import (
-    QHBoxLayout, QLabel, QProgressBar, QPushButton, QVBoxLayout, QWidget,
+    QHBoxLayout, QLabel, QProgressBar, QPushButton, QSizePolicy, QVBoxLayout, QWidget,
 )
 
 from utils.ui_prefs import FONT_SCALE as _FS
@@ -155,6 +155,7 @@ class FingerprintAuthScreen(QWidget):
         self._sub_lbl = QLabel("센서에 손가락을 올려주세요")
         self._sub_lbl.setFont(QFont("Sans Serif", _fs(36)))
         self._sub_lbl.setAlignment(Qt.AlignCenter)
+        self._sub_lbl.setWordWrap(True)
         self._sub_lbl.setStyleSheet(f"color: {_BLUE};")
         root.addWidget(self._sub_lbl)
 
@@ -173,12 +174,11 @@ class FingerprintAuthScreen(QWidget):
         retry_row = QHBoxLayout(self._retry_widget)
         retry_row.setContentsMargins(0, 0, 0, 0)
         retry_row.setSpacing(24)
-        retry_row.setAlignment(Qt.AlignCenter)
 
         self._btn_retry = QPushButton("다시 시도")
         self._btn_retry.setFont(QFont("Sans Serif", _fs(34), QFont.Bold))
         self._btn_retry.setFixedHeight(_fs(100))
-        self._btn_retry.setFixedWidth(380)
+        self._btn_retry.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         self._btn_retry.setStyleSheet(f"""
             QPushButton {{
                 background-color: {_BLUE};
@@ -193,7 +193,7 @@ class FingerprintAuthScreen(QWidget):
         self._btn_give_up = QPushButton("취소")
         self._btn_give_up.setFont(QFont("Sans Serif", _fs(34), QFont.Bold))
         self._btn_give_up.setFixedHeight(_fs(100))
-        self._btn_give_up.setFixedWidth(380)
+        self._btn_give_up.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         self._btn_give_up.setStyleSheet(f"""
             QPushButton {{
                 background-color: white;
@@ -227,17 +227,17 @@ class FingerprintAuthScreen(QWidget):
         self._full_retry_sub_lbl = QLabel("얼굴 인증부터 다시 시작합니다")
         self._full_retry_sub_lbl.setFont(QFont("Sans Serif", _fs(32)))
         self._full_retry_sub_lbl.setAlignment(Qt.AlignCenter)
+        self._full_retry_sub_lbl.setWordWrap(True)
         self._full_retry_sub_lbl.setStyleSheet("color: #6b7280;")
         full_retry_lay.addWidget(self._full_retry_sub_lbl)
 
         full_retry_btn_row = QHBoxLayout()
         full_retry_btn_row.setSpacing(24)
-        full_retry_btn_row.setAlignment(Qt.AlignCenter)
 
         self._btn_full_retry_yes = QPushButton("예, 처음부터")
         self._btn_full_retry_yes.setFont(QFont("Sans Serif", _fs(34), QFont.Bold))
         self._btn_full_retry_yes.setFixedHeight(_fs(100))
-        self._btn_full_retry_yes.setFixedWidth(380)
+        self._btn_full_retry_yes.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         self._btn_full_retry_yes.setStyleSheet(f"""
             QPushButton {{
                 background-color: {_BLUE};
@@ -252,7 +252,7 @@ class FingerprintAuthScreen(QWidget):
         self._btn_full_retry_no = QPushButton("아니오")
         self._btn_full_retry_no.setFont(QFont("Sans Serif", _fs(34), QFont.Bold))
         self._btn_full_retry_no.setFixedHeight(_fs(100))
-        self._btn_full_retry_no.setFixedWidth(380)
+        self._btn_full_retry_no.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         self._btn_full_retry_no.setStyleSheet(f"""
             QPushButton {{
                 background-color: white;

@@ -112,6 +112,7 @@ class MedicationStartScreen(QWidget):
         self._sub_lbl = QLabel("카메라 앞에 서시면 자동으로 시작됩니다")
         self._sub_lbl.setFont(QFont("Sans Serif", _fs(36)))
         self._sub_lbl.setAlignment(Qt.AlignCenter)
+        self._sub_lbl.setWordWrap(True)
         self._sub_lbl.setStyleSheet(f"color: {_ORANGE};")
         root.addWidget(self._sub_lbl)
 

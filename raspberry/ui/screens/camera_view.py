@@ -3,7 +3,7 @@ import os
 
 import numpy as np
 from PyQt5.QtCore import Qt, QThread, QTimer, pyqtSignal
-from PyQt5.QtGui import QColor, QFont, QLinearGradient, QPainter
+from PyQt5.QtGui import QColor, QFont, QFontMetrics, QLinearGradient, QPainter
 from PyQt5.QtWidgets import QHBoxLayout, QLabel, QPushButton, QVBoxLayout, QWidget
 
 from ui.widgets.camera_card_widget import CameraCardWidget
@@ -291,11 +291,21 @@ class CameraViewScreen(QWidget):
         w, h = self.width(), self.height()
         self._camera_card.setGeometry(0, 0, w, h)
         self._btn_cancel.setGeometry(w - 160, 20, 140, _fs(60))
-        overlay_h = int(h * 0.35)
-        self._gradient.setGeometry(0, h - overlay_h, w, overlay_h)
-        self._title_lbl.setGeometry(0, h - int(h * 0.25), w, _fs(72))
-        self._sub_lbl.setGeometry(0, h - int(h * 0.13), w, _fs(64))
-        self._loading_lbl.setGeometry((w-420)//2, (h-110)//2, 420, 110)
+
+        # 폰트 실측 높이 기반으로 label geometry 계산 (고정px 쓰면 잘림)
+        title_h = QFontMetrics(self._title_lbl.font()).height() + 16
+        sub_h   = QFontMetrics(self._sub_lbl.font()).height() + 14
+        pad_bot = 24
+        sub_y   = h - pad_bot - sub_h
+        title_y = sub_y - 12 - title_h
+
+        gradient_top = max(0, title_y - 24)
+        self._gradient.setGeometry(0, gradient_top, w, h - gradient_top)
+        self._title_lbl.setGeometry(0, title_y, w, title_h)
+        self._sub_lbl.setGeometry(0, sub_y, w, sub_h)
+
+        loading_h = _fs(90)
+        self._loading_lbl.setGeometry((w - 440) // 2, (h - loading_h) // 2, 440, loading_h)
         self._processing_overlay.setGeometry(0, 0, w, h)
         self._upload_error_overlay.setGeometry(0, 0, w, h)
 
