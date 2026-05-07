@@ -216,28 +216,53 @@ class _FaceDeleteWorker(QThread):
 
     def run(self):
         server_ok = False
+
+        # 1. 얼굴 임베딩 삭제 (서버)
         try:
             from api.client import delete_face_embedding
             server_ok = delete_face_embedding()
         except Exception as e:
             print(f"[FACE DELETE] server: {e}")
 
+        # 2. 얼굴 임베딩 삭제 (로컬)
         try:
             with open(_DB_PATH, "w", encoding="utf-8") as f:
                 json.dump({}, f)
         except Exception as e:
             print(f"[FACE DELETE] local: {e}")
 
+        # 3. 임베딩 캐시 무효화
         try:
             from auth.authenticate import invalidate_embedding_cache
             invalidate_embedding_cache()
         except Exception:
             pass
 
+        # 4. 지문 전체 삭제 (하드웨어 센서 + 서버 DB)
+        try:
+            from api.client import fetch_fingerprints, delete_fingerprint
+            from hardware.fingerprint import get_fingerprint_manager
+            fps = fetch_fingerprints()
+            fm = get_fingerprint_manager()
+            for fp in fps:
+                slot_id = fp["slot_id"]
+                try:
+                    fm.delete_template(slot_id)
+                except Exception as e:
+                    print(f"[FP DELETE HW] slot {slot_id}: {e}")
+                try:
+                    delete_fingerprint(slot_id)
+                except Exception as e:
+                    print(f"[FP DELETE SERVER] slot {slot_id}: {e}")
+        except Exception as e:
+            print(f"[FP DELETE] {e}")
+
         self.done.emit(server_ok)
 
 
 class _FaceCard(QFrame):
+    all_deleted = pyqtSignal()  # 얼굴+지문 삭제 완료 시 발생
+
     def __init__(self, parent=None):
         super().__init__(parent)
         self._worker = None
@@ -313,7 +338,7 @@ class _FaceCard(QFrame):
     def _on_delete_clicked(self):
         box = QMessageBox(self)
         box.setWindowTitle("사용자 삭제")
-        box.setText("등록된 사용자 얼굴 정보를\n모두 삭제하시겠습니까?")
+        box.setText("등록된 얼굴·지문 정보를\n모두 삭제하시겠습니까?")
         box.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
         box.setDefaultButton(QMessageBox.No)
         box.button(QMessageBox.Yes).setText("삭제")
@@ -335,6 +360,7 @@ class _FaceCard(QFrame):
     def _on_done(self, _server_ok: bool):
         self._del_btn.setText("등록된 사용자 삭제")
         self.refresh()
+        self.all_deleted.emit()
 
 
 class _FingerprintFetchWorker(QThread):
@@ -594,6 +620,8 @@ class SettingsScreen(QWidget):
 
         self._fp_card = _FingerprintCard(self._app)
         c_lay.addWidget(self._fp_card)
+
+        self._face_card.all_deleted.connect(self._fp_card.refresh)
 
         c_lay.addWidget(_ControlCard())
         c_lay.addStretch()
