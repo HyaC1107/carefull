@@ -785,10 +785,10 @@ class _ControlCard(QFrame):
 
     @staticmethod
     def _restart():
-        try:
-            os.system("sudo reboot")
-        except Exception:
-            pass
+        ret = os.system("pm2 restart carefull")
+        if ret != 0:
+            # pm2 없는 환경(직접 실행): 현재 프로세스를 동일 인자로 교체
+            os.execv(sys.executable, [sys.executable] + sys.argv)
 
     @staticmethod
     def _exit():
