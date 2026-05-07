@@ -1,9 +1,12 @@
+import logging
 import sys
 import time
 from PyQt5.QtCore import QThread, QTimer, pyqtSignal
 from PyQt5.QtWidgets import QApplication, QMainWindow, QStackedWidget
 
 from config.settings import FULLSCREEN, SCHEDULE_POLL_SECONDS, SCREEN_HEIGHT, SCREEN_WIDTH
+
+logger = logging.getLogger(__name__)
 from ui.screens.auth_result import AuthResultScreen
 from ui.screens.camera_view import CameraViewScreen
 from ui.screens.complete import CompleteScreen

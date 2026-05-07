@@ -1,9 +1,11 @@
 import json
 import os
+import re
 import socket
+import subprocess
 import sys
 
-from PyQt5.QtCore import Qt, QThread, pyqtSignal
+from PyQt5.QtCore import Qt, QThread, QTimer, pyqtSignal
 from PyQt5.QtGui import QFont, QPixmap
 from PyQt5.QtWidgets import (
     QApplication, QFrame, QHBoxLayout, QLabel, QMessageBox, QPushButton,
@@ -115,9 +117,12 @@ class _VolumeCard(QFrame):
         top.addWidget(self._pct_lbl)
         lay.addLayout(top)
 
+        current_vol = self._read_volume()
+        self._pct_lbl.setText(f"{current_vol}%")
+
         self._slider = QSlider(Qt.Horizontal)
         self._slider.setRange(0, 100)
-        self._slider.setValue(70)
+        self._slider.setValue(current_vol)
         self._slider.setFixedHeight(40)
         self._slider.setStyleSheet(f"""
             QSlider::groove:horizontal {{
@@ -138,7 +143,72 @@ class _VolumeCard(QFrame):
             }}
         """)
         self._slider.valueChanged.connect(lambda v: self._pct_lbl.setText(f"{v}%"))
+        self._slider.sliderReleased.connect(lambda: self._set_volume(self._slider.value()))
         lay.addWidget(self._slider)
+
+        self._test_btn = QPushButton("소리 확인")
+        self._test_btn.setFont(QFont("Sans Serif", 20, QFont.Bold))
+        self._test_btn.setFixedHeight(68)
+        self._test_btn.setStyleSheet(f"""
+            QPushButton {{
+                background-color: #eff6ff;
+                color: {_BLUE};
+                border: 2px solid #bfdbfe;
+                border-radius: 14px;
+            }}
+            QPushButton:pressed {{ background-color: #dbeafe; }}
+            QPushButton:disabled {{
+                background-color: #f1f5f9;
+                color: #94a3b8;
+                border-color: #e2e8f0;
+            }}
+        """)
+        self._test_btn.clicked.connect(self._on_test_sound)
+        lay.addWidget(self._test_btn)
+
+    @staticmethod
+    def _read_volume() -> int:
+        for ctrl in ("Master", "PCM"):
+            try:
+                out = subprocess.check_output(
+                    ["amixer", "sget", ctrl], stderr=subprocess.DEVNULL, text=True
+                )
+                m = re.search(r'\[(\d+)%\]', out)
+                if m:
+                    return int(m.group(1))
+            except Exception:
+                pass
+        return 70
+
+    @staticmethod
+    def _set_volume(vol: int):
+        for ctrl in ("Master", "PCM"):
+            try:
+                subprocess.call(
+                    ["amixer", "sset", ctrl, f"{vol}%"],
+                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                )
+            except Exception:
+                pass
+
+    def _on_test_sound(self):
+        self._test_btn.setEnabled(False)
+        self._test_btn.setText("재생 중...")
+        try:
+            from hardware.alarm import play_alarm
+            play_alarm()
+        except Exception:
+            pass
+        QTimer.singleShot(2000, self._stop_test_sound)
+
+    def _stop_test_sound(self):
+        try:
+            from hardware.alarm import stop_alarm
+            stop_alarm()
+        except Exception:
+            pass
+        self._test_btn.setEnabled(True)
+        self._test_btn.setText("소리 확인")
 
 
 class _ControlCard(QFrame):

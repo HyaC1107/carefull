@@ -78,6 +78,14 @@ class FingerprintEnrollThread(QThread):
         self.progress.emit(100)
         self.enrolled.emit(self._position)
 
+    def _is_quality_error(self, e: Exception) -> bool:
+        """지문 품질 불량 오류 여부 (재시도 가능한 오류)."""
+        msg = str(e).lower()
+        return any(k in msg for k in (
+            "too few feature", "bad image", "image quality",
+            "feature point", "imagefail", "image fail",
+        ))
+
     def _run_real(self):
         try:
             from hardware.fingerprint import get_fingerprint_manager
@@ -98,7 +106,16 @@ class FingerprintEnrollThread(QThread):
                     self.msleep(100)
                 if not self._running:
                     return
-                sensor.convertImage(0x01)
+
+                try:
+                    sensor.convertImage(0x01)
+                except Exception as e:
+                    if self._is_quality_error(e):
+                        self.stage_changed.emit("지문이 선명하지 않아요. 다시 올려주세요")
+                        self.progress.emit(0)
+                        self.msleep(1500)
+                        continue
+                    raise
                 self.progress.emit(35)
 
                 # ── 1차 대기 ────────────────────────────────────────────────
@@ -118,7 +135,16 @@ class FingerprintEnrollThread(QThread):
                     self.msleep(100)
                 if not self._running:
                     return
-                sensor.convertImage(0x02)
+
+                try:
+                    sensor.convertImage(0x02)
+                except Exception as e:
+                    if self._is_quality_error(e):
+                        self.stage_changed.emit("지문이 선명하지 않아요. 처음부터 다시 시도합니다")
+                        self.progress.emit(0)
+                        self.msleep(1500)
+                        continue
+                    raise
                 self.progress.emit(65)
 
                 # ── 1차 매칭 시도 ────────────────────────────────────────────
@@ -145,7 +171,16 @@ class FingerprintEnrollThread(QThread):
                     self.msleep(100)
                 if not self._running:
                     return
-                sensor.convertImage(0x02)
+
+                try:
+                    sensor.convertImage(0x02)
+                except Exception as e:
+                    if self._is_quality_error(e):
+                        self.stage_changed.emit("지문이 선명하지 않아요. 처음부터 다시 시도합니다")
+                        self.progress.emit(0)
+                        self.msleep(1500)
+                        continue
+                    raise
                 self.progress.emit(88)
 
                 # ── 2차 매칭 시도 ────────────────────────────────────────────

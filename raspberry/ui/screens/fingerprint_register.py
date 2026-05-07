@@ -160,6 +160,46 @@ class FingerprintRegisterScreen(QWidget):
 
         root.addSpacing(20)
 
+        # ── 오류 + 재시도 위젯 ───────────────────────────────────────────────
+        self._error_widget = QWidget()
+        self._error_widget.setStyleSheet("""
+            QWidget {
+                background-color: #fff1f2;
+                border: 2px solid #fecaca;
+                border-radius: 16px;
+            }
+        """)
+        error_layout = QVBoxLayout(self._error_widget)
+        error_layout.setContentsMargins(20, 16, 20, 16)
+        error_layout.setSpacing(12)
+
+        self._error_lbl = QLabel("")
+        self._error_lbl.setFont(QFont("Sans Serif", 28, QFont.Bold))
+        self._error_lbl.setAlignment(Qt.AlignCenter)
+        self._error_lbl.setWordWrap(True)
+        self._error_lbl.setStyleSheet("color: #dc2626; border: none; background: transparent;")
+        error_layout.addWidget(self._error_lbl)
+
+        self._btn_retry = QPushButton("다시 시도")
+        self._btn_retry.setFont(QFont("Sans Serif", 28, QFont.Bold))
+        self._btn_retry.setFixedHeight(72)
+        self._btn_retry.setStyleSheet(f"""
+            QPushButton {{
+                background-color: #dc2626;
+                color: white;
+                border-radius: 16px;
+                border: none;
+            }}
+            QPushButton:pressed {{ background-color: #b91c1c; }}
+        """)
+        self._btn_retry.clicked.connect(self._on_retry)
+        error_layout.addWidget(self._btn_retry)
+
+        self._error_widget.hide()
+        root.addWidget(self._error_widget)
+
+        root.addSpacing(20)
+
         # ── 다손가락 등록 프롬프트 (등록 완료 후 표시) ──────────────────────
         self._prompt_widget = QWidget()
         self._prompt_widget.setStyleSheet(f"""
@@ -247,6 +287,7 @@ class FingerprintRegisterScreen(QWidget):
         self._pct_lbl.setText("0%")
         self._title_lbl.setText("준비 중...")
         self._prompt_widget.hide()
+        self._error_widget.hide()
 
     def _prepare_slot(self):
         """서버에서 기존 슬롯 조회 후 다음 빈 슬롯 번호 확정."""
@@ -305,7 +346,17 @@ class FingerprintRegisterScreen(QWidget):
             QTimer.singleShot(700, self._go_complete)
 
     def _on_failed(self, msg: str):
-        self._title_lbl.setText(f"등록 실패: {msg}")
+        self._title_lbl.setText("등록 중 오류가 발생했습니다")
+        self._sub_lbl.setText("")
+        self._pct_lbl.setText("")
+        self._error_lbl.setText(msg)
+        self._error_widget.show()
+
+    def _on_retry(self):
+        self._reset()
+        self._title_lbl.setText("다시 시도합니다...")
+        self._sub_lbl.setText("센서에 손가락을 올려주세요")
+        self._prepare_slot()
 
     # ── 다손가락 프롬프트 ─────────────────────────────────────────────────────
 
