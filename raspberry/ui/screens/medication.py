@@ -4,6 +4,10 @@ from PyQt5.QtWidgets import QLabel, QPushButton, QWidget
 
 from ui.widgets.camera_card_widget import CameraCardWidget
 from ui.threads.behavior_thread import BehaviorThread
+from utils.ui_prefs import FONT_SCALE as _FS
+
+def _fs(n: int) -> int:
+    return max(1, int(n * _FS))
 
 _MANUAL_TIMEOUT_MS = 60_000
 
@@ -36,7 +40,7 @@ class MedicationScreen(QWidget):
 
         # 중단 버튼 추가
         self._btn_cancel = QPushButton("중단", parent=self)
-        self._btn_cancel.setFont(QFont("Sans Serif", 20, QFont.Bold))
+        self._btn_cancel.setFont(QFont("Sans Serif", _fs(26), QFont.Bold))
         self._btn_cancel.setStyleSheet("""
             QPushButton {
                 background: rgba(255, 255, 255, 180);
@@ -50,13 +54,13 @@ class MedicationScreen(QWidget):
         self._btn_cancel.clicked.connect(self._on_cancel)
 
         self._title_lbl = QLabel("약을 복용해주세요", parent=self)
-        self._title_lbl.setFont(QFont("Sans Serif", 42, QFont.Bold))
+        self._title_lbl.setFont(QFont("Sans Serif", _fs(52), QFont.Bold))
         self._title_lbl.setAlignment(Qt.AlignCenter)
         self._title_lbl.setStyleSheet("color: #ffffff; background: transparent;")
         self._title_lbl.setAttribute(Qt.WA_TransparentForMouseEvents)
 
         self._sub_lbl = QLabel("물과 함께 드세요", parent=self)
-        self._sub_lbl.setFont(QFont("Sans Serif", 34))
+        self._sub_lbl.setFont(QFont("Sans Serif", _fs(42)))
         self._sub_lbl.setAlignment(Qt.AlignCenter)
         self._sub_lbl.setStyleSheet("color: #93c5fd; background: transparent;")
         self._sub_lbl.setAttribute(Qt.WA_TransparentForMouseEvents)
@@ -67,12 +71,12 @@ class MedicationScreen(QWidget):
         self._camera_card.setGeometry(0, 0, w, h)
 
         # 우측 상단 중단 버튼 배치
-        self._btn_cancel.setGeometry(w - 140, 25, 120, 60)
+        self._btn_cancel.setGeometry(w - 160, 20, 140, _fs(60))
 
         overlay_h = int(h * 0.32)
         self._gradient.setGeometry(0, h - overlay_h, w, overlay_h)
-        self._title_lbl.setGeometry(0, h - int(h * 0.22), w, 64)
-        self._sub_lbl.setGeometry(0, h - int(h * 0.12), w, 52)
+        self._title_lbl.setGeometry(0, h - int(h * 0.24), w, _fs(72))
+        self._sub_lbl.setGeometry(0, h - int(h * 0.12), w, _fs(60))
 
     def showEvent(self, event):
         super().showEvent(event)

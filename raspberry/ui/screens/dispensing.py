@@ -1,6 +1,11 @@
 from PyQt5.QtCore import Qt, QThread, QTimer, pyqtSignal
 from PyQt5.QtGui import QColor, QFont, QPainter, QPen
-from PyQt5.QtWidgets import QLabel, QProgressBar, QVBoxLayout, QWidget
+from PyQt5.QtWidgets import QHBoxLayout, QLabel, QProgressBar, QVBoxLayout, QWidget
+
+from utils.ui_prefs import FONT_SCALE as _FS
+
+def _fs(n: int) -> int:
+    return max(1, int(n * _FS))
 
 _BG = "#dde3f8"
 _INDIGO = "#4338ca"
@@ -70,7 +75,7 @@ class DispensingScreen(QWidget):
         root.addSpacing(20)
 
         title = QLabel("약이 나옵니다")
-        title.setFont(QFont("Sans Serif", 48, QFont.Bold))
+        title.setFont(QFont("Sans Serif", _fs(56), QFont.Bold))
         title.setAlignment(Qt.AlignCenter)
         title.setStyleSheet(f"color: {_DARK};")
         root.addWidget(title)
@@ -105,7 +110,7 @@ class DispensingScreen(QWidget):
         root.addSpacing(14)
 
         sub = QLabel("잠시만 기다려주세요")
-        sub.setFont(QFont("Sans Serif", 30))
+        sub.setFont(QFont("Sans Serif", _fs(36)))
         sub.setAlignment(Qt.AlignCenter)
         sub.setStyleSheet(f"color: {_INDIGO};")
         root.addWidget(sub)

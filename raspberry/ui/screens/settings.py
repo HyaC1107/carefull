@@ -211,6 +211,82 @@ class _VolumeCard(QFrame):
         self._test_btn.setText("소리 확인")
 
 
+class _FontSizeCard(QFrame):
+    _OPTIONS = [("normal", "기본"), ("large", "크게"), ("xlarge", "더크게")]
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setStyleSheet(f"QFrame {{ background-color: {_CARD}; border-radius: 16px; }}")
+        lay = QVBoxLayout(self)
+        lay.setContentsMargins(_CARD_PAD_H, _CARD_PAD_V, _CARD_PAD_H, _CARD_PAD_V)
+        lay.setSpacing(14)
+
+        top = QHBoxLayout()
+        top.addWidget(_icon_label("font.png", "Aa"))
+        top.addSpacing(16)
+
+        title_lbl = QLabel("글자 크기")
+        title_lbl.setFont(QFont("Sans Serif", 22, QFont.Bold))
+        title_lbl.setStyleSheet(f"color: {_DARK}; background: transparent; border: none;")
+        top.addWidget(title_lbl)
+        top.addStretch()
+        lay.addLayout(top)
+
+        btn_row = QHBoxLayout()
+        btn_row.setSpacing(12)
+
+        self._btns: dict = {}
+        for key, label in self._OPTIONS:
+            btn = QPushButton(label)
+            btn.setFont(QFont("Sans Serif", 20, QFont.Bold))
+            btn.setFixedHeight(64)
+            btn.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+            btn.clicked.connect(lambda _, k=key: self._on_select(k))
+            self._btns[key] = btn
+            btn_row.addWidget(btn)
+        lay.addLayout(btn_row)
+
+        self._notice_lbl = QLabel("")
+        self._notice_lbl.setFont(QFont("Sans Serif", 18))
+        self._notice_lbl.setAlignment(Qt.AlignCenter)
+        self._notice_lbl.setStyleSheet(f"color: {_GRAY}; background: transparent; border: none;")
+        lay.addWidget(self._notice_lbl)
+
+        self._refresh_styles()
+
+    def _refresh_styles(self):
+        from utils.ui_prefs import get_font_size_key
+        current = get_font_size_key()
+        for key, btn in self._btns.items():
+            if key == current:
+                btn.setStyleSheet(f"""
+                    QPushButton {{
+                        background-color: {_BLUE};
+                        color: white;
+                        border-radius: 12px;
+                        border: none;
+                    }}
+                """)
+            else:
+                btn.setStyleSheet(f"""
+                    QPushButton {{
+                        background-color: #f1f5f9;
+                        color: {_DARK};
+                        border-radius: 12px;
+                        border: 2px solid #e2e8f0;
+                    }}
+                    QPushButton:pressed {{ background-color: #e2e8f0; }}
+                """)
+
+    def _on_select(self, key: str):
+        from utils.ui_prefs import get_font_size_key, set_font_size
+        if key == get_font_size_key():
+            return
+        set_font_size(key)
+        self._refresh_styles()
+        self._notice_lbl.setText("재시작 후 적용됩니다  •  아래 '재시작' 버튼을 눌러주세요")
+
+
 class _ControlCard(QFrame):
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -684,6 +760,7 @@ class SettingsScreen(QWidget):
         c_lay.addWidget(_StatusCard("wifi.png", "WiFi", "WiFi 연결", "연결됨" if wifi_ok else "연결 안됨", wifi_ok))
         c_lay.addWidget(_StatusCard("server.png", "서버", "서버 통신", "통신 가능", True))
         c_lay.addWidget(_VolumeCard())
+        c_lay.addWidget(_FontSizeCard())
 
         self._face_card = _FaceCard()
         c_lay.addWidget(self._face_card)

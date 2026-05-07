@@ -6,6 +6,11 @@ from PyQt5.QtWidgets import (
     QPushButton, QSizePolicy, QVBoxLayout, QWidget, QLabel,
 )
 
+from utils.ui_prefs import FONT_SCALE as _FS
+
+def _fs(n: int) -> int:
+    return max(1, int(n * _FS))
+
 _BG     = "#fff8e8"
 _ORANGE = "#f97316"
 _TEXT   = "#7c4a1a"
@@ -97,7 +102,7 @@ class MedicationStartScreen(QWidget):
         root.addSpacing(24)
 
         title = QLabel("약 드실 시간입니다")
-        title.setFont(QFont("Sans Serif", 48, QFont.Bold))
+        title.setFont(QFont("Sans Serif", _fs(56), QFont.Bold))
         title.setAlignment(Qt.AlignCenter)
         title.setStyleSheet(f"color: {_TEXT};")
         root.addWidget(title)
@@ -105,7 +110,7 @@ class MedicationStartScreen(QWidget):
         root.addSpacing(10)
 
         self._sub_lbl = QLabel("카메라 앞에 서시면 자동으로 시작됩니다")
-        self._sub_lbl.setFont(QFont("Sans Serif", 30))
+        self._sub_lbl.setFont(QFont("Sans Serif", _fs(36)))
         self._sub_lbl.setAlignment(Qt.AlignCenter)
         self._sub_lbl.setStyleSheet(f"color: {_ORANGE};")
         root.addWidget(self._sub_lbl)
@@ -113,8 +118,8 @@ class MedicationStartScreen(QWidget):
         root.addStretch(2)
 
         start_btn = QPushButton("복약 프로세스 시작")
-        start_btn.setMinimumHeight(60)
-        start_btn.setFont(QFont("Sans Serif", 28, QFont.Bold))
+        start_btn.setMinimumHeight(72)
+        start_btn.setFont(QFont("Sans Serif", _fs(34), QFont.Bold))
         start_btn.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         start_btn.setStyleSheet(f"""
             QPushButton {{

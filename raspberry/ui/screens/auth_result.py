@@ -5,6 +5,11 @@ from PyQt5.QtCore import QPointF, QRectF, Qt, QThread, QTimer
 from PyQt5.QtGui import QColor, QFont, QPainter, QPen, QPixmap
 from PyQt5.QtWidgets import QLabel, QSizePolicy, QVBoxLayout, QWidget
 
+from utils.ui_prefs import FONT_SCALE as _FS
+
+def _fs(n: int) -> int:
+    return max(1, int(n * _FS))
+
 _ICONS_DIR = os.path.normpath(
     os.path.join(os.path.dirname(__file__), "..", "..", "assets", "icons")
 )
@@ -171,14 +176,14 @@ class AuthResultScreen(QWidget):
         root.addSpacing(18)
 
         self._title_lbl = QLabel("인증 완료")
-        self._title_lbl.setFont(QFont("Sans Serif", 42, QFont.Bold))
+        self._title_lbl.setFont(QFont("Sans Serif", _fs(52), QFont.Bold))
         self._title_lbl.setAlignment(Qt.AlignCenter)
         root.addWidget(self._title_lbl)
 
         root.addSpacing(6)
 
         self._sub_lbl = QLabel("약을 준비하고 있습니다")
-        self._sub_lbl.setFont(QFont("Sans Serif", 28))
+        self._sub_lbl.setFont(QFont("Sans Serif", _fs(36)))
         self._sub_lbl.setAlignment(Qt.AlignCenter)
         root.addWidget(self._sub_lbl)
 

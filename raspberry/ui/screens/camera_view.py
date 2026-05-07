@@ -8,6 +8,10 @@ from PyQt5.QtWidgets import QHBoxLayout, QLabel, QPushButton, QVBoxLayout, QWidg
 
 from ui.widgets.camera_card_widget import CameraCardWidget
 from ui.threads.face_thread import AUTH_TIMEOUT_SEC, FaceThread, MODE_AUTH, MODE_REGISTER
+from utils.ui_prefs import FONT_SCALE as _FS
+
+def _fs(n: int) -> int:
+    return max(1, int(n * _FS))
 
 _DB_PATH = os.path.normpath(
     os.path.join(os.path.dirname(__file__), "..", "..", "db", "user_db.json")
@@ -190,21 +194,21 @@ class CameraViewScreen(QWidget):
         self._gradient    = _GradientOverlay(parent=self)
 
         self._btn_cancel = QPushButton("중단", parent=self)
-        self._btn_cancel.setFont(QFont("Sans Serif", 20, QFont.Bold))
+        self._btn_cancel.setFont(QFont("Sans Serif", _fs(26), QFont.Bold))
         self._btn_cancel.setStyleSheet("background: rgba(255, 255, 255, 180); color: #374151; border-radius: 12px;")
         self._btn_cancel.clicked.connect(self._on_cancel)
 
         self._title_lbl = QLabel(parent=self)
-        self._title_lbl.setFont(QFont("Sans Serif", 42, QFont.Bold))
+        self._title_lbl.setFont(QFont("Sans Serif", _fs(52), QFont.Bold))
         self._title_lbl.setAlignment(Qt.AlignCenter)
 
         self._sub_lbl = QLabel(parent=self)
-        self._sub_lbl.setFont(QFont("Sans Serif", 34))
+        self._sub_lbl.setFont(QFont("Sans Serif", _fs(42)))
         self._sub_lbl.setAlignment(Qt.AlignCenter)
 
         # 오버레이들
         self._loading_lbl = QLabel("카메라 준비 중...", parent=self)
-        self._loading_lbl.setFont(QFont("Sans Serif", 36, QFont.Bold))
+        self._loading_lbl.setFont(QFont("Sans Serif", _fs(44), QFont.Bold))
         self._loading_lbl.setAlignment(Qt.AlignCenter)
         self._loading_lbl.setStyleSheet("color: white; background: rgba(0,0,0,160); border-radius: 12px; padding: 12px 24px;")
         self._loading_lbl.hide()
@@ -215,7 +219,7 @@ class CameraViewScreen(QWidget):
 
         proc_lay = QVBoxLayout(self._processing_overlay)
         self._proc_msg = QLabel("사용자 확인 중입니다...\n잠시만 기다려 주세요", self._processing_overlay)
-        self._proc_msg.setFont(QFont("Sans Serif", 40, QFont.Bold))
+        self._proc_msg.setFont(QFont("Sans Serif", _fs(48), QFont.Bold))
         self._proc_msg.setAlignment(Qt.AlignCenter)
         self._proc_msg.setStyleSheet("color: white;")
         proc_lay.addWidget(self._proc_msg)
@@ -286,12 +290,12 @@ class CameraViewScreen(QWidget):
         super().resizeEvent(event)
         w, h = self.width(), self.height()
         self._camera_card.setGeometry(0, 0, w, h)
-        self._btn_cancel.setGeometry(w - 140, 25, 120, 60)
-        overlay_h = int(h * 0.32)
+        self._btn_cancel.setGeometry(w - 160, 20, 140, _fs(60))
+        overlay_h = int(h * 0.35)
         self._gradient.setGeometry(0, h - overlay_h, w, overlay_h)
-        self._title_lbl.setGeometry(0, h - int(h * 0.22), w, 64)
-        self._sub_lbl.setGeometry(0, h - int(h * 0.12), w, 52)
-        self._loading_lbl.setGeometry((w-400)//2, (h-100)//2, 400, 100)
+        self._title_lbl.setGeometry(0, h - int(h * 0.25), w, _fs(72))
+        self._sub_lbl.setGeometry(0, h - int(h * 0.13), w, _fs(64))
+        self._loading_lbl.setGeometry((w-420)//2, (h-110)//2, 420, 110)
         self._processing_overlay.setGeometry(0, 0, w, h)
         self._upload_error_overlay.setGeometry(0, 0, w, h)
 
