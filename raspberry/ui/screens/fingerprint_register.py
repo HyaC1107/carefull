@@ -186,16 +186,17 @@ class FingerprintRegisterScreen(QWidget):
         prompt_layout.addWidget(self._prompt_sub_lbl)
 
         btn_row = QHBoxLayout()
-        btn_row.setSpacing(12)
+        btn_row.setSpacing(20)
+        btn_row.setContentsMargins(60, 0, 60, 0) # 버튼 가로 폭 조절
 
         self._btn_more = QPushButton("다른 손가락 등록")
-        self._btn_more.setFont(QFont("Sans Serif", 28, QFont.Bold))
-        self._btn_more.setFixedHeight(68)
+        self._btn_more.setFont(QFont("Sans Serif", 26, QFont.Bold))
+        self._btn_more.setFixedHeight(80)
         self._btn_more.setStyleSheet(f"""
             QPushButton {{
                 background-color: {_PURPLE};
                 color: white;
-                border-radius: 14px;
+                border-radius: 18px;
                 border: none;
             }}
             QPushButton:pressed {{ background-color: #6d28d9; }}
@@ -203,21 +204,21 @@ class FingerprintRegisterScreen(QWidget):
         self._btn_more.clicked.connect(self._on_more_finger)
 
         self._btn_done = QPushButton("등록 완료")
-        self._btn_done.setFont(QFont("Sans Serif", 28))
-        self._btn_done.setFixedHeight(68)
+        self._btn_done.setFont(QFont("Sans Serif", 26))
+        self._btn_done.setFixedHeight(80)
         self._btn_done.setStyleSheet(f"""
             QPushButton {{
                 background-color: white;
                 color: {_GREEN};
-                border-radius: 14px;
-                border: 2px solid {_GREEN};
+                border-radius: 18px;
+                border: 2.5px solid {_GREEN};
             }}
             QPushButton:pressed {{ background-color: #f0fdf4; }}
         """)
         self._btn_done.clicked.connect(self._go_complete)
 
-        btn_row.addWidget(self._btn_more, 3)
-        btn_row.addWidget(self._btn_done, 2)
+        btn_row.addWidget(self._btn_more, 1) # 1:1 비율
+        btn_row.addWidget(self._btn_done, 1)
         prompt_layout.addLayout(btn_row)
 
         self._prompt_widget.hide()

@@ -77,23 +77,30 @@ class DispensingScreen(QWidget):
 
         root.addSpacing(16)
 
+        # ── 진행바 (가로 폭 절반으로 축소) ──
+        prog_row = QHBoxLayout()
+        prog_row.addStretch()
+        
         self._progress_bar = QProgressBar()
         self._progress_bar.setRange(0, 100)
         self._progress_bar.setValue(0)
-        self._progress_bar.setFixedHeight(6)
+        self._progress_bar.setFixedHeight(8)
+        self._progress_bar.setFixedWidth(400) # 가로 폭 고정값으로 제한
         self._progress_bar.setTextVisible(False)
         self._progress_bar.setStyleSheet(f"""
             QProgressBar {{
                 border: none;
-                border-radius: 3px;
+                border-radius: 4px;
                 background: #c7d2fe;
             }}
             QProgressBar::chunk {{
                 background-color: {_INDIGO};
-                border-radius: 3px;
+                border-radius: 4px;
             }}
         """)
-        root.addWidget(self._progress_bar)
+        prog_row.addWidget(self._progress_bar)
+        prog_row.addStretch()
+        root.addLayout(prog_row)
 
         root.addSpacing(14)
 
