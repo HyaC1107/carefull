@@ -8,7 +8,7 @@ import sys
 from PyQt5.QtCore import Qt, QThread, QTimer, pyqtSignal
 from PyQt5.QtGui import QFont, QPixmap
 from PyQt5.QtWidgets import (
-    QApplication, QFrame, QHBoxLayout, QLabel, QMessageBox, QPushButton,
+    QApplication, QDialog, QFrame, QHBoxLayout, QLabel, QMessageBox, QPushButton,
     QScrollArea, QScroller, QSizePolicy, QSlider, QVBoxLayout, QWidget,
 )
 
@@ -29,6 +29,8 @@ _ICON_SIZE = 64
 _CARD_PAD_H = 40
 _CARD_PAD_V = 32
 
+_KW, _KH = 62, 44   # 온스크린 키보드 키 크기
+
 
 def _icon_label(png_name: str, fallback: str, size: int = _ICON_SIZE) -> QLabel:
     lbl = QLabel()
@@ -42,6 +44,39 @@ def _icon_label(png_name: str, fallback: str, size: int = _ICON_SIZE) -> QLabel:
         lbl.setText(fallback)
         lbl.setFont(QFont("Sans Serif", 22))
     return lbl
+
+
+def _signal_icon(signal: int) -> str:
+    if signal >= 75: return "▂▄▆█"
+    if signal >= 50: return "▂▄▆·"
+    if signal >= 25: return "▂▄··"
+    return "▂···"
+
+
+def _current_ip() -> str:
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
+            s.settimeout(1)
+            s.connect(("8.8.8.8", 80))
+            return s.getsockname()[0]
+    except Exception:
+        pass
+    return "IP 없음"
+
+
+def _current_ssid() -> str:
+    try:
+        out = subprocess.check_output(
+            ["nmcli", "-t", "-f", "TYPE,NAME", "con", "show", "--active"],
+            text=True, timeout=5, stderr=subprocess.DEVNULL,
+        )
+        for line in out.strip().splitlines():
+            parts = line.split(":", 1)
+            if len(parts) >= 2 and parts[0] == "802-11-wireless":
+                return parts[1].strip()
+    except Exception:
+        pass
+    return "연결 안됨"
 
 
 def _check_network() -> bool:
@@ -90,6 +125,418 @@ class _StatusCard(QFrame):
             padding: 6px 18px;
         """)
         lay.addWidget(badge)
+
+
+class _WifiScanThread(QThread):
+    done = pyqtSignal(list)
+
+    def run(self):
+        try:
+            subprocess.run(["nmcli", "dev", "wifi", "rescan"],
+                           capture_output=True, timeout=8)
+        except Exception:
+            pass
+        try:
+            out = subprocess.check_output(
+                ["nmcli", "-g", "IN-USE,SSID,SIGNAL,SECURITY", "dev", "wifi", "list"],
+                text=True, timeout=10, stderr=subprocess.DEVNULL,
+            )
+            networks, seen = [], set()
+            for line in out.strip().splitlines():
+                parts = re.split(r'(?<!\\):', line)
+                if len(parts) < 3:
+                    continue
+                in_use = parts[0].strip() == "*"
+                ssid   = parts[1].replace("\\:", ":").strip()
+                if not ssid or ssid in seen:
+                    continue
+                seen.add(ssid)
+                try:    signal = int(parts[2].strip())
+                except: signal = 0
+                secured = len(parts) > 3 and bool(parts[3].strip())
+                networks.append({"ssid": ssid, "signal": signal,
+                                  "secured": secured, "connected": in_use})
+            networks.sort(key=lambda x: (-int(x["connected"]), -x["signal"]))
+            self.done.emit(networks)
+        except Exception as e:
+            print(f"[WIFI SCAN] {e}")
+            self.done.emit([])
+
+
+class _WifiConnectThread(QThread):
+    success = pyqtSignal(str)
+    failed  = pyqtSignal(str)
+
+    def __init__(self, ssid: str, password: str = "", parent=None):
+        super().__init__(parent)
+        self._ssid, self._password = ssid, password
+
+    def run(self):
+        try:
+            if self._password:
+                cmd = ["nmcli", "dev", "wifi", "connect",
+                       self._ssid, "password", self._password]
+            else:
+                r = subprocess.run(["nmcli", "con", "up", self._ssid],
+                                   capture_output=True, text=True, timeout=30)
+                if r.returncode == 0:
+                    self.success.emit(self._ssid)
+                    return
+                cmd = ["nmcli", "dev", "wifi", "connect", self._ssid]
+            r = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+            if r.returncode == 0:
+                self.success.emit(self._ssid)
+            else:
+                self.failed.emit((r.stderr or r.stdout or "연결 실패").strip()[:60])
+        except subprocess.TimeoutExpired:
+            self.failed.emit("연결 시간 초과")
+        except Exception as e:
+            self.failed.emit(str(e)[:60])
+
+
+class _WifiPasswordDialog(QDialog):
+    """터치 전용 온스크린 키보드로 WiFi 비밀번호 입력."""
+    _ROWS     = ["1234567890", "qwertyuiop", "asdfghjkl", "zxcvbnm"]
+    _SPECIALS = ["-", "_", ".", "@", "!"]
+
+    def __init__(self, ssid: str, parent=None):
+        super().__init__(parent, Qt.FramelessWindowHint | Qt.Dialog)
+        self.setModal(True)
+        self.setFixedSize(740, 496)
+        self.setStyleSheet("QDialog { background: #1e293b; border-radius: 20px; }")
+        self._pw      = ""
+        self._shifted = False
+        self._build_ui(ssid)
+
+    def get_password(self) -> str:
+        return self._pw
+
+    def _build_ui(self, ssid: str):
+        root = QVBoxLayout(self)
+        root.setContentsMargins(18, 14, 18, 14)
+        root.setSpacing(6)
+
+        title = QLabel(f"'{ssid}' 비밀번호 입력")
+        title.setFont(QFont("Sans Serif", 19, QFont.Bold))
+        title.setAlignment(Qt.AlignCenter)
+        title.setStyleSheet("color: white; background: transparent;")
+        root.addWidget(title)
+
+        self._display = QLabel("")
+        self._display.setFont(QFont("Monospace", 20, QFont.Bold))
+        self._display.setAlignment(Qt.AlignCenter)
+        self._display.setFixedHeight(48)
+        self._display.setStyleSheet("""
+            background: #334155; border: 2px solid #475569;
+            border-radius: 10px; color: white;
+            padding: 4px 16px; letter-spacing: 6px;
+        """)
+        root.addWidget(self._display)
+
+        _KSS = """
+            QPushButton { background: #475569; border: none;
+                          border-radius: 6px; color: white; }
+            QPushButton:pressed { background: #64748b; }
+        """
+
+        for row_str in self._ROWS:
+            rw = QWidget()
+            rw.setStyleSheet("background: transparent;")
+            rl = QHBoxLayout(rw)
+            rl.setSpacing(3)
+            rl.setContentsMargins(0, 0, 0, 0)
+            rl.addStretch()
+            for ch in row_str:
+                b = QPushButton(ch)
+                b.setFixedSize(_KW, _KH)
+                b.setFont(QFont("Sans Serif", 14, QFont.Bold))
+                b.setStyleSheet(_KSS)
+                b.clicked.connect(lambda _, c=ch: self._press(c))
+                rl.addWidget(b)
+            rl.addStretch()
+            root.addWidget(rw)
+
+        # 제어 행: ⇧ | Space | 특수문자 | ⌫
+        ctrl_w = QWidget()
+        ctrl_w.setStyleSheet("background: transparent;")
+        ctrl_l = QHBoxLayout(ctrl_w)
+        ctrl_l.setSpacing(4)
+        ctrl_l.setContentsMargins(0, 0, 0, 0)
+        ctrl_l.addStretch()
+
+        self._shift_btn = QPushButton("⇧")
+        self._shift_btn.setFixedSize(76, _KH)
+        self._shift_btn.setFont(QFont("Sans Serif", 16, QFont.Bold))
+        self._shift_btn.setCheckable(True)
+        self._shift_btn.setStyleSheet("""
+            QPushButton         { background: #475569; border: none; border-radius: 6px; color: white; }
+            QPushButton:checked { background: #3b82f6; }
+            QPushButton:pressed { background: #64748b; }
+        """)
+        self._shift_btn.clicked.connect(lambda checked: setattr(self, "_shifted", checked))
+        ctrl_l.addWidget(self._shift_btn)
+
+        space_btn = QPushButton("Space")
+        space_btn.setFixedHeight(_KH)
+        space_btn.setFixedWidth(170)
+        space_btn.setFont(QFont("Sans Serif", 13))
+        space_btn.setStyleSheet(_KSS)
+        space_btn.clicked.connect(lambda: self._press(" "))
+        ctrl_l.addWidget(space_btn)
+
+        for sp in self._SPECIALS:
+            b = QPushButton(sp)
+            b.setFixedSize(52, _KH)
+            b.setFont(QFont("Sans Serif", 15, QFont.Bold))
+            b.setStyleSheet(_KSS)
+            b.clicked.connect(lambda _, c=sp: self._press(c))
+            ctrl_l.addWidget(b)
+
+        del_btn = QPushButton("⌫")
+        del_btn.setFixedSize(76, _KH)
+        del_btn.setFont(QFont("Sans Serif", 18))
+        del_btn.setStyleSheet("""
+            QPushButton { background: #dc2626; border: none; border-radius: 6px; color: white; }
+            QPushButton:pressed { background: #b91c1c; }
+        """)
+        del_btn.clicked.connect(self._backspace)
+        ctrl_l.addWidget(del_btn)
+
+        ctrl_l.addStretch()
+        root.addWidget(ctrl_w)
+
+        # 확인/취소 행
+        act_w = QWidget()
+        act_w.setStyleSheet("background: transparent;")
+        act_l = QHBoxLayout(act_w)
+        act_l.setSpacing(12)
+        act_l.setContentsMargins(0, 4, 0, 0)
+
+        cancel_btn = QPushButton("취소")
+        cancel_btn.setFixedHeight(52)
+        cancel_btn.setFont(QFont("Sans Serif", 18, QFont.Bold))
+        cancel_btn.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        cancel_btn.setStyleSheet("""
+            QPushButton { background: #334155; color: #94a3b8;
+                          border: 2px solid #475569; border-radius: 12px; }
+            QPushButton:pressed { background: #475569; }
+        """)
+        cancel_btn.clicked.connect(self.reject)
+        act_l.addWidget(cancel_btn)
+
+        ok_btn = QPushButton("연결")
+        ok_btn.setFixedHeight(52)
+        ok_btn.setFont(QFont("Sans Serif", 18, QFont.Bold))
+        ok_btn.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        ok_btn.setStyleSheet("""
+            QPushButton { background: #3b82f6; color: white;
+                          border: none; border-radius: 12px; }
+            QPushButton:pressed { background: #2563eb; }
+        """)
+        ok_btn.clicked.connect(self.accept)
+        act_l.addWidget(ok_btn)
+
+        root.addWidget(act_w)
+
+    def _press(self, ch: str):
+        c = ch.upper() if (self._shifted and ch.isalpha()) else ch
+        self._pw += c
+        if self._shifted and ch.isalpha():
+            self._shifted = False
+            self._shift_btn.setChecked(False)
+        self._display.setText("●" * len(self._pw))
+
+    def _backspace(self):
+        self._pw = self._pw[:-1]
+        self._display.setText("●" * len(self._pw))
+
+    def exec_centered(self, parent_geom):
+        x = parent_geom.x() + (parent_geom.width()  - self.width())  // 2
+        y = parent_geom.y() + (parent_geom.height() - self.height()) // 2
+        self.move(x, y)
+        return self.exec_()
+
+
+class _WifiCard(QFrame):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._scan_thread    = None
+        self._connect_thread = None
+        self.setStyleSheet(f"QFrame {{ background-color: {_CARD}; border-radius: 16px; }}")
+
+        self._outer = QVBoxLayout(self)
+        self._outer.setContentsMargins(_CARD_PAD_H, _CARD_PAD_V, _CARD_PAD_H, _CARD_PAD_V)
+        self._outer.setSpacing(12)
+
+        # 헤더
+        hdr = QHBoxLayout()
+        hdr.addWidget(_icon_label("wifi.png", "WiFi"))
+        hdr.addSpacing(12)
+
+        info = QVBoxLayout()
+        info.setSpacing(2)
+        title_lbl = QLabel("와이파이")
+        title_lbl.setFont(QFont("Sans Serif", 22, QFont.Bold))
+        title_lbl.setStyleSheet(f"color: {_DARK}; background: transparent; border: none;")
+        info.addWidget(title_lbl)
+        self._ssid_lbl = QLabel(_current_ssid())
+        self._ssid_lbl.setFont(QFont("Sans Serif", 18))
+        self._ssid_lbl.setStyleSheet(f"color: {_GRAY}; background: transparent; border: none;")
+        info.addWidget(self._ssid_lbl)
+
+        self._ip_lbl = QLabel(_current_ip())
+        self._ip_lbl.setFont(QFont("Monospace", 17))
+        self._ip_lbl.setStyleSheet(f"color: {_BLUE}; background: transparent; border: none;")
+        info.addWidget(self._ip_lbl)
+
+        hdr.addLayout(info)
+        hdr.addStretch()
+
+        self._change_btn = QPushButton("네트워크 변경")
+        self._change_btn.setFont(QFont("Sans Serif", 18, QFont.Bold))
+        self._change_btn.setFixedHeight(52)
+        self._change_btn.setStyleSheet(f"""
+            QPushButton {{ background: {_BLUE}; color: white;
+                           border-radius: 10px; padding: 0 18px; border: none; }}
+            QPushButton:pressed {{ background: #2563eb; }}
+        """)
+        self._change_btn.clicked.connect(self._on_scan)
+        hdr.addWidget(self._change_btn)
+        self._outer.addLayout(hdr)
+
+        # 상태 레이블
+        self._status_lbl = QLabel("")
+        self._status_lbl.setFont(QFont("Sans Serif", 18))
+        self._status_lbl.setAlignment(Qt.AlignCenter)
+        self._status_lbl.setStyleSheet(f"color: {_GRAY}; background: transparent; border: none;")
+        self._status_lbl.hide()
+        self._outer.addWidget(self._status_lbl)
+
+        # 네트워크 목록 (스캔 후 표시)
+        self._list_widget = QWidget()
+        self._list_widget.setStyleSheet("background: transparent;")
+        self._list_lay = QVBoxLayout(self._list_widget)
+        self._list_lay.setContentsMargins(0, 0, 0, 0)
+        self._list_lay.setSpacing(6)
+        self._list_widget.hide()
+        self._outer.addWidget(self._list_widget)
+
+    def _on_scan(self):
+        self._change_btn.setEnabled(False)
+        self._list_widget.hide()
+        self._set_status("네트워크 검색 중...", _GRAY)
+        self._scan_thread = _WifiScanThread(parent=self)
+        self._scan_thread.done.connect(self._on_scanned)
+        self._scan_thread.start()
+
+    def _on_scanned(self, networks: list):
+        self._change_btn.setEnabled(True)
+        self._status_lbl.hide()
+
+        while self._list_lay.count():
+            item = self._list_lay.takeAt(0)
+            if item.widget():
+                item.widget().deleteLater()
+
+        if not networks:
+            self._set_status("검색된 네트워크가 없습니다", _GRAY)
+            return
+
+        sep = QFrame()
+        sep.setFrameShape(QFrame.HLine)
+        sep.setStyleSheet("color: #e2e8f0;")
+        self._list_lay.addWidget(sep)
+
+        for net in networks:
+            self._list_lay.addWidget(self._make_row(net))
+        self._list_widget.show()
+
+    def _make_row(self, net: dict) -> QWidget:
+        row = QWidget()
+        row.setStyleSheet(f"""
+            QWidget {{ background: {"#eff6ff" if net["connected"] else "#f8fafc"};
+                      border-radius: 10px; }}
+        """)
+        rl = QHBoxLayout(row)
+        rl.setContentsMargins(12, 8, 12, 8)
+        rl.setSpacing(10)
+
+        sig_lbl = QLabel(_signal_icon(net["signal"]))
+        sig_lbl.setFont(QFont("Monospace", 14))
+        sig_lbl.setFixedWidth(52)
+        sig_lbl.setStyleSheet("background: transparent; color: #64748b; border: none;")
+        rl.addWidget(sig_lbl)
+
+        ssid_lbl = QLabel(net["ssid"])
+        ssid_lbl.setFont(QFont("Sans Serif", 20,
+                               QFont.Bold if net["connected"] else QFont.Normal))
+        ssid_lbl.setStyleSheet(
+            f"background: transparent; color: {_BLUE if net['connected'] else _DARK}; border: none;")
+        rl.addWidget(ssid_lbl, stretch=1)
+
+        if net["connected"]:
+            badge = QLabel("연결됨")
+            badge.setFont(QFont("Sans Serif", 16, QFont.Bold))
+            badge.setStyleSheet(
+                f"background: #dcfce7; color: {_GREEN}; border-radius: 8px; padding: 4px 12px;")
+            rl.addWidget(badge)
+
+        if net["secured"]:
+            lock = QLabel("🔒")
+            lock.setFont(QFont("Sans Serif", 16))
+            lock.setStyleSheet("background: transparent; border: none;")
+            rl.addWidget(lock)
+
+        if not net["connected"]:
+            conn_btn = QPushButton("연결")
+            conn_btn.setFont(QFont("Sans Serif", 18, QFont.Bold))
+            conn_btn.setFixedHeight(44)
+            conn_btn.setFixedWidth(80)
+            conn_btn.setStyleSheet(f"""
+                QPushButton {{ background: {_BLUE}; color: white;
+                               border-radius: 8px; border: none; }}
+                QPushButton:pressed {{ background: #2563eb; }}
+            """)
+            conn_btn.clicked.connect(lambda _, n=net: self._on_connect(n))
+            rl.addWidget(conn_btn)
+
+        return row
+
+    def _on_connect(self, net: dict):
+        password = ""
+        if net["secured"]:
+            dlg = _WifiPasswordDialog(net["ssid"], parent=self.window())
+            dlg.exec_centered(self.window().geometry())
+            if dlg.result() != QDialog.Accepted:
+                return
+            password = dlg.get_password()
+
+        self._list_widget.hide()
+        self._set_status(f"'{net['ssid']}' 연결 중...", _BLUE)
+        self._change_btn.setEnabled(False)
+
+        self._connect_thread = _WifiConnectThread(net["ssid"], password, parent=self)
+        self._connect_thread.success.connect(self._on_connected)
+        self._connect_thread.failed.connect(self._on_connect_failed)
+        self._connect_thread.start()
+
+    def _on_connected(self, ssid: str):
+        self._ssid_lbl.setText(ssid)
+        self._ip_lbl.setText(_current_ip())
+        self._set_status(f"'{ssid}' 연결 성공!", _GREEN)
+        self._change_btn.setEnabled(True)
+        QTimer.singleShot(3000, self._status_lbl.hide)
+
+    def _on_connect_failed(self, msg: str):
+        self._set_status(f"연결 실패: {msg}", _RED)
+        self._change_btn.setEnabled(True)
+        self._list_widget.show()
+
+    def _set_status(self, text: str, color: str):
+        self._status_lbl.setText(text)
+        self._status_lbl.setStyleSheet(
+            f"color: {color}; background: transparent; border: none;")
+        self._status_lbl.show()
 
 
 class _VolumeCard(QFrame):
@@ -756,8 +1203,7 @@ class SettingsScreen(QWidget):
         c_lay.setSpacing(14)
         c_lay.setContentsMargins(0, 0, 0, 0)
 
-        wifi_ok = _check_network()
-        c_lay.addWidget(_StatusCard("wifi.png", "WiFi", "WiFi 연결", "연결됨" if wifi_ok else "연결 안됨", wifi_ok))
+        c_lay.addWidget(_WifiCard())
         c_lay.addWidget(_StatusCard("server.png", "서버", "서버 통신", "통신 가능", True))
         c_lay.addWidget(_VolumeCard())
         c_lay.addWidget(_FontSizeCard())

@@ -304,8 +304,10 @@ class CameraViewScreen(QWidget):
         self._title_lbl.setGeometry(0, title_y, w, title_h)
         self._sub_lbl.setGeometry(0, sub_y, w, sub_h)
 
-        loading_h = _fs(90)
-        self._loading_lbl.setGeometry((w - 440) // 2, (h - loading_h) // 2, 440, loading_h)
+        loading_fm = QFontMetrics(self._loading_lbl.font())
+        loading_w  = loading_fm.horizontalAdvance(self._loading_lbl.text()) + _fs(56)
+        loading_h  = loading_fm.height() + _fs(28)
+        self._loading_lbl.setGeometry((w - loading_w) // 2, (h - loading_h) // 2, loading_w, loading_h)
         self._processing_overlay.setGeometry(0, 0, w, h)
         self._upload_error_overlay.setGeometry(0, 0, w, h)
 
