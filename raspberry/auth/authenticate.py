@@ -62,7 +62,7 @@ def authenticate(face_img, threshold=FACE_MATCH_THRESHOLD, expected_user=None):
     except Exception:
         return None, -1
 
-    db = _load_server() or _load_local()
+    db = _load_local() or _load_server()
     if not db:
         return None, -1
 
