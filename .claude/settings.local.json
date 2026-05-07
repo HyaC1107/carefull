@@ -42,7 +42,9 @@
       "Bash(Select-Object Name)",
       "Bash(Get-ChildItem *)",
       "PowerShell(head *)",
-      "Bash(del *)"
+      "Bash(del *)",
+      "PowerShell(\\(Get-ChildItem \"C:\\\\Users\\\\smhrd\\\\Desktop\\\\carefull\\\\backend\\\\node_modules\" -Directory | Measure-Object\\).Count)",
+      "PowerShell(Get-ChildItem \"C:\\\\Users\\\\smhrd\\\\Desktop\\\\carefull\\\\backend\\\\node_modules\" -Directory | Where-Object { $_.Name -match \"eleven|elev\" })"
     ]
   }
 }
