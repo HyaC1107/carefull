@@ -86,8 +86,8 @@ def _get_frame_webcam() -> "cv2.ndarray | None":
 # ──────────────────────────────── 공개 API ───────────────────────────────────
 
 def release_camera():
-    """사용 중인 카메라 리소스 해제"""
-    global _picam2, _webcam
+    """사용 중인 카메라 리소스 해제. 다음 get_frame() 호출 시 재초기화 가능."""
+    global _picam2, _webcam, _picam2_available
     if _picam2 is not None:
         try:
             _picam2.stop()
@@ -109,6 +109,9 @@ def release_camera():
             pass
         _webcam = None
         print("[CAMERA] Webcam released.")
+
+    # 해제 후에는 다음 시도에서 재초기화 허용
+    _picam2_available = True
 
 def check_camera_health():
     """카메라가 정상적으로 프레임을 가져오는지 확인"""

@@ -24,6 +24,25 @@ except ImportError:
 from hardware.Controller import Controller
 from camera.camera import check_camera_health, release_camera
 
+
+def _kill_stray_camera_processes():
+    """이전 앱 종료 시 해제되지 않은 libcamera 좀비 프로세스를 정리."""
+    import subprocess, os
+    current_pid = os.getpid()
+    try:
+        result = subprocess.run(
+            ["pgrep", "-f", "libcamera"],
+            capture_output=True, text=True
+        )
+        for pid_str in result.stdout.strip().splitlines():
+            pid = int(pid_str)
+            if pid != current_pid:
+                subprocess.run(["kill", "-9", str(pid)], capture_output=True)
+                logger.info(f"Killed stray libcamera process: {pid}")
+    except Exception:
+        pass
+
+
 if __name__ == "__main__":
     controller = None
     try:
@@ -37,8 +56,16 @@ if __name__ == "__main__":
             logger.error("Failed to initialize hardware. Exiting.")
             sys.exit(1)
 
-        # 3. 카메라 점검
+        # 3. 카메라 점검 (이전 좀비 프로세스 정리 후 시도)
+        _kill_stray_camera_processes()
         camera_ok = check_camera_health()
+        if not camera_ok:
+            # 파이프라인이 해제될 시간을 주고 한 번 더 시도
+            logger.warning("Camera health check failed, retrying after 2s...")
+            import time as _t; _t.sleep(2)
+            release_camera()
+            camera_ok = check_camera_health()
+
         if camera_ok:
             logger.info("Camera health check passed.")
         else:
