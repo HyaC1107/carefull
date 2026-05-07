@@ -9,6 +9,7 @@ import SettingActionRow from '../components/settings/SettingActionRow'
 import GuardianEditModal from '../components/settings/GuardianEditModal'
 import PatientEditModal from '../components/settings/PatientEditModal'
 import VoiceUploadTab from '../components/settings/VoiceUploadTab'
+import AlarmSoundTab from '../components/settings/AlarmSoundTab'
 import { hasStoredToken, requestJson, TOKEN_STORAGE_KEY } from '../api'
 import { useUnreadCount } from '../hooks/useUnreadCount'
 import '../styles/SettingsPage.css'
@@ -76,6 +77,7 @@ const ACCOUNT_ACTION_ITEMS = [
 const TABS = [
   { key: 'general', label: '일반 설정' },
   { key: 'notification', label: '알림 설정' },
+  { key: 'sound', label: '알림음 등록' },
   { key: 'voice', label: '알림 음성' },
 ]
 
@@ -311,6 +313,12 @@ function SettingsPage() {
                     onClick={() => handleAccountAction(item.id)}
                   />
                 ))}
+              </SettingsSectionCard>
+            )}
+
+            {activeTab === 'sound' && (
+              <SettingsSectionCard title="알림음 등록">
+                <AlarmSoundTab />
               </SettingsSectionCard>
             )}
 

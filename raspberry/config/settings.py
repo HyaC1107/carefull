@@ -32,7 +32,7 @@ API_TIMEOUT  = int(os.getenv("CAREFULL_API_TIMEOUT", "10"))
 FINGERPRINT_SCAN_TIMEOUT = int(os.getenv("CAREFULL_FINGERPRINT_SCAN_TIMEOUT", "30"))
 
 # Voice & Audio Settings
-SOUNDS_DIR       = os.path.join(BASE_DIR, "assets", "sounds")   # 알림음 폴더
+SOUNDS_DIR       = os.path.join(BASE_DIR, "assets", "sounds")   # 기본 사운드 폴더
 VOICES_DIR       = os.path.join(BASE_DIR, "assets", "voices")   # TTS 음성 폴더
 ALARM_SOUND_PATH = os.path.join(SOUNDS_DIR, "alarm.mp3")        # 보호자 업로드 알림음
 TTS_VOICE_PATH   = os.path.join(VOICES_DIR, "voice.mp3")        # 보호자 TTS 음성

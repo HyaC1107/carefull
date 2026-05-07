@@ -84,19 +84,6 @@ CREATE TABLE public.patients (
 );
 
 
--- public.set_push_tokens_updated_at function
-
-CREATE OR REPLACE FUNCTION public.set_push_tokens_updated_at()
- RETURNS trigger
- LANGUAGE plpgsql
-AS $function$
-BEGIN
-  NEW.updated_at = CURRENT_TIMESTAMP;
-  RETURN NEW;
-END;
-$function$;
-
-
 -- public.push_tokens definition
 
 -- Drop table
@@ -166,8 +153,8 @@ CREATE TABLE public.voice_samples (
 	elevenlabs_voice_id varchar(255) NULL,
 	uploaded_at timestamptz DEFAULT now() NOT NULL,
 	updated_at timestamptz DEFAULT now() NOT NULL,
-	CONSTRAINT voice_samples_pkey PRIMARY KEY (voice_id),
 	CONSTRAINT uq_voice_samples_patient_id UNIQUE (patient_id),
+	CONSTRAINT voice_samples_pkey PRIMARY KEY (voice_id),
 	CONSTRAINT voice_samples_status_check CHECK (((status)::text = ANY ((ARRAY['pending'::character varying, 'processing'::character varying, 'ready'::character varying, 'error'::character varying])::text[]))),
 	CONSTRAINT voice_samples_patient_id_fkey FOREIGN KEY (patient_id) REFERENCES public.patients(patient_id) ON DELETE CASCADE
 );
@@ -231,7 +218,7 @@ CREATE INDEX ix_devices_1 ON public.devices USING btree (registered_at);
 CREATE TABLE public.face_embeddings (
 	face_id serial4 NOT NULL,
 	patient_id int4 NOT NULL,
-	face_vector public.vector(128) NOT NULL,
+	face_vector public.vector NOT NULL,
 	created_at timestamptz DEFAULT CURRENT_TIMESTAMP NOT NULL,
 	CONSTRAINT face_embeddings_pkey PRIMARY KEY (face_id),
 	CONSTRAINT fk_face_embeddings_patient_id_patients_patient_id FOREIGN KEY (patient_id) REFERENCES public.patients(patient_id)
@@ -251,7 +238,7 @@ CREATE TABLE public.notifications (
 	noti_id serial4 NOT NULL,
 	mem_id int4 NOT NULL,
 	patient_id int4 NOT NULL,
-	activity_id int4 NOT NULL,
+	activity_id int4 NULL,
 	noti_title varchar(255) NOT NULL,
 	noti_msg text NOT NULL,
 	created_at timestamptz DEFAULT CURRENT_TIMESTAMP NOT NULL,
