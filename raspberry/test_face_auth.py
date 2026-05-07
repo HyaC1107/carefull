@@ -77,9 +77,7 @@ def _get_embedding(img_bgr):
     m = get_model()
     if m is None:
         raise RuntimeError("모델 미로드")
-    # BGR -> RGB 변환
-    img_rgb = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2RGB)
-    return m.predict(img_rgb)
+    return m.predict(img_bgr)
 
 
 def _crop_square(frame, face, fh, fw):

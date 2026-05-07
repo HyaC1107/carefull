@@ -40,9 +40,7 @@ class FaceModel:
         return np.expand_dims(face_img, axis=0)
 
     def predict(self, face_img):
-        # 모델은 RGB 입력을 기대하므로 변환 필요
-        face_rgb = cv2.cvtColor(face_img, cv2.COLOR_BGR2RGB)
-        input_data = self.preprocess(face_rgb)
+        input_data = self.preprocess(face_img)
 
         if self.input_dtype == np.uint8:
             scale, zero_point = self.input_details[0]["quantization"]

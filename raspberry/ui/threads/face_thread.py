@@ -10,7 +10,7 @@ logger = logging.getLogger(__name__)
 MODE_AUTH = "auth"
 MODE_REGISTER = "register"
 
-AUTH_TIMEOUT_SEC = 7           # 얼굴 인증 최대 시도 시간 (초과 시 지문 폴백)
+AUTH_TIMEOUT_SEC = 10          # 얼굴 인증 최대 시도 시간 (초과 시 지문 폴백)
 _REGISTER_TARGET = 20
 _REGISTER_COOLDOWN_SEC = 0.6   # 캡처 간격
 _DETECT_EVERY_N = 8            # N프레임마다 1번 AI 검출

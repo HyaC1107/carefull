@@ -121,8 +121,7 @@ class _AuthWorker(QThread):
                 best_user = user
                 highest_avg = avg_score
 
-        # 매칭 비율 임계값 완화: 30% 이상이면 승인
-        STRICT_RATIO_THRESHOLD = 0.30
+        STRICT_RATIO_THRESHOLD = 0.50
         final_ratio = max_votes / total_count
 
         if final_ratio >= STRICT_RATIO_THRESHOLD:
