@@ -104,11 +104,9 @@ function VoiceUploadTab() {
     }
   }
 
-  const genderLabel = (labels) => {
-    if (!labels) return ''
-    if (labels.gender === 'female') return '여성'
-    if (labels.gender === 'male')   return '남성'
-    return ''
+  const voiceOptionLabel = (v) => {
+    const gender = v.labels?.gender === 'female' ? '여성' : v.labels?.gender === 'male' ? '남성' : ''
+    return gender ? `${v.name} (${gender})` : v.name
   }
 
   return (
@@ -173,30 +171,26 @@ function VoiceUploadTab() {
           {/* 목소리 선택 */}
           <div className="voice-section">
             <label className="voice-section__label">목소리 선택</label>
-            {voicesLoading ? (
-              <p className="voice-loading">목소리 목록을 불러오는 중...</p>
-            ) : voices.length === 0 ? (
-              <p className="voice-loading">목소리 목록을 가져올 수 없습니다</p>
-            ) : (
-              <div className="voice-list">
-                {voices.map((v) => (
-                  <button
-                    key={v.voice_id}
-                    className={`voice-item${selectedVoice?.voice_id === v.voice_id ? ' voice-item--selected' : ''}`}
-                    onClick={() => {
-                      setSelectedVoice(v)
-                      setPreviewUrl(null)
-                      setErrorMsg('')
-                    }}
-                  >
-                    <span className="voice-item__name">{v.name}</span>
-                    {genderLabel(v.labels) && (
-                      <span className="voice-item__tag">{genderLabel(v.labels)}</span>
-                    )}
-                  </button>
-                ))}
-              </div>
-            )}
+            <select
+              className="voice-select"
+              value={selectedVoice?.voice_id || ''}
+              onChange={(e) => {
+                const v = voices.find((v) => v.voice_id === e.target.value) || null
+                setSelectedVoice(v)
+                setPreviewUrl(null)
+                setErrorMsg('')
+              }}
+              disabled={voicesLoading || voices.length === 0}
+            >
+              <option value="">
+                {voicesLoading ? '불러오는 중...' : voices.length === 0 ? '목소리를 가져올 수 없습니다' : '목소리를 선택하세요'}
+              </option>
+              {voices.map((v) => (
+                <option key={v.voice_id} value={v.voice_id}>
+                  {voiceOptionLabel(v)}
+                </option>
+              ))}
+            </select>
           </div>
 
           {/* 미리듣기 플레이어 */}
