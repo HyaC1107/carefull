@@ -111,7 +111,8 @@ class App(QMainWindow):
     def _trigger_sync(self):
         # 1분에 한 번만 서버와 실제 동기화, 나머지는 로컬 캐시 체크
         now_sec = time.time()
-        if not hasattr(self, "_last_server_sync"): self._last_server_sync = 0
+        if not hasattr(self, "_last_server_sync"):
+            self._last_server_sync = 0
         
         force_fetch = (now_sec - self._last_server_sync) > 60
         
@@ -126,6 +127,9 @@ class App(QMainWindow):
         else:
             # 서버 동기화 없이 로컬 캐시로 즉시 체크
             self._on_sync_done(self._cached_schedules)
+
+    def _clear_sync_worker(self):
+        self._sync_worker = None
 
     def _on_sync_done(self, schedules: list):
         if schedules:
