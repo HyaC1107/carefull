@@ -387,6 +387,7 @@ class CameraViewScreen(QWidget):
             self._auth_worker.start()
 
     def _on_auth_success(self, user: str, score: float):
+        print(f"\n[AUTH_RESULT] 성공: {user} (최종 점수: {score:.4f})")
         if self._app:
             self._app.current_session["face_verified"] = True
             self._app.current_session["similarity_score"] = score
@@ -396,6 +397,7 @@ class CameraViewScreen(QWidget):
 
     def _on_auth_failed(self):
         self._stop_thread()
+        print(f"\n[AUTH_RESULT] 실패: 일치하는 사용자를 찾을 수 없거나 임계값 미달")
         if self._app: self._app.show_screen("fingerprint_auth")
 
     def _on_progress(self, count: int):
@@ -427,4 +429,6 @@ class CameraViewScreen(QWidget):
 
     def _on_upload_continue(self):
         self._upload_error_overlay.hide()
+        if self._app: self._app.show_screen("fingerprint_register")
+()
         if self._app: self._app.show_screen("fingerprint_register")

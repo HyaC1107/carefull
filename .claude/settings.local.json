@@ -37,7 +37,9 @@
       "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\smhrd\\\\Desktop\\\\carefull\\\\raspberry\" -Recurse -File)",
       "Bash(Select-Object FullName)",
       "Bash(pip install *)",
-      "Bash(dir /s /b \"C:\\\\Users\\\\smhrd\\\\Desktop\\\\carefull\\\\raspberry\\\\*.py\")"
+      "Bash(dir /s /b \"C:\\\\Users\\\\smhrd\\\\Desktop\\\\carefull\\\\raspberry\\\\*.py\")",
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\smhrd\\\\Desktop\\\\carefull\\\\backend\" -Directory)",
+      "Bash(Select-Object Name)"
     ]
   }
 }
