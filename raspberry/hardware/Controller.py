@@ -126,7 +126,8 @@ class Controller(threading.Thread):
                         logger.info(f"Triggering alarm for schedule {sche_id}")
                         play_alarm(custom_voice)
                         
-                time.sleep(30)
+                # 30초 -> 5초로 단축하여 정시 알람 정확도 향상
+                time.sleep(5)
                 
             except Exception as e:
                 logger.error(f"Error in Controller loop: {e}")

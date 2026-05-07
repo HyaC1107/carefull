@@ -105,22 +105,27 @@ class App(QMainWindow):
         self._trigger_sync()
         self._schedule_timer = QTimer(self)
         self._schedule_timer.timeout.connect(self._trigger_sync)
-        self._schedule_timer.start(SCHEDULE_POLL_SECONDS * 1000)
+        # 30초 -> 5초로 단축하여 정시 알람 정확도 향상
+        self._schedule_timer.start(5000)
 
     def _trigger_sync(self):
-        if self._sync_worker is not None:
-            try:
-                if self._sync_worker.isRunning():
-                    return
-            except RuntimeError:
-                self._sync_worker = None
-        self._sync_worker = _ScheduleSyncWorker()
-        self._sync_worker.sync_done.connect(self._on_sync_done)
-        self._sync_worker.finished.connect(self._clear_sync_worker)
-        self._sync_worker.start()
-
-    def _clear_sync_worker(self):
-        self._sync_worker = None
+        # 1분에 한 번만 서버와 실제 동기화, 나머지는 로컬 캐시 체크
+        now_sec = time.time()
+        if not hasattr(self, "_last_server_sync"): self._last_server_sync = 0
+        
+        force_fetch = (now_sec - self._last_server_sync) > 60
+        
+        if force_fetch:
+            if self._sync_worker is not None and self._sync_worker.isRunning():
+                return
+            self._sync_worker = _ScheduleSyncWorker()
+            self._sync_worker.sync_done.connect(self._on_sync_done)
+            self._sync_worker.finished.connect(self._clear_sync_worker)
+            self._sync_worker.start()
+            self._last_server_sync = now_sec
+        else:
+            # 서버 동기화 없이 로컬 캐시로 즉시 체크
+            self._on_sync_done(self._cached_schedules)
 
     def _on_sync_done(self, schedules: list):
         if schedules:
@@ -131,14 +136,15 @@ class App(QMainWindow):
         if not due:
             return
 
-        # 홈 화면일 때만 자동으로 복약 시작
-        if self.stack.currentWidget() != self.screens["home"]:
-            return
-
         s = due[0]
-        self.current_session = _new_session()
-        self.current_session["sche_id"] = s.get("sche_id")
-        self.show_screen("medication_start")
+        logger.info(f"UI Schedule Triggered: {s.get('sche_id')}")
+
+        # 복약 안내 화면으로 전환 (현재 화면이 다른 작업 중이 아닐 때만)
+        current = self.stack.currentWidget()
+        if current in [self.screens["home"], self.screens["medication_start"], self.screens["auth_result"]]:
+            self.current_session = _new_session()
+            self.current_session["sche_id"] = s.get("sche_id")
+            self.show_screen("medication_start")
 
 
 def run():
