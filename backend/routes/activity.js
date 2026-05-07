@@ -109,6 +109,51 @@ const normalize_kst_datetime_input = (value) => {
     return trimmed;
 };
 
+const to_date_only_string = (value) => {
+    if (!value) {
+        return null;
+    }
+
+    if (value instanceof Date) {
+        return value.toISOString().slice(0, 10);
+    }
+
+    return String(value).slice(0, 10);
+};
+
+const get_kst_date_string = (value) => {
+    const date = value instanceof Date ? value : new Date(value);
+
+    if (Number.isNaN(date.getTime())) {
+        return null;
+    }
+
+    const parts = new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'Asia/Seoul',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+    }).formatToParts(date);
+    const get_part = (type) => parts.find((part) => part.type === type)?.value;
+
+    return `${get_part('year')}-${get_part('month')}-${get_part('day')}`;
+};
+
+const is_schedule_active_on_date = (schedule, date_string) => {
+    const start_date = to_date_only_string(schedule?.start_date);
+    const end_date = to_date_only_string(schedule?.end_date || schedule?.start_date);
+    const schedule_status = String(schedule?.schedule_status || schedule?.status || '').toUpperCase();
+
+    return Boolean(
+        date_string
+        && start_date
+        && schedule_status === 'ACTIVE'
+        && start_date <= date_string
+        && end_date
+        && end_date >= date_string
+    );
+};
+
 const insert_activity = async (client, payload) => {
     const insert_query = `
         INSERT INTO activities (
@@ -285,10 +330,20 @@ router.post('/', verifyToken, async (req, res) => {
             return sendError(res, 404, 'Patient not found.');
         }
 
+        const normalized_sche_time = normalize_kst_datetime_input(sche_time);
+        const activity_date_string = get_kst_date_string(normalized_sche_time);
+
+        if (!activity_date_string) {
+            return sendError(res, 400, 'sche_time must be a valid datetime string.');
+        }
+
         const schedule_check_query = `
             SELECT
                 sche_id,
-                patient_id
+                patient_id,
+                start_date,
+                end_date,
+                status AS schedule_status
             FROM schedules
             WHERE sche_id = $1
               AND patient_id = $2
@@ -304,13 +359,17 @@ router.post('/', verifyToken, async (req, res) => {
             return sendError(res, 404, 'Schedule not found or access denied.');
         }
 
+        if (!is_schedule_active_on_date(schedule_check_result.rows[0], activity_date_string)) {
+            return sendError(res, 400, 'Schedule is not active on the activity date.');
+        }
+
         await client.query('BEGIN');
         transaction_started = true;
 
         const inserted_activity = await insert_activity(client, {
             patient_id,
             sche_id: parsed_sche_id,
-            sche_time: normalize_kst_datetime_input(sche_time),
+            sche_time: normalized_sche_time,
             actual_time: normalize_kst_datetime_input(actual_time) || null,
             status: normalized_status,
             is_face_auth: is_face_auth ?? false,
@@ -479,6 +538,9 @@ router.post('/device-event', async (req, res) => {
                 s.sche_id,
                 s.patient_id,
                 s.time_to_take,
+                s.start_date,
+                s.end_date,
+                s.status AS schedule_status,
                 m.medi_name,
                 p.mem_id,
                 d.device_uid
@@ -509,6 +571,11 @@ router.post('/device-event', async (req, res) => {
 
         const schedule_row = schedule_result.rows[0];
         const sche_time = build_schedule_timestamp(schedule_row.time_to_take, parsed_event_time);
+
+        if (!is_schedule_active_on_date(schedule_row, get_kst_date_string(sche_time))) {
+            return sendError(res, 400, 'Schedule is not active on the activity date.');
+        }
+
         const activity_payload = {
             patient_id: schedule_row.patient_id,
             sche_id: schedule_row.sche_id,

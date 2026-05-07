@@ -41,10 +41,28 @@
   color: #6b7280;
 }
 
+.schedule-header__actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
 .schedule-header__add-button {
   border: none;
   background: #2563eb;
   color: #ffffff;
+  font-size: 0.82rem;
+  font-weight: 700;
+  border-radius: 10px;
+  padding: 12px 16px;
+  cursor: pointer;
+}
+
+.schedule-header__delete-button {
+  border: 1px solid #fecaca;
+  background: #ffffff;
+  color: #dc2626;
   font-size: 0.82rem;
   font-weight: 700;
   border-radius: 10px;
@@ -444,7 +462,9 @@
     align-items: flex-start;
   }
 
-  .schedule-header__add-button {
+  .schedule-header__actions,
+  .schedule-header__add-button,
+  .schedule-header__delete-button {
     width: 100%;
   }
 }
@@ -889,6 +909,76 @@
   border: none;
   background: linear-gradient(90deg, #06b6d4, #2563eb);
   color: #ffffff;
+}
+
+.schedule-delete-modal {
+  max-width: 520px;
+}
+
+.schedule-delete-modal__list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.schedule-delete-modal__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 12px 14px;
+}
+
+.schedule-delete-modal__item-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.schedule-delete-modal__item-info strong {
+  font-size: 0.9rem;
+  color: #111827;
+}
+
+.schedule-delete-modal__item-info span {
+  font-size: 0.86rem;
+  font-weight: 700;
+  color: #1f2937;
+}
+
+.schedule-delete-modal__item-info small {
+  font-size: 0.76rem;
+  color: #6b7280;
+}
+
+.schedule-delete-modal__delete-button {
+  border: none;
+  border-radius: 10px;
+  background: #fee2e2;
+  color: #dc2626;
+  font-size: 0.8rem;
+  font-weight: 800;
+  padding: 9px 12px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.schedule-delete-modal__delete-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.schedule-delete-modal__empty {
+  margin: 0;
+  border: 1px dashed #d1d5db;
+  border-radius: 12px;
+  padding: 18px;
+  color: #6b7280;
+  text-align: center;
+  font-size: 0.84rem;
 }
 
 @media (max-width: 640px) {

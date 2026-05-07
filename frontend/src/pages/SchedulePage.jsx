@@ -25,6 +25,8 @@ function SchedulePage() {
   const [backendCompletedKeys, setBackendCompletedKeys] = useState(new Set())
   const [savingScheduleIds, setSavingScheduleIds] = useState(new Set())
   const [isAddModalOpen, setIsAddModalOpen] = useState(false)
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
+  const [deletingScheduleIds, setDeletingScheduleIds] = useState(new Set())
 
   const { year, month, selectedDate } = calendarState
 
@@ -184,6 +186,50 @@ function SchedulePage() {
     }
   }
 
+  const handleDeleteSchedule = async (item) => {
+    if (!hasStoredToken() || !item?.sche_id) {
+      return
+    }
+
+    const confirmed = window.confirm(
+      '이 복약 일정을 삭제할까요?\n반복 일정인 경우 이후 날짜에서도 표시되지 않습니다.',
+    )
+
+    if (!confirmed) {
+      return
+    }
+
+    setDeletingScheduleIds((prev) => {
+      const next = new Set(prev)
+      next.add(item.sche_id)
+      return next
+    })
+
+    try {
+      await requestJson(`/api/schedule/${item.sche_id}?date=${encodeURIComponent(selectedDate)}`, {
+        method: 'DELETE',
+        auth: true,
+      })
+
+      const refreshedSchedules = await requestJson('/api/schedule', { auth: true })
+      setSchedules(
+        Array.isArray(refreshedSchedules?.schedules)
+          ? refreshedSchedules.schedules
+          : [],
+      )
+      window.dispatchEvent(new Event('carefull:top-header-refresh'))
+    } catch (error) {
+      console.error('schedule delete error:', error)
+      alert(error.message || '복약 일정 삭제에 실패했습니다.')
+    } finally {
+      setDeletingScheduleIds((prev) => {
+        const next = new Set(prev)
+        next.delete(item.sche_id)
+        return next
+      })
+    }
+  }
+
   return (
     <div className="schedule-page">
       <div className="schedule-layout">
@@ -193,7 +239,10 @@ function SchedulePage() {
           <TopHeader />
 
           <main className="schedule-content">
-            <ScheduleHeader onOpenAddModal={() => setIsAddModalOpen(true)} />
+            <ScheduleHeader
+              onOpenAddModal={() => setIsAddModalOpen(true)}
+              onOpenDeleteModal={() => setIsDeleteModalOpen(true)}
+            />
 
             <MonthlyCalendar
               year={year}
@@ -233,6 +282,92 @@ function SchedulePage() {
           onSubmit={handleCreateSchedule}
         />
       ) : null}
+
+      {isDeleteModalOpen ? (
+        <ScheduleDeleteModal
+          schedules={selectedSchedules}
+          selectedDateLabel={selectedDateLabel}
+          deletingScheduleIds={deletingScheduleIds}
+          onClose={() => setIsDeleteModalOpen(false)}
+          onDelete={handleDeleteSchedule}
+        />
+      ) : null}
+    </div>
+  )
+}
+
+function ScheduleDeleteModal({
+  schedules,
+  selectedDateLabel,
+  deletingScheduleIds,
+  onClose,
+  onDelete,
+}) {
+  return (
+    <div className="schedule-modal-overlay" onClick={onClose}>
+      <div
+        className="schedule-modal schedule-delete-modal"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <div className="schedule-modal__header">
+          <div>
+            <h3 className="schedule-modal__title">복약 일정 삭제</h3>
+            <p className="schedule-modal__subtitle">
+              {selectedDateLabel}의 복약 일정 중 삭제할 항목을 선택하세요
+            </p>
+          </div>
+
+          <button
+            type="button"
+            className="schedule-modal__close-button"
+            onClick={onClose}
+          >
+            x
+          </button>
+        </div>
+
+        <div className="schedule-modal__body">
+          {schedules.length > 0 ? (
+            <div className="schedule-delete-modal__list">
+              {schedules.map((item) => {
+                const isDeleting = deletingScheduleIds.has(item.sche_id)
+
+                return (
+                  <div className="schedule-delete-modal__item" key={item.id}>
+                    <div className="schedule-delete-modal__item-info">
+                      <strong>{item.time_to_take}</strong>
+                      <span>{item.medi_name}</span>
+                      <small>{item.doseText}</small>
+                    </div>
+                    <button
+                      type="button"
+                      className="schedule-delete-modal__delete-button"
+                      onClick={() => onDelete(item)}
+                      disabled={isDeleting}
+                    >
+                      {isDeleting ? '삭제 중' : '삭제'}
+                    </button>
+                  </div>
+                )
+              })}
+            </div>
+          ) : (
+            <p className="schedule-delete-modal__empty">
+              선택한 날짜에 삭제할 복약 일정이 없습니다.
+            </p>
+          )}
+
+          <div className="schedule-modal__actions">
+            <button
+              type="button"
+              className="schedule-modal__button schedule-modal__button--secondary"
+              onClick={onClose}
+            >
+              닫기
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   )
 }

@@ -1,4 +1,4 @@
-function ScheduleHeader({ onOpenAddModal }) {
+function ScheduleHeader({ onOpenAddModal, onOpenDeleteModal }) {
   return (
     <section className="schedule-header">
       <div>
@@ -8,13 +8,22 @@ function ScheduleHeader({ onOpenAddModal }) {
         </p>
       </div>
 
-      <button
-        type="button"
-        className="schedule-header__add-button"
-        onClick={onOpenAddModal}
-      >
-        + 복약 일정 추가
-      </button>
+      <div className="schedule-header__actions">
+        <button
+          type="button"
+          className="schedule-header__add-button"
+          onClick={onOpenAddModal}
+        >
+          + 복약 일정 추가
+        </button>
+        <button
+          type="button"
+          className="schedule-header__delete-button"
+          onClick={onOpenDeleteModal}
+        >
+          복약 일정 삭제
+        </button>
+      </div>
     </section>
   )
 }
