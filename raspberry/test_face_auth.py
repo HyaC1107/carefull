@@ -1,4 +1,5 @@
 """
+수정금지!!!!
 얼굴 인증 통합 테스트 (PyQt5 기반) - 고도화 버전 (최종 수정)
 실행: raspberry/ 디렉토리에서 python test_face_auth.py
 
