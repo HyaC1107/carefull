@@ -1,6 +1,6 @@
 from PyQt5.QtCore import Qt, QThread, QTimer, pyqtSignal
 from PyQt5.QtGui import QColor, QFont, QPainter, QPen
-from PyQt5.QtWidgets import QLabel, QProgressBar, QVBoxLayout, QWidget
+from PyQt5.QtWidgets import QLabel, QProgressBar, QVBoxLayout, QWidget, QHBoxLayout
 
 _BG = "#dde3f8"
 _INDIGO = "#4338ca"

@@ -2,8 +2,8 @@ from PyQt5.QtCore import QThread, pyqtSignal
 
 from config.settings import UI_TEST_MODE
 
-_DIST_THRESHOLD = 0.25   # 정규화 거리 (코 ↔ 손목)
-_SUCCESS_FRAMES = 3      # 연속 감지 프레임 수
+_DIST_THRESHOLD = 0.3   # 정규화 거리 (코 ↔ 손목)
+_SUCCESS_FRAMES = 4      # 연속 감지 프레임 수
 
 _NOSE    = 0
 _L_WRIST = 15
