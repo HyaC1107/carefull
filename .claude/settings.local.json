@@ -39,7 +39,10 @@
       "Bash(pip install *)",
       "Bash(dir /s /b \"C:\\\\Users\\\\smhrd\\\\Desktop\\\\carefull\\\\raspberry\\\\*.py\")",
       "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\smhrd\\\\Desktop\\\\carefull\\\\backend\" -Directory)",
-      "Bash(Select-Object Name)"
+      "Bash(Select-Object Name)",
+      "Bash(Get-ChildItem *)",
+      "PowerShell(head *)",
+      "Bash(del *)"
     ]
   }
 }

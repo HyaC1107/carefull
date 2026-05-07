@@ -76,7 +76,7 @@ const ACCOUNT_ACTION_ITEMS = [
 const TABS = [
   { key: 'general', label: '일반 설정' },
   { key: 'notification', label: '알림 설정' },
-  { key: 'voice', label: '보호자 목소리' },
+  { key: 'voice', label: '알림 음성' },
 ]
 
 function loadNotifPrefs() {
@@ -315,7 +315,7 @@ function SettingsPage() {
             )}
 
             {activeTab === 'voice' && (
-              <SettingsSectionCard title="보호자 목소리 등록">
+              <SettingsSectionCard title="복약 알림 음성 설정">
                 <VoiceUploadTab />
               </SettingsSectionCard>
             )}

@@ -1,314 +1,249 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { TOKEN_STORAGE_KEY } from '../../api'
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || ''
-const MAX_FILE_MB = 10
-const ALLOWED_TYPES = /\.(mp3|wav|m4a|webm|ogg)$/i
-const CONVERTING_STATUSES = new Set(['pending', 'processing'])
+const API_BASE     = import.meta.env.VITE_API_BASE_URL || ''
+const DEFAULT_TEXT = '약 먹을 시간이에요. 보호자님이 알려드려요. 물과 함께 천천히 약을 복용해주세요.'
+const MAX_TEXT_LEN = 200
 
 function VoiceUploadTab() {
-  const [mode, setMode] = useState('idle') // idle | recording | previewing | uploading | done | error
-  const [audioBlob, setAudioBlob] = useState(null)
-  const [audioUrl, setAudioUrl] = useState(null)
-  const [fileName, setFileName] = useState('')
-  const [uploadedVoice, setUploadedVoice] = useState(null)
-  const [errorMsg, setErrorMsg] = useState('')
-  const [isDragging, setIsDragging] = useState(false)
-  const [recordSec, setRecordSec] = useState(0)
+  const [voices,        setVoices]        = useState([])
+  const [voicesLoading, setVoicesLoading] = useState(true)
+  const [selectedVoice, setSelectedVoice] = useState(null)
+  const [text,          setText]          = useState(DEFAULT_TEXT)
+  const [savedVoice,    setSavedVoice]    = useState(null)
+  const [mode,          setMode]          = useState('idle') // idle | previewing | saving | done
+  const [previewUrl,    setPreviewUrl]    = useState(null)
+  const [previewLoading, setPreviewLoading] = useState(false)
+  const [errorMsg,      setErrorMsg]      = useState('')
 
-  const fileInputRef = useRef(null)
-  const mediaRecorderRef = useRef(null)
-  const chunksRef = useRef([])
-  const streamRef = useRef(null)
-  const timerRef = useRef(null)
-  const pollingRef = useRef(null)
+  const audioRef = useRef(null)
 
   useEffect(() => {
-    fetchUploadedVoice()
-    return () => {
-      if (audioUrl) URL.revokeObjectURL(audioUrl)
-      stopStream()
-      clearInterval(timerRef.current)
-      clearInterval(pollingRef.current)
-    }
+    fetchVoices()
+    fetchSavedVoice()
   }, [])
 
-  useEffect(() => {
-    clearInterval(pollingRef.current)
-    if (!CONVERTING_STATUSES.has(uploadedVoice?.status)) return undefined
-
-    pollingRef.current = setInterval(() => {
-      fetchUploadedVoice()
-    }, 3000)
-
-    return () => clearInterval(pollingRef.current)
-  }, [uploadedVoice?.status])
-
-  function stopStream() {
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach((t) => t.stop())
-      streamRef.current = null
-    }
+  function authHeaders() {
+    const token = localStorage.getItem(TOKEN_STORAGE_KEY)
+    const base  = { 'Content-Type': 'application/json' }
+    return token ? { ...base, Authorization: `Bearer ${token}` } : base
   }
 
-  async function fetchUploadedVoice() {
+  async function fetchVoices() {
+    setVoicesLoading(true)
     try {
-      const token = localStorage.getItem(TOKEN_STORAGE_KEY)
-      const res = await fetch(`${API_BASE}/api/voice`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      })
-      if (res.ok) {
-        const data = await res.json()
-        const voice = data.voice || null
-        setUploadedVoice(voice)
-        return voice
-      }
-    } catch {}
-    return null
-  }
-
-  function getVoiceStatusText(status) {
-    if (status === 'ready') return '디바이스 적용 준비 완료'
-    if (status === 'error') return '음성 변환 실패'
-    if (CONVERTING_STATUSES.has(status)) return '음성 변환 중'
-    return '적용 중'
-  }
-
-  function validateFile(file) {
-    if (!file) return '파일을 선택해주세요'
-    if (!ALLOWED_TYPES.test(file.name) && !file.type.startsWith('audio/')) {
-      return 'mp3, wav, m4a, webm 파일만 업로드할 수 있습니다'
-    }
-    if (file.size > MAX_FILE_MB * 1024 * 1024) {
-      return `파일 크기는 ${MAX_FILE_MB}MB 이하여야 합니다`
-    }
-    return null
-  }
-
-  function applyFile(file, name) {
-    if (audioUrl) URL.revokeObjectURL(audioUrl)
-    const url = URL.createObjectURL(file)
-    setAudioBlob(file)
-    setAudioUrl(url)
-    setFileName(name)
-    setMode('previewing')
-    setErrorMsg('')
-  }
-
-  function handleFileSelect(file) {
-    const err = validateFile(file)
-    if (err) { setErrorMsg(err); return }
-    applyFile(file, file.name)
-  }
-
-  function handleDrop(e) {
-    e.preventDefault()
-    setIsDragging(false)
-    handleFileSelect(e.dataTransfer.files[0])
-  }
-
-  async function handleStartRecord() {
-    setErrorMsg('')
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
-      streamRef.current = stream
-      chunksRef.current = []
-      setRecordSec(0)
-
-      timerRef.current = setInterval(() => setRecordSec((s) => s + 1), 1000)
-
-      const mr = new MediaRecorder(stream, { mimeType: 'audio/webm' })
-      mr.ondataavailable = (e) => { if (e.data.size > 0) chunksRef.current.push(e.data) }
-      mr.onstop = () => {
-        clearInterval(timerRef.current)
-        stopStream()
-        const blob = new Blob(chunksRef.current, { type: 'audio/webm' })
-        const time = new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
-        applyFile(blob, `녹음_${time}.webm`)
-      }
-      mediaRecorderRef.current = mr
-      mr.start()
-      setMode('recording')
+      const res  = await fetch(`${API_BASE}/api/voice/voices`, { headers: authHeaders() })
+      const data = await res.json()
+      setVoices(data.voices || [])
     } catch {
-      setErrorMsg('마이크 접근 권한이 필요합니다. 브라우저 설정에서 허용해주세요.')
+      setVoices([])
+    } finally {
+      setVoicesLoading(false)
     }
   }
 
-  function handleStopRecord() {
-    if (mediaRecorderRef.current?.state !== 'inactive') {
-      mediaRecorderRef.current.stop()
-    }
-  }
-
-  async function handleUpload() {
-    if (!audioBlob) return
-    setMode('uploading')
-    setErrorMsg('')
+  async function fetchSavedVoice() {
     try {
-      const token = localStorage.getItem(TOKEN_STORAGE_KEY)
-      const formData = new FormData()
-      formData.append('voice', audioBlob, fileName || 'voice.webm')
+      const res  = await fetch(`${API_BASE}/api/voice`, { headers: authHeaders() })
+      const data = await res.json()
+      setSavedVoice(data.voice || null)
+    } catch {}
+  }
 
-      const res = await fetch(`${API_BASE}/api/voice/upload`, {
+  async function handlePreview() {
+    if (!selectedVoice) { setErrorMsg('목소리를 먼저 선택해주세요'); return }
+    if (!text.trim())   { setErrorMsg('알림 문구를 입력해주세요');    return }
+    setPreviewLoading(true)
+    setErrorMsg('')
+    setPreviewUrl(null)
+    try {
+      const res = await fetch(`${API_BASE}/api/voice/preview`, {
         method: 'POST',
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-        body: formData,
+        headers: authHeaders(),
+        body: JSON.stringify({ voice_id: selectedVoice.voice_id, text: text.trim() }),
       })
       if (!res.ok) {
-        const errData = await res.json().catch(() => ({}))
-        throw new Error(errData.message || '업로드에 실패했습니다')
+        const e = await res.json().catch(() => ({}))
+        throw new Error(e.message || '미리듣기 생성에 실패했습니다')
       }
       const data = await res.json()
-      const voice = data.voice || { file_name: fileName, uploaded_at: new Date().toISOString(), status: 'pending' }
-      setUploadedVoice(voice)
-      setMode('done')
-      setAudioBlob(null)
-      if (audioUrl) URL.revokeObjectURL(audioUrl)
-      setAudioUrl(null)
+      setPreviewUrl(data.url)
+      setTimeout(() => audioRef.current?.play(), 150)
     } catch (err) {
-      setErrorMsg(err.message || '업로드 중 오류가 발생했습니다')
-      setMode('previewing')
+      setErrorMsg(err.message)
+    } finally {
+      setPreviewLoading(false)
     }
   }
 
-  function handleReset() {
-    if (audioUrl) URL.revokeObjectURL(audioUrl)
-    setAudioBlob(null)
-    setAudioUrl(null)
-    setFileName('')
-    setMode('idle')
+  async function handleSave() {
+    if (!selectedVoice) { setErrorMsg('목소리를 먼저 선택해주세요'); return }
+    if (!text.trim())   { setErrorMsg('알림 문구를 입력해주세요');    return }
+    setMode('saving')
     setErrorMsg('')
+    try {
+      const res = await fetch(`${API_BASE}/api/voice/generate`, {
+        method: 'POST',
+        headers: authHeaders(),
+        body: JSON.stringify({
+          voice_id:   selectedVoice.voice_id,
+          voice_name: selectedVoice.name,
+          text:       text.trim(),
+        }),
+      })
+      if (!res.ok) {
+        const e = await res.json().catch(() => ({}))
+        throw new Error(e.message || '저장에 실패했습니다')
+      }
+      const data = await res.json()
+      setSavedVoice(data.voice)
+      setMode('done')
+    } catch (err) {
+      setErrorMsg(err.message)
+      setMode('idle')
+    }
   }
 
-  function fmtSec(s) {
-    const m = Math.floor(s / 60)
-    const sec = s % 60
-    return `${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}`
+  const genderLabel = (labels) => {
+    if (!labels) return ''
+    if (labels.gender === 'female') return '여성'
+    if (labels.gender === 'male')   return '남성'
+    return ''
   }
 
   return (
     <div className="voice-tab">
-      {/* 현재 등록된 목소리 */}
-      {uploadedVoice && mode !== 'done' && (
+      {/* 현재 등록된 음성 */}
+      {savedVoice && mode !== 'done' && (
         <div className="voice-current">
-          <div className="voice-current__icon">🎙️</div>
+          <div className="voice-current__icon">🔊</div>
           <div className="voice-current__info">
-            <p className="voice-current__label">현재 등록된 목소리</p>
-            <p className="voice-current__name">{uploadedVoice.file_name || '목소리 파일'}</p>
-            {uploadedVoice.uploaded_at && (
+            <p className="voice-current__label">현재 적용된 알림 음성</p>
+            <p className="voice-current__name">
+              {savedVoice.tts_voice_name || '알림 음성'}
+            </p>
+            {savedVoice.updated_at && (
               <p className="voice-current__date">
-                등록일: {new Date(uploadedVoice.uploaded_at).toLocaleDateString('ko-KR')}
+                등록일: {new Date(savedVoice.updated_at).toLocaleDateString('ko-KR')}
               </p>
             )}
           </div>
-          <span className="voice-current__badge">{getVoiceStatusText(uploadedVoice.status)}</span>
+          <span className="voice-current__badge">적용 완료</span>
         </div>
       )}
 
-      {/* 업로드 완료 */}
+      {/* 저장 완료 */}
       {mode === 'done' && (
         <div className="voice-done">
           <div className="voice-done__check">✓</div>
           <div className="voice-done__text">
-            <p className="voice-done__title">목소리 등록 완료</p>
-            <p className="voice-done__desc">{getVoiceStatusText(uploadedVoice?.status)}</p>
+            <p className="voice-done__title">알림 음성 저장 완료</p>
+            <p className="voice-done__desc">30초 이내 기기에 자동 반영됩니다</p>
           </div>
-          <button className="voice-done__retry" onClick={() => { setMode('idle'); setUploadedVoice(null) }}>
-            다시 업로드
+          <button className="voice-done__retry" onClick={() => setMode('idle')}>
+            다시 설정
           </button>
         </div>
       )}
 
-      {/* 업로드 / 녹음 선택 영역 */}
-      {(mode === 'idle' || mode === 'recording') && (
-        <>
-          <div
-            className={`voice-dropzone${isDragging ? ' voice-dropzone--over' : ''}`}
-            onDragOver={(e) => { e.preventDefault(); setIsDragging(true) }}
-            onDragLeave={() => setIsDragging(false)}
-            onDrop={handleDrop}
-            onClick={() => fileInputRef.current?.click()}
-            role="button"
-            tabIndex={0}
-            onKeyDown={(e) => e.key === 'Enter' && fileInputRef.current?.click()}
-          >
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".mp3,.wav,.m4a,.webm,.ogg,audio/*"
-              style={{ display: 'none' }}
-              onChange={(e) => handleFileSelect(e.target.files[0])}
-            />
-            <span className="voice-dropzone__icon">🎵</span>
-            <p className="voice-dropzone__title">파일을 드래그하거나 클릭하여 선택</p>
-            <p className="voice-dropzone__sub">mp3 · wav · m4a · webm &nbsp;|&nbsp; 최대 {MAX_FILE_MB}MB</p>
-          </div>
-
-          <div className="voice-or">
-            <span className="voice-or__line" />
-            <span className="voice-or__text">또는</span>
-            <span className="voice-or__line" />
-          </div>
-
-          {mode === 'idle' ? (
-            <button className="voice-record-btn" onClick={handleStartRecord}>
-              <span className="voice-record-btn__dot" />
-              마이크로 직접 녹음
-            </button>
-          ) : (
-            <div className="voice-recording">
-              <span className="voice-recording__pulse" />
-              <span className="voice-recording__timer">{fmtSec(recordSec)}</span>
-              <span className="voice-recording__label">녹음 중</span>
-              <button className="voice-recording__stop" onClick={handleStopRecord}>
-                ⏹ 중지
-              </button>
-            </div>
-          )}
-        </>
-      )}
-
-      {/* 미리듣기 */}
-      {mode === 'previewing' && (
-        <div className="voice-preview">
-          <div className="voice-preview__header">
-            <span className="voice-preview__icon">🎵</span>
-            <span className="voice-preview__name">{fileName}</span>
-            <button className="voice-preview__remove" onClick={handleReset} title="제거">✕</button>
-          </div>
-          <audio src={audioUrl} controls className="voice-preview__player" />
-          <div className="voice-preview__actions">
-            <button className="voice-preview__btn voice-preview__btn--cancel" onClick={handleReset}>
-              다시 선택
-            </button>
-            <button className="voice-preview__btn voice-preview__btn--upload" onClick={handleUpload}>
-              업로드
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* 업로드 중 */}
-      {mode === 'uploading' && (
+      {/* 저장 중 */}
+      {mode === 'saving' && (
         <div className="voice-uploading">
           <span className="voice-uploading__spinner" />
-          <p className="voice-uploading__text">업로드 중...</p>
+          <p className="voice-uploading__text">음성을 생성하고 있습니다...</p>
         </div>
+      )}
+
+      {/* 설정 폼 */}
+      {(mode === 'idle' || mode === 'previewing') && (
+        <>
+          {/* 알림 문구 입력 */}
+          <div className="voice-section">
+            <label className="voice-section__label">알림 문구</label>
+            <textarea
+              className="voice-text-input"
+              value={text}
+              onChange={(e) => setText(e.target.value.slice(0, MAX_TEXT_LEN))}
+              rows={3}
+              placeholder="복약 알림 시 읽어드릴 문구를 입력하세요"
+            />
+            <p className="voice-text-count">{text.length} / {MAX_TEXT_LEN}</p>
+          </div>
+
+          {/* 목소리 선택 */}
+          <div className="voice-section">
+            <label className="voice-section__label">목소리 선택</label>
+            {voicesLoading ? (
+              <p className="voice-loading">목소리 목록을 불러오는 중...</p>
+            ) : voices.length === 0 ? (
+              <p className="voice-loading">목소리 목록을 가져올 수 없습니다</p>
+            ) : (
+              <div className="voice-list">
+                {voices.map((v) => (
+                  <button
+                    key={v.voice_id}
+                    className={`voice-item${selectedVoice?.voice_id === v.voice_id ? ' voice-item--selected' : ''}`}
+                    onClick={() => {
+                      setSelectedVoice(v)
+                      setPreviewUrl(null)
+                      setErrorMsg('')
+                    }}
+                  >
+                    <span className="voice-item__name">{v.name}</span>
+                    {genderLabel(v.labels) && (
+                      <span className="voice-item__tag">{genderLabel(v.labels)}</span>
+                    )}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* 미리듣기 플레이어 */}
+          {previewUrl && (
+            <audio
+              ref={audioRef}
+              src={`${API_BASE}${previewUrl}`}
+              controls
+              className="voice-preview-player"
+            />
+          )}
+
+          {/* 액션 버튼 */}
+          <div className="voice-actions">
+            <button
+              className="voice-btn voice-btn--preview"
+              onClick={handlePreview}
+              disabled={previewLoading || !selectedVoice}
+            >
+              {previewLoading ? '생성 중...' : '▶ 미리듣기'}
+            </button>
+            <button
+              className="voice-btn voice-btn--save"
+              onClick={handleSave}
+              disabled={!selectedVoice || !text.trim()}
+            >
+              저장
+            </button>
+          </div>
+        </>
       )}
 
       {/* 에러 */}
       {errorMsg && <p className="voice-error">{errorMsg}</p>}
 
       {/* 가이드 */}
-      <div className="voice-guide">
-        <p className="voice-guide__title">녹음 가이드</p>
-        <ul className="voice-guide__list">
-          <li>조용한 환경에서 <strong>10~30초</strong> 분량의 목소리를 녹음해 주세요</li>
-          <li>녹음된 목소리는 AI 처리 후 복약 알림 음성으로 사용됩니다</li>
-          <li>자연스럽고 명확하게 말씀해 주시면 더 좋은 품질이 나옵니다</li>
-          <li>이미 등록된 목소리가 있으면 새로 업로드 시 덮어씁니다</li>
-        </ul>
-      </div>
+      {(mode === 'idle' || mode === 'previewing') && (
+        <div className="voice-guide">
+          <p className="voice-guide__title">안내</p>
+          <ul className="voice-guide__list">
+            <li>알림 문구를 원하는 내용으로 수정할 수 있습니다</li>
+            <li>목소리를 선택한 뒤 <strong>미리듣기</strong>로 확인 후 저장해주세요</li>
+            <li>저장된 음성은 30초 이내 기기에 자동 반영됩니다</li>
+            <li>이미 등록된 음성이 있으면 새로 저장 시 덮어씁니다</li>
+          </ul>
+        </div>
+      )}
     </div>
   )
 }

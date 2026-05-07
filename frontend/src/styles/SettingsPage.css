@@ -959,3 +959,162 @@ select.settings-form-field__input {
     padding: 28px 16px;
   }
 }
+
+/* ── TTS 신규 UI ─────────────────────────────────────────────── */
+
+/* 섹션 라벨 */
+.voice-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.voice-section__label {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #374151;
+}
+
+/* 텍스트 입력 */
+.voice-text-input {
+  width: 100%;
+  border: 1px solid #d1d5db;
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 0.84rem;
+  color: #1f2937;
+  resize: vertical;
+  line-height: 1.6;
+  box-sizing: border-box;
+  font-family: inherit;
+}
+
+.voice-text-input:focus {
+  outline: none;
+  border-color: #0ea5e9;
+  box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.12);
+}
+
+.voice-text-count {
+  margin: 0;
+  font-size: 0.72rem;
+  color: #9ca3af;
+  text-align: right;
+}
+
+/* 목소리 목록 */
+.voice-loading {
+  font-size: 0.82rem;
+  color: #9ca3af;
+  text-align: center;
+  padding: 16px 0;
+}
+
+.voice-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.voice-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  border: 1px solid #e5e7eb;
+  border-radius: 20px;
+  background: #fff;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.voice-item:hover {
+  border-color: #7dd3fc;
+  background: #f0f9ff;
+}
+
+.voice-item--selected {
+  border-color: #0ea5e9;
+  background: #e0f2fe;
+}
+
+.voice-item__name {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.voice-item__tag {
+  font-size: 0.68rem;
+  color: #6b7280;
+  background: #f3f4f6;
+  border-radius: 8px;
+  padding: 1px 6px;
+}
+
+.voice-item--selected .voice-item__tag {
+  background: #bae6fd;
+  color: #0369a1;
+}
+
+/* 미리듣기 오디오 플레이어 */
+.voice-preview-player {
+  width: 100%;
+  border-radius: 10px;
+}
+
+/* 액션 버튼 */
+.voice-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.voice-btn {
+  height: 42px;
+  border-radius: 10px;
+  font-size: 0.84rem;
+  font-weight: 700;
+  cursor: pointer;
+  border: none;
+  transition: opacity 0.15s, transform 0.1s;
+}
+
+.voice-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.voice-btn:not(:disabled):active {
+  transform: scale(0.97);
+}
+
+.voice-btn--preview {
+  flex: 1;
+  border: 1px solid #7dd3fc;
+  background: #f0f9ff;
+  color: #0369a1;
+}
+
+.voice-btn--preview:not(:disabled):hover {
+  background: #e0f2fe;
+}
+
+.voice-btn--save {
+  flex: 1;
+  background: linear-gradient(90deg, #0ea5e9, #2563eb);
+  color: #fff;
+}
+
+.voice-btn--save:not(:disabled):hover {
+  opacity: 0.9;
+}
+
+@media (max-width: 640px) {
+  .voice-actions {
+    flex-direction: column;
+  }
+
+  .voice-list {
+    gap: 6px;
+  }
+}
