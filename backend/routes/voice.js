@@ -2,6 +2,7 @@ const express = require('express');
 const router  = express.Router();
 const path    = require('path');
 const fs      = require('fs');
+const crypto  = require('crypto');
 
 const pool            = require('../db');
 const { verifyToken } = require('../middleware/auth');
@@ -81,21 +82,22 @@ router.get('/', verifyToken, async (req, res) => {
 });
 
 // ─── POST /api/voice/preview ──────────────────────────────────────────────────
-// 미리듣기용 TTS 임시 생성 → URL 반환
+// 미리듣기용 TTS 생성 → (voice_id + text) 해시로 캐싱, 동일 조합 재요청 시 API 미호출
 router.post('/preview', verifyToken, async (req, res) => {
     const { voice_id, text } = req.body;
-    if (!voice_id) return sendError(res, 400, 'voice_id가 필요합니다');
+    if (!voice_id)             return sendError(res, 400, 'voice_id가 필요합니다');
     if (!text || !text.trim()) return sendError(res, 400, 'text가 필요합니다');
-    if (text.length > 300) return sendError(res, 400, '텍스트는 300자 이하여야 합니다');
+    if (text.length > 300)     return sendError(res, 400, '텍스트는 300자 이하여야 합니다');
+
+    const hash        = crypto.createHash('sha1').update(`${voice_id}|${text.trim()}`).digest('hex');
+    const filename    = `preview_${hash}.mp3`;
+    const output_path = path.join(PREVIEWS_DIR, filename);
 
     try {
-        const filename    = `preview_${req.user.mem_id}_${Date.now()}.mp3`;
-        const output_path = path.join(PREVIEWS_DIR, filename);
-
-        await elevenlabs.generate_tts(voice_id, text.trim(), output_path);
-
-        // 10분 후 임시 파일 자동 삭제
-        setTimeout(() => remove_file(output_path), 10 * 60 * 1000);
+        // 동일한 voice_id + text 조합이면 캐시된 파일 바로 반환 (ElevenLabs 미호출)
+        if (!fs.existsSync(output_path)) {
+            await elevenlabs.generate_tts(voice_id, text.trim(), output_path);
+        }
 
         return sendSuccess(res, 200, { url: `/api/voice/preview-file/${filename}` });
     } catch (err) {
