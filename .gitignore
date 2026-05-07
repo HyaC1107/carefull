@@ -104,3 +104,4 @@ raspberry/voices
 dev_test/behavior/logs/summary.csv
 raspberry/db/
 raspberry/logs/
+raspberry/assets/sounds/.alarm_updated_at
