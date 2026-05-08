@@ -20,6 +20,7 @@ venv/
 *.log
 *.tmp
 *.temp
+*.md
 
 # 🔥 OS 파일
 .DS_Store
