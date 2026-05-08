@@ -7,7 +7,7 @@
 # 설치 (최초 1회):
 #   sudo apt install wf-recorder
 
-OUTPUT_DIR="$HOME/Videos/carefull_recordings"
+OUTPUT_DIR="$HOME/carefull/dev_test/carefull_recordings"
 PID_FILE="/tmp/carefull_record.pid"
 
 # SSH 접속 시 Wayland 환경변수가 없으므로 직접 설정
@@ -71,7 +71,7 @@ case "$1" in
     *)
         echo "사용법: $0 {start|stop|status}"
         echo ""
-        echo "  start   녹화 시작 (저장: ~/Videos/carefull_recordings/)"
+        echo "  start   녹화 시작 (저장: ~/carefull/dev_test/carefull_recordings/)"
         echo "  stop    녹화 종료 및 mp4 저장"
         echo "  status  현재 상태 확인"
         ;;

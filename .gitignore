@@ -83,7 +83,7 @@ frontend/.vite/
 .vite/
 .npm
 *.log
-
+*.sh
 # lock 파일
 # package-lock.json은 보통 커밋하는 편이라 ignore 비추천
 # yarn.lock도 팀 규칙 없으면 보통 커밋
