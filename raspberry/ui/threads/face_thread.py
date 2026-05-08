@@ -98,12 +98,17 @@ class FaceThread(QThread):
 
         logger.info(f"[FACE_THREAD] Starting auth capture (target: {max_capture} frames)")
 
+        none_frame_count = 0
         try:
             while self._running and len(face_imgs) < max_capture:
                 frame = get_frame()
                 if frame is None:
+                    none_frame_count += 1
+                    if none_frame_count % 100 == 0:  # 1초(100 * 10ms)마다 경고
+                        logger.warning(f"[FACE_THREAD] Camera returning None frames ({none_frame_count} times). Camera may not be available.")
                     self.msleep(10)
                     continue
+                none_frame_count = 0
 
                 fh, fw = frame.shape[:2]
                 now = time.time()
@@ -177,12 +182,17 @@ class FaceThread(QThread):
 
         self.phase_changed.emit(0, _PHASES[0])
 
+        none_frame_count = 0
         try:
             while self._running and len(face_imgs) < _REGISTER_TARGET:
                 frame = get_frame()
                 if frame is None:
+                    none_frame_count += 1
+                    if none_frame_count % 100 == 0:
+                        logger.warning(f"[FACE_THREAD] Camera returning None frames ({none_frame_count} times). Camera may not be available.")
                     self.msleep(10)
                     continue
+                none_frame_count = 0
 
                 # ── UX 개선: 대기 중에도 카메라 화면은 끊김 없이 송출 ──
                 self.frame_ready.emit(frame.copy())

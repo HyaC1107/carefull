@@ -92,12 +92,13 @@ if __name__ == "__main__":
 
         if camera_ok:
             logger.info("Camera health check passed.")
-            # 카메라를 열린 상태로 유지 — close() 후 재초기화 시 libcamera 파이프라인이
-            # 완전히 해제되기 전에 Picamera2()를 재호출하면 실패하므로, FaceThread가
-            # 이미 열린 인스턴스를 그대로 사용하도록 release 하지 않는다.
         else:
             logger.warning("Camera health check failed! Please check the camera connection.")
-            release_camera()  # 실패 상태 정리
+
+        # 항상 해제 — FaceThread가 직접 새로 열도록 한다
+        # (health check에서 열어둔 채로 QThread에서 재사용하면 libcamera 내부 상태 불일치 발생)
+        release_camera()
+        import time; time.sleep(2.0)  # 파이프라인 완전 해제 대기
 
         # 4. 자가 진단 (카메라 재초기화 없이 위 결과 전달)
         controller.self_test(camera_ok=camera_ok)
