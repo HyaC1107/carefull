@@ -92,11 +92,12 @@ if __name__ == "__main__":
 
         if camera_ok:
             logger.info("Camera health check passed.")
+            # 카메라를 열린 상태로 유지 — close() 후 재초기화 시 libcamera 파이프라인이
+            # 완전히 해제되기 전에 Picamera2()를 재호출하면 실패하므로, FaceThread가
+            # 이미 열린 인스턴스를 그대로 사용하도록 release 하지 않는다.
         else:
             logger.warning("Camera health check failed! Please check the camera connection.")
-
-        # 점검 후 카메라 리소스 해제 (UI에서 필요할 때 다시 켬)
-        release_camera()
+            release_camera()  # 실패 상태 정리
 
         # 4. 자가 진단 (카메라 재초기화 없이 위 결과 전달)
         controller.self_test(camera_ok=camera_ok)
