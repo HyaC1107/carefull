@@ -341,6 +341,7 @@ class CameraViewScreen(QWidget):
         self._thread.capture_done.connect(self._on_capture_done)
 
         if self._mode == MODE_AUTH:
+            self._thread.auth_success.connect(self._on_auth_success)
             self._thread.auth_failed.connect(self._on_auth_failed)
         else:
             self._thread.capture_progress.connect(self._on_progress)
