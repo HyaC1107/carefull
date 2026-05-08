@@ -26,21 +26,45 @@ from camera.camera import check_camera_health, release_camera
 
 
 def _kill_stray_camera_processes():
-    """이전 앱 종료 시 해제되지 않은 libcamera 좀비 프로세스를 정리."""
-    import subprocess, os
+    """이전 앱 종료 시 해제되지 않은 카메라 점유 프로세스를 정리.
+
+    pgrep -f libcamera 만으로는 Python/Picamera2 프로세스를 잡지 못하므로
+    /dev/media* 장치를 직접 점유한 PID를 fuser로 찾아 종료한다.
+    """
+    import subprocess, time as _t
     current_pid = os.getpid()
+
+    # 1) libcamera 이름의 프로세스
     try:
-        result = subprocess.run(
-            ["pgrep", "-f", "libcamera"],
-            capture_output=True, text=True
-        )
+        result = subprocess.run(["pgrep", "-f", "libcamera"], capture_output=True, text=True)
         for pid_str in result.stdout.strip().splitlines():
-            pid = int(pid_str)
-            if pid != current_pid:
-                subprocess.run(["kill", "-9", str(pid)], capture_output=True)
-                logger.info(f"Killed stray libcamera process: {pid}")
+            try:
+                pid = int(pid_str)
+                if pid != current_pid:
+                    subprocess.run(["kill", "-9", str(pid)], capture_output=True)
+                    logger.info(f"Killed stray libcamera process: {pid}")
+            except ValueError:
+                pass
     except Exception:
         pass
+
+    # 2) /dev/media* 장치를 점유한 모든 프로세스 (이전 Python/Picamera2 포함)
+    try:
+        for dev in ["/dev/media0", "/dev/media1", "/dev/media2", "/dev/media3"]:
+            result = subprocess.run(["fuser", dev], capture_output=True, text=True)
+            for pid_str in result.stdout.strip().split():
+                try:
+                    pid = int(pid_str)
+                    if pid != current_pid:
+                        subprocess.run(["kill", "-9", str(pid)], capture_output=True)
+                        logger.info(f"Killed process {pid} holding {dev}")
+                except ValueError:
+                    pass
+    except Exception:
+        pass
+
+    # HAL 리소스 해제 대기
+    _t.sleep(0.8)
 
 
 if __name__ == "__main__":
@@ -60,10 +84,10 @@ if __name__ == "__main__":
         _kill_stray_camera_processes()
         camera_ok = check_camera_health()
         if not camera_ok:
-            # 파이프라인이 해제될 시간을 주고 한 번 더 시도
             logger.warning("Camera health check failed, retrying after 2s...")
             import time as _t; _t.sleep(2)
             release_camera()
+            _kill_stray_camera_processes()  # 재시도 전 한 번 더 정리
             camera_ok = check_camera_health()
 
         if camera_ok:
