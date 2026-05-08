@@ -1,4 +1,4 @@
-import { API_BASE_URL } from './api'
+import { API_BASE_URL, TOKEN_STORAGE_KEY } from './api'
 
 const ADMIN_TOKEN_KEY = 'carefull_admin_token'
 
@@ -16,6 +16,16 @@ export function setAdminToken(token) {
 
 export function clearAdminToken() {
   localStorage.removeItem(ADMIN_TOKEN_KEY)
+}
+
+export function setDemoUserToken(token) {
+  localStorage.setItem(TOKEN_STORAGE_KEY, token)
+}
+
+export function clearAdminSession() {
+  localStorage.removeItem(ADMIN_TOKEN_KEY)
+  localStorage.removeItem(TOKEN_STORAGE_KEY)
+  sessionStorage.removeItem('carefull_fcm_registered')
 }
 
 export async function adminRequest(path, { method = 'GET', body } = {}) {

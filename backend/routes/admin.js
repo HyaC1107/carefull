@@ -31,8 +31,28 @@ router.post('/login', async (req, res) => {
             process.env.JWT_SECRET,
             { expiresIn: '8h' }
         );
+
+        // 데모 사용자 토큰 발급 (seed-demo-data.sql 실행 후 사용 가능)
+        let demoUserToken = null;
+        try {
+            const demoRes = await pool.query(
+                "SELECT * FROM members WHERE email = 'demo@carefull.app' LIMIT 1"
+            );
+            if (demoRes.rows.length > 0) {
+                const dm = demoRes.rows[0];
+                demoUserToken = jwt.sign(
+                    { mem_id: dm.mem_id, email: dm.email, nick: dm.nick, provider: dm.provider },
+                    process.env.JWT_SECRET,
+                    { expiresIn: '8h' }
+                );
+            }
+        } catch (e) {
+            console.warn('[ADMIN LOGIN] demo token gen failed:', e.message);
+        }
+
         return res.json({
             success: true, token,
+            demo_user_token: demoUserToken,
             admin: { admin_id: admin.admin_id, login_id: admin.login_id, name: admin.name, role: admin.role },
         });
     } catch (err) {

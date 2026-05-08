@@ -64,6 +64,7 @@ function App() {
       {/* 관리자 페이지 */}
       <Route path="/admin" element={<AdminLoginPage />} />
       <Route path="/admin/dashboard" element={<AdminProtectedRoute><AdminDashboardPage /></AdminProtectedRoute>} />
+      <Route path="/admin/panel" element={<AdminProtectedRoute><AdminDashboardPage /></AdminProtectedRoute>} />
 
       {/* 없는 주소로 들어오면 로그인 페이지로 보냄 */}
       <Route path="*" element={<Navigate to="/login" replace />} />
