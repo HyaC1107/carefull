@@ -13,7 +13,7 @@ _ICONS_DIR = os.path.normpath(
     os.path.join(os.path.dirname(__file__), "..", "..", "assets", "icons")
 )
 
-_BG     = "#ede8ff"
+_BG     = "#F5EBFF"
 _PURPLE = "#7c3aed"
 _DARK   = "#1e1b4b"
 _GREEN  = "#16a34a"
@@ -39,7 +39,7 @@ class _FingerprintWidget(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self._progress = 0
-        self.setFixedSize(160, 160)
+        self.setFixedSize(220, 220)
 
     def set_progress(self, pct: int):
         self._progress = max(0, min(100, pct))
@@ -58,13 +58,13 @@ class _FingerprintWidget(QWidget):
         cx, cy = w / 2, h / 2
 
         arcs = [
-            (10,  -30 * 16, 240 * 16),
-            (17,  -40 * 16, 260 * 16),
-            (24,  -50 * 16, 280 * 16),
-            (31,  -55 * 16, 290 * 16),
-            (38,  -55 * 16, 290 * 16),
-            (45,  -50 * 16, 280 * 16),
-            (52,  -40 * 16, 250 * 16),
+            (14,  -30 * 16, 240 * 16),
+            (23,  -40 * 16, 260 * 16),
+            (33,  -50 * 16, 280 * 16),
+            (43,  -55 * 16, 290 * 16),
+            (52,  -55 * 16, 290 * 16),
+            (62,  -50 * 16, 280 * 16),
+            (72,  -40 * 16, 250 * 16),
         ]
         for i, (r, start, span) in enumerate(arcs):
             arc_alpha = min(255, 60 + int((self._progress / 100) * 195) + i * 10)
@@ -103,7 +103,7 @@ class FingerprintRegisterScreen(QWidget):
         if os.path.exists(_fp_path):
             self._fp_widget = QLabel()
             self._fp_widget.setAlignment(Qt.AlignCenter)
-            _pix = QPixmap(_fp_path).scaled(180, 180, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+            _pix = QPixmap(_fp_path).scaled(240, 240, Qt.KeepAspectRatio, Qt.SmoothTransformation)
             self._fp_widget.setPixmap(_pix)
         else:
             self._fp_widget = _FingerprintWidget()
@@ -115,6 +115,7 @@ class FingerprintRegisterScreen(QWidget):
         self._progress_bar.setRange(0, 100)
         self._progress_bar.setValue(0)
         self._progress_bar.setFixedHeight(8)
+        self._progress_bar.setFixedWidth(600)
         self._progress_bar.setTextVisible(False)
         self._progress_bar.setStyleSheet(f"""
             QProgressBar {{
@@ -127,7 +128,11 @@ class FingerprintRegisterScreen(QWidget):
                 border-radius: 4px;
             }}
         """)
-        root.addWidget(self._progress_bar)
+        _prog_row = QHBoxLayout()
+        _prog_row.addStretch()
+        _prog_row.addWidget(self._progress_bar)
+        _prog_row.addStretch()
+        root.addLayout(_prog_row)
         root.addSpacing(16)
 
         # ── 안내 텍스트 ──────────────────────────────────────────────────────
@@ -152,6 +157,46 @@ class FingerprintRegisterScreen(QWidget):
         self._pct_lbl.setAlignment(Qt.AlignCenter)
         self._pct_lbl.setStyleSheet(f"color: {_DARK};")
         root.addWidget(self._pct_lbl)
+
+        root.addSpacing(20)
+
+        # ── 오류 + 재시도 위젯 ───────────────────────────────────────────────
+        self._error_widget = QWidget()
+        self._error_widget.setStyleSheet("""
+            QWidget {
+                background-color: #fff1f2;
+                border: 2px solid #fecaca;
+                border-radius: 16px;
+            }
+        """)
+        error_layout = QVBoxLayout(self._error_widget)
+        error_layout.setContentsMargins(20, 16, 20, 16)
+        error_layout.setSpacing(12)
+
+        self._error_lbl = QLabel("")
+        self._error_lbl.setFont(QFont("Sans Serif", 28, QFont.Bold))
+        self._error_lbl.setAlignment(Qt.AlignCenter)
+        self._error_lbl.setWordWrap(True)
+        self._error_lbl.setStyleSheet("color: #dc2626; border: none; background: transparent;")
+        error_layout.addWidget(self._error_lbl)
+
+        self._btn_retry = QPushButton("다시 시도")
+        self._btn_retry.setFont(QFont("Sans Serif", 28, QFont.Bold))
+        self._btn_retry.setFixedHeight(72)
+        self._btn_retry.setStyleSheet(f"""
+            QPushButton {{
+                background-color: #dc2626;
+                color: white;
+                border-radius: 16px;
+                border: none;
+            }}
+            QPushButton:pressed {{ background-color: #b91c1c; }}
+        """)
+        self._btn_retry.clicked.connect(self._on_retry)
+        error_layout.addWidget(self._btn_retry)
+
+        self._error_widget.hide()
+        root.addWidget(self._error_widget)
 
         root.addSpacing(20)
 
@@ -181,16 +226,17 @@ class FingerprintRegisterScreen(QWidget):
         prompt_layout.addWidget(self._prompt_sub_lbl)
 
         btn_row = QHBoxLayout()
-        btn_row.setSpacing(12)
+        btn_row.setSpacing(20)
+        btn_row.setContentsMargins(60, 0, 60, 0) # 버튼 가로 폭 조절
 
         self._btn_more = QPushButton("다른 손가락 등록")
-        self._btn_more.setFont(QFont("Sans Serif", 28, QFont.Bold))
-        self._btn_more.setFixedHeight(68)
+        self._btn_more.setFont(QFont("Sans Serif", 26, QFont.Bold))
+        self._btn_more.setFixedHeight(80)
         self._btn_more.setStyleSheet(f"""
             QPushButton {{
                 background-color: {_PURPLE};
                 color: white;
-                border-radius: 14px;
+                border-radius: 18px;
                 border: none;
             }}
             QPushButton:pressed {{ background-color: #6d28d9; }}
@@ -198,21 +244,21 @@ class FingerprintRegisterScreen(QWidget):
         self._btn_more.clicked.connect(self._on_more_finger)
 
         self._btn_done = QPushButton("등록 완료")
-        self._btn_done.setFont(QFont("Sans Serif", 28))
-        self._btn_done.setFixedHeight(68)
+        self._btn_done.setFont(QFont("Sans Serif", 26))
+        self._btn_done.setFixedHeight(80)
         self._btn_done.setStyleSheet(f"""
             QPushButton {{
                 background-color: white;
                 color: {_GREEN};
-                border-radius: 14px;
-                border: 2px solid {_GREEN};
+                border-radius: 18px;
+                border: 2.5px solid {_GREEN};
             }}
             QPushButton:pressed {{ background-color: #f0fdf4; }}
         """)
         self._btn_done.clicked.connect(self._go_complete)
 
-        btn_row.addWidget(self._btn_more, 3)
-        btn_row.addWidget(self._btn_done, 2)
+        btn_row.addWidget(self._btn_more, 1) # 1:1 비율
+        btn_row.addWidget(self._btn_done, 1)
         prompt_layout.addLayout(btn_row)
 
         self._prompt_widget.hide()
@@ -241,6 +287,7 @@ class FingerprintRegisterScreen(QWidget):
         self._pct_lbl.setText("0%")
         self._title_lbl.setText("준비 중...")
         self._prompt_widget.hide()
+        self._error_widget.hide()
 
     def _prepare_slot(self):
         """서버에서 기존 슬롯 조회 후 다음 빈 슬롯 번호 확정."""
@@ -299,7 +346,17 @@ class FingerprintRegisterScreen(QWidget):
             QTimer.singleShot(700, self._go_complete)
 
     def _on_failed(self, msg: str):
-        self._title_lbl.setText(f"등록 실패: {msg}")
+        self._title_lbl.setText("등록 중 오류가 발생했습니다")
+        self._sub_lbl.setText("")
+        self._pct_lbl.setText("")
+        self._error_lbl.setText(msg)
+        self._error_widget.show()
+
+    def _on_retry(self):
+        self._reset()
+        self._title_lbl.setText("다시 시도합니다...")
+        self._sub_lbl.setText("센서에 손가락을 올려주세요")
+        self._prepare_slot()
 
     # ── 다손가락 프롬프트 ─────────────────────────────────────────────────────
 

@@ -111,7 +111,7 @@ class Controller(threading.Thread):
         while self.running:
             try:
                 # 스케줄 확인
-                due_schedules = check_schedule()
+                due_schedules = check_schedule(caller_id="controller")
                 
                 if due_schedules:
                     for s in due_schedules:
@@ -120,15 +120,14 @@ class Controller(threading.Thread):
                         logger.info(f"Schedule due: {medi_name} (ID: {sche_id}) — alarm only, UI handles the rest")
 
                         # 알람만 울림 — 인증/배출/검증은 app.py UI 흐름이 담당
-                        # 보호자 맞춤 음성(voice_id.mp3) 우선 확인 후 미존재 시 기본음(default_voice.mp3) 사용
+                        # 보호자 맞춤 음성(voice_id.mp3) 우선 확인
                         custom_voice = f"voice_{sche_id}.mp3"
-                        default_voice = "default_voice.mp3"
                         
-                        voice_to_play = custom_voice if os.path.exists(os.path.join(VOICES_DIR, custom_voice)) else default_voice
-                        logger.info(f"Playing alarm: {voice_to_play}")
-                        play_alarm(voice_to_play)
+                        logger.info(f"Triggering alarm for schedule {sche_id}")
+                        play_alarm(custom_voice)
                         
-                time.sleep(30)
+                # 30초 -> 5초로 단축하여 정시 알람 정확도 향상
+                time.sleep(5)
                 
             except Exception as e:
                 logger.error(f"Error in Controller loop: {e}")

@@ -9,13 +9,13 @@ import ScheduleSummaryCard from '../components/schedule/ScheduleSummaryCard'
 import ScheduleList from '../components/schedule/ScheduleList'
 import ScheduleInfoBanner from '../components/schedule/ScheduleInfoBanner'
 import { useUnreadCount } from '../hooks/useUnreadCount'
-import { API_BASE_URL, getStoredToken, hasStoredToken, requestJson } from '../api'
+import { hasStoredToken, requestJson } from '../api'
 import '../styles/SchedulePage.css'
 import '../styles/MobileBottomNav.css'
 
 const SCHEDULE_INFO_BANNER = {
   title: '일정 안내',
-  description: '백엔드에 저장된 복약 일정이 달력과 목록에 표시됩니다.',
+  description: '저장된 복약 일정이 달력과 목록에 표시됩니다.',
 }
 
 function SchedulePage() {
@@ -25,6 +25,8 @@ function SchedulePage() {
   const [backendCompletedKeys, setBackendCompletedKeys] = useState(new Set())
   const [savingScheduleIds, setSavingScheduleIds] = useState(new Set())
   const [isAddModalOpen, setIsAddModalOpen] = useState(false)
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
+  const [deletingScheduleIds, setDeletingScheduleIds] = useState(new Set())
 
   const { year, month, selectedDate } = calendarState
 
@@ -69,6 +71,7 @@ function SchedulePage() {
     totalCount === 0 ? 0 : Math.round((completedCount / totalCount) * 100)
 
   const selectedDateLabel = formatSelectedDateLabel(selectedDate)
+  const todayDateKey = getTodayDateKey()
 
   const handleSelectDate = (dateKey) => {
     setCalendarState((prev) => ({
@@ -160,7 +163,7 @@ function SchedulePage() {
             ? newSchedule.time_to_take_list.map(ensureSeconds)
             : undefined,
           start_date: newSchedule.start_date || selectedDate,
-          end_date: newSchedule.end_date || null,
+          end_date: newSchedule.end_date || newSchedule.start_date || selectedDate,
           dose_interval:
             newSchedule.repeatType === 'interval'
               ? Number(newSchedule.dose_interval)
@@ -183,47 +186,48 @@ function SchedulePage() {
     }
   }
 
-  const refreshSchedules = async () => {
-    const refreshedSchedules = await requestJson('/api/schedule', { auth: true })
-    setSchedules(
-      Array.isArray(refreshedSchedules?.schedules)
-        ? refreshedSchedules.schedules
-        : [],
+  const handleDeleteSchedule = async (item) => {
+    if (!hasStoredToken() || !item?.sche_id) {
+      return
+    }
+
+    const confirmed = window.confirm(
+      '이 복약 일정을 삭제할까요?\n반복 일정인 경우 이후 날짜에서도 표시되지 않습니다.',
     )
-  }
 
-  const handlePreviewPrescription = async (file) => {
-    if (!hasStoredToken()) {
-      throw new Error('Authentication token is missing.')
+    if (!confirmed) {
+      return
     }
 
-    const formData = new FormData()
-    formData.append('prescription', file)
-
-    const response = await fetch(new URL('/api/prescription/preview', API_BASE_URL), {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${getStoredToken()}`,
-      },
-      body: formData,
+    setDeletingScheduleIds((prev) => {
+      const next = new Set(prev)
+      next.add(item.sche_id)
+      return next
     })
-    const data = await response.json().catch(() => null)
 
-    if (!response.ok || data?.success === false) {
-      throw new Error(data?.message || 'Prescription preview failed.')
+    try {
+      await requestJson(`/api/schedule/${item.sche_id}?date=${encodeURIComponent(selectedDate)}`, {
+        method: 'DELETE',
+        auth: true,
+      })
+
+      const refreshedSchedules = await requestJson('/api/schedule', { auth: true })
+      setSchedules(
+        Array.isArray(refreshedSchedules?.schedules)
+          ? refreshedSchedules.schedules
+          : [],
+      )
+      window.dispatchEvent(new Event('carefull:top-header-refresh'))
+    } catch (error) {
+      console.error('schedule delete error:', error)
+      alert(error.message || '복약 일정 삭제에 실패했습니다.')
+    } finally {
+      setDeletingScheduleIds((prev) => {
+        const next = new Set(prev)
+        next.delete(item.sche_id)
+        return next
+      })
     }
-
-    return data?.data || { medications: [], warnings: [] }
-  }
-
-  const handleConfirmPrescription = async (payload) => {
-    await requestJson('/api/prescription/confirm', {
-      method: 'POST',
-      auth: true,
-      body: payload,
-    })
-    await refreshSchedules()
-    setIsAddModalOpen(false)
   }
 
   return (
@@ -235,7 +239,10 @@ function SchedulePage() {
           <TopHeader />
 
           <main className="schedule-content">
-            <ScheduleHeader onOpenAddModal={() => setIsAddModalOpen(true)} />
+            <ScheduleHeader
+              onOpenAddModal={() => setIsAddModalOpen(true)}
+              onOpenDeleteModal={() => setIsDeleteModalOpen(true)}
+            />
 
             <MonthlyCalendar
               year={year}
@@ -257,6 +264,7 @@ function SchedulePage() {
             <ScheduleList
               schedules={selectedSchedules}
               selectedDate={selectedDate}
+              isTodaySelected={selectedDate === todayDateKey}
               onToggle={handleToggleSchedule}
             />
 
@@ -272,10 +280,94 @@ function SchedulePage() {
           selectedDateLabel={selectedDateLabel}
           onClose={() => setIsAddModalOpen(false)}
           onSubmit={handleCreateSchedule}
-          onPreviewPrescription={handlePreviewPrescription}
-          onConfirmPrescription={handleConfirmPrescription}
         />
       ) : null}
+
+      {isDeleteModalOpen ? (
+        <ScheduleDeleteModal
+          schedules={selectedSchedules}
+          selectedDateLabel={selectedDateLabel}
+          deletingScheduleIds={deletingScheduleIds}
+          onClose={() => setIsDeleteModalOpen(false)}
+          onDelete={handleDeleteSchedule}
+        />
+      ) : null}
+    </div>
+  )
+}
+
+function ScheduleDeleteModal({
+  schedules,
+  selectedDateLabel,
+  deletingScheduleIds,
+  onClose,
+  onDelete,
+}) {
+  return (
+    <div className="schedule-modal-overlay" onClick={onClose}>
+      <div
+        className="schedule-modal schedule-delete-modal"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <div className="schedule-modal__header">
+          <div>
+            <h3 className="schedule-modal__title">복약 일정 삭제</h3>
+            <p className="schedule-modal__subtitle">
+              {selectedDateLabel}의 복약 일정 중 삭제할 항목을 선택하세요
+            </p>
+          </div>
+
+          <button
+            type="button"
+            className="schedule-modal__close-button"
+            onClick={onClose}
+          >
+            x
+          </button>
+        </div>
+
+        <div className="schedule-modal__body">
+          {schedules.length > 0 ? (
+            <div className="schedule-delete-modal__list">
+              {schedules.map((item) => {
+                const isDeleting = deletingScheduleIds.has(item.sche_id)
+
+                return (
+                  <div className="schedule-delete-modal__item" key={item.id}>
+                    <div className="schedule-delete-modal__item-info">
+                      <strong>{item.time_to_take}</strong>
+                      <span>{item.medi_name}</span>
+                      <small>{item.doseText}</small>
+                    </div>
+                    <button
+                      type="button"
+                      className="schedule-delete-modal__delete-button"
+                      onClick={() => onDelete(item)}
+                      disabled={isDeleting}
+                    >
+                      {isDeleting ? '삭제 중' : '삭제'}
+                    </button>
+                  </div>
+                )
+              })}
+            </div>
+          ) : (
+            <p className="schedule-delete-modal__empty">
+              선택한 날짜에 삭제할 복약 일정이 없습니다.
+            </p>
+          )}
+
+          <div className="schedule-modal__actions">
+            <button
+              type="button"
+              className="schedule-modal__button schedule-modal__button--secondary"
+              onClick={onClose}
+            >
+              닫기
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   )
 }
@@ -288,6 +380,11 @@ function createInitialCalendarState() {
     month: today.month,
     selectedDate: formatDateKey(today.year, today.month, today.day),
   }
+}
+
+function getTodayDateKey() {
+  const today = getKstDateParts()
+  return formatDateKey(today.year, today.month, today.day)
 }
 
 function buildMonthActivityLogPath(year, month) {

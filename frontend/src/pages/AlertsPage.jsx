@@ -5,15 +5,9 @@ import MobileBottomNav from '../components/layout/MobileBottomNav'
 import AlertsHeader from '../components/alerts/AlertsHeader'
 import AlertFilterTabs from '../components/alerts/AlertFilterTabs'
 import AlertListCard from '../components/alerts/AlertListCard'
-import AlertsInfoBanner from '../components/alerts/AlertsInfoBanner'
 import { hasStoredToken, requestJson } from '../api'
 import '../styles/AlertsPage.css'
 import '../styles/MobileBottomNav.css'
-
-const ALERTS_INFO = {
-  title: '알림 안내',
-  description: '백엔드에서 전달된 복약 알림만 표시됩니다.',
-}
 
 const NOTIF_PREFS_KEY = 'carefull_notif_prefs'
 
@@ -133,8 +127,6 @@ function AlertsPage() {
               hasUnread={hasUnread}
               onMarkAllRead={handleMarkAllRead}
             />
-
-            <AlertsInfoBanner info={ALERTS_INFO} />
           </main>
         </div>
       </div>

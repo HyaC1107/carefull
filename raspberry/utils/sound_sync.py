@@ -1,52 +1,83 @@
 import logging
 import os
 
-from config.settings import DEVICE_UID, TTS_FILE_PATH, VOICES_DIR
+from config.settings import DEVICE_UID, ALARM_SOUND_PATH, TTS_VOICE_PATH, SOUNDS_DIR, VOICES_DIR
 
 logger = logging.getLogger(__name__)
 
-# 마지막 다운로드 타임스탬프를 파일로 캐싱
-_STAMP_FILE = os.path.join(VOICES_DIR, ".sound_updated_at")
+_ALARM_STAMP = os.path.join(SOUNDS_DIR, ".alarm_updated_at")
+_VOICE_STAMP = os.path.join(VOICES_DIR, ".voice_updated_at")
 
 
-def _read_stamp() -> str:
+def _read_stamp(path: str) -> str:
     try:
-        with open(_STAMP_FILE) as f:
+        with open(path) as f:
             return f.read().strip()
     except Exception:
         return ""
 
 
-def _write_stamp(value: str):
+def _write_stamp(path: str, value: str):
     try:
-        os.makedirs(VOICES_DIR, exist_ok=True)
-        with open(_STAMP_FILE, "w") as f:
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path, "w") as f:
             f.write(value)
     except Exception as e:
-        logger.warning("sound stamp write failed: %s", e)
+        logger.warning("stamp write failed (%s): %s", path, e)
 
 
-def sync_sound() -> bool:
-    """서버 알림음이 바뀐 경우에만 다운로드. 새 파일 적용 시 True 반환."""
+def sync_alarm_sound() -> bool:
+    """보호자가 업로드한 알림음 → assets/sounds/alarm.mp3"""
     if not DEVICE_UID:
         return False
-
     try:
-        from api.client import download_sound, fetch_sound_meta
+        from api.client import fetch_sound_meta, download_sound
         meta = fetch_sound_meta()
     except Exception as e:
-        logger.warning("sync_sound fetch failed: %s", e)
+        logger.warning("sync_alarm_sound fetch failed: %s", e)
         return False
 
     if not meta or not meta.get("url"):
         return False
 
-    server_stamp = str(meta.get("updated_at", ""))
-    if server_stamp and server_stamp == _read_stamp():
-        return False  # 변경 없음 → 스킵
+    stamp = str(meta.get("updated_at", ""))
+    if stamp and stamp == _read_stamp(_ALARM_STAMP):
+        return False
 
-    success = download_sound(meta["url"], TTS_FILE_PATH)
-    if success:
-        _write_stamp(server_stamp)
-        logger.info("alarm sound updated: %s", TTS_FILE_PATH)
-    return success
+    if download_sound(meta["url"], ALARM_SOUND_PATH):
+        _write_stamp(_ALARM_STAMP, stamp)
+        logger.info("alarm sound updated: %s", ALARM_SOUND_PATH)
+        return True
+    return False
+
+
+def sync_tts_voice() -> bool:
+    """보호자 TTS 음성 → assets/voices/voice.mp3"""
+    if not DEVICE_UID:
+        return False
+    try:
+        from api.client import fetch_voice_meta, download_sound
+        meta = fetch_voice_meta()
+    except Exception as e:
+        logger.warning("sync_tts_voice fetch failed: %s", e)
+        return False
+
+    if not meta or not meta.get("url"):
+        return False
+
+    stamp = str(meta.get("updated_at", ""))
+    if stamp and stamp == _read_stamp(_VOICE_STAMP):
+        return False
+
+    if download_sound(meta["url"], TTS_VOICE_PATH):
+        _write_stamp(_VOICE_STAMP, stamp)
+        logger.info("tts voice updated: %s", TTS_VOICE_PATH)
+        return True
+    return False
+
+
+def sync_sound() -> bool:
+    """알림음 + TTS 음성 동시 동기화. 하나라도 갱신되면 True."""
+    a = sync_alarm_sound()
+    b = sync_tts_voice()
+    return a or b

@@ -23,7 +23,7 @@ const decideMedicationStatus = ({
         return ACTIVITY_STATUS.ERROR;
     }
 
-    if (face_verified && dispensed && action_verified) {
+    if (dispensed && action_verified) {
         return ACTIVITY_STATUS.SUCCESS;
     }
 

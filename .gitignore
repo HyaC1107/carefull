@@ -20,6 +20,7 @@ venv/
 *.log
 *.tmp
 *.temp
+*.md
 
 # 🔥 OS 파일
 .DS_Store
@@ -82,7 +83,7 @@ frontend/.vite/
 .vite/
 .npm
 *.log
-
+*.sh
 # lock 파일
 # package-lock.json은 보통 커밋하는 편이라 ignore 비추천
 # yarn.lock도 팀 규칙 없으면 보통 커밋
@@ -96,10 +97,12 @@ backend/.env.local
 # 🔥 데이터베이스 (라즈베리파이나 백엔드 SQLite 등)
 *.sqlite3
 *.db
-!raspberry/db/README.md # 폴더 구조 유지를 위해 README만 허용하는 센스!
-raspberry/db/
 .gemini.md
 claude.md
 docs
 raspberry/core
 raspberry/voices
+dev_test/behavior/logs/summary.csv
+raspberry/db/
+raspberry/logs/
+raspberry/assets/sounds/.alarm_updated_at

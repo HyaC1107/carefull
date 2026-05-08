@@ -30,6 +30,7 @@ const sound_upload = multer({
     },
 });
 
+
 const to_device_response = (row) => ({
     device_id: row.device_id,
     device_uid: row.device_uid,
@@ -481,6 +482,7 @@ router.delete('/me', verifyToken, async (req, res) => {
     }
 });
 
+
 // GET /api/device/sound  — 알림음 메타 조회
 //   Raspberry Pi: ?device_uid=XXX (인증 불필요)
 //   프론트엔드:   Authorization: Bearer <token>
@@ -584,5 +586,34 @@ router.post('/sound', verifyToken, sound_upload.single('sound'), async (req, res
         return sendError(res, 500, 'Server error while uploading sound.');
     }
 });
+
+// GET /api/device/voice  — TTS 음성 메타 조회 (voice_samples 기반)
+//   Raspberry Pi: ?device_uid=XXX
+router.get('/voice', async (req, res) => {
+    const { device_uid } = req.query;
+    if (!device_uid) return sendError(res, 400, 'device_uid required.');
+
+    try {
+        const { rows } = await pool.query(
+            `SELECT vs.file_path, vs.file_name, vs.updated_at
+             FROM voice_samples vs
+             INNER JOIN devices d ON d.patient_id = vs.patient_id
+             WHERE d.device_uid = $1
+             ORDER BY vs.uploaded_at DESC
+             LIMIT 1`,
+            [String(device_uid).trim()]
+        );
+
+        if (!rows[0]?.file_path) {
+            return sendSuccess(res, 200, { voice: null });
+        }
+
+        return sendSuccess(res, 200, { voice: rows[0] });
+    } catch (err) {
+        console.error('Voice fetch error:', err);
+        return sendError(res, 500, 'Server error while fetching voice.');
+    }
+});
+
 
 module.exports = router;

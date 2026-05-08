@@ -1,8 +1,14 @@
+import copy
 import os
 
-from PyQt5.QtCore import QPointF, QRectF, Qt, QTimer
+from PyQt5.QtCore import QPointF, QRectF, Qt, QThread, QTimer
 from PyQt5.QtGui import QColor, QFont, QPainter, QPen, QPixmap
 from PyQt5.QtWidgets import QLabel, QSizePolicy, QVBoxLayout, QWidget
+
+from utils.ui_prefs import FONT_SCALE as _FS
+
+def _fs(n: int) -> int:
+    return max(1, int(n * _FS))
 
 _ICONS_DIR = os.path.normpath(
     os.path.join(os.path.dirname(__file__), "..", "..", "assets", "icons")
@@ -10,6 +16,27 @@ _ICONS_DIR = os.path.normpath(
 
 _AUTO_SUCCESS_MS = 2000
 _AUTO_FAIL_MS = 3000
+
+
+class _FailEventSendWorker(QThread):
+    """인증 실패 로그를 백그라운드에서 서버로 전송."""
+    def __init__(self, session: dict, parent=None):
+        super().__init__(parent)
+        self._session = session
+
+    def run(self):
+        sche_id = self._session.get("sche_id")
+        if sche_id is None:
+            return
+        from api.client import send_device_event
+        send_device_event(
+            sche_id=sche_id,
+            face_verified=self._session.get("face_verified", False),
+            dispensed=False,
+            action_verified=False,
+            raw_confidence=self._session.get("similarity_score", 0.0),
+            error_code="AUTH_FAILED",
+        )
 
 
 class _ResultCardWidget(QWidget):
@@ -76,6 +103,7 @@ class AuthResultScreen(QWidget):
         super().__init__(parent)
         self._app = parent
         self._pending_timer = None
+        self._fail_worker = None
         self._build_ui()
 
     def _cancel_pending(self):
@@ -119,6 +147,10 @@ class AuthResultScreen(QWidget):
             self._title_lbl.setStyleSheet("color: #7f1d1d;")
             self._sub_lbl.setText("다시 시도해주세요")
             self._sub_lbl.setStyleSheet("color: #ef4444;")
+            if self._app:
+                session = copy.copy(self._app.current_session)
+                self._fail_worker = _FailEventSendWorker(session, parent=self)
+                self._fail_worker.start()
             self._pending_timer = QTimer(self)
             self._pending_timer.setSingleShot(True)
             self._pending_timer.timeout.connect(lambda: self._go("home"))
@@ -144,14 +176,14 @@ class AuthResultScreen(QWidget):
         root.addSpacing(18)
 
         self._title_lbl = QLabel("인증 완료")
-        self._title_lbl.setFont(QFont("Sans Serif", 42, QFont.Bold))
+        self._title_lbl.setFont(QFont("Sans Serif", _fs(52), QFont.Bold))
         self._title_lbl.setAlignment(Qt.AlignCenter)
         root.addWidget(self._title_lbl)
 
         root.addSpacing(6)
 
         self._sub_lbl = QLabel("약을 준비하고 있습니다")
-        self._sub_lbl.setFont(QFont("Sans Serif", 28))
+        self._sub_lbl.setFont(QFont("Sans Serif", _fs(36)))
         self._sub_lbl.setAlignment(Qt.AlignCenter)
         root.addWidget(self._sub_lbl)
 

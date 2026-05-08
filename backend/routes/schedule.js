@@ -88,6 +88,14 @@ const parse_schedule_dose_interval = (value) => {
     return parsed_dose_interval;
 };
 
+const resolve_schedule_end_date = (start_date, end_date) => {
+    if (end_date === undefined || end_date === null || end_date === '') {
+        return start_date;
+    }
+
+    return end_date;
+};
+
 const parse_schedule_times = (body) => {
     const raw_times =
         body.time_to_take_list !== undefined
@@ -122,6 +130,30 @@ const parse_date_only = (value) => {
     }
 
     return new Date(year, month - 1, day);
+};
+
+const to_date_only_string = (value) => {
+    if (!value) {
+        return null;
+    }
+
+    if (value instanceof Date) {
+        return format_date_only(value);
+    }
+
+    return String(value).slice(0, 10);
+};
+
+const parse_strict_date_only = (value) => {
+    const text = String(value || '').trim();
+
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(text)) {
+        return null;
+    }
+
+    const date = parse_date_only(text);
+
+    return date && format_date_only(date) === text ? date : null;
 };
 
 const format_date_only = (date) => {
@@ -270,6 +302,8 @@ router.post('/', verifyToken, async (req, res) => {
         return sendError(res, 400, 'dose_interval must be an integer from 1 to 5.');
     }
 
+    const effective_end_date = resolve_schedule_end_date(start_date, end_date);
+
     const registered_at = new Date();
     registered_at.setSeconds(0, 0);
 
@@ -313,7 +347,7 @@ router.post('/', verifyToken, async (req, res) => {
                 for (const parsed_time of parsed_times) {
                     const insert_start_date = resolve_insert_start_date(
                         start_date,
-                        end_date,
+                        effective_end_date,
                         parsed_time,
                         registered_at
                     );
@@ -327,7 +361,7 @@ router.post('/', verifyToken, async (req, res) => {
                         parsed_medi_id,
                         parsed_time,
                         insert_start_date,
-                        end_date,
+                        effective_end_date,
                         parsed_dose_interval,
                         status
                     ]);
@@ -491,34 +525,80 @@ router.put('/:id', verifyToken, async (req, res) => {
 router.delete('/:id', verifyToken, async (req, res) => {
     const mem_id = req.user.mem_id;
     const parsed_sche_id = parseNumericValue(req.params.id);
+    const delete_date = parse_strict_date_only(req.query.date);
 
     if (parsed_sche_id === null) {
         return sendError(res, 400, 'Invalid schedule id.');
     }
 
-    try {
-        const patient_id = await find_patient_id_by_mem_id(mem_id);
+    if (!delete_date) {
+        return sendError(res, 400, 'date must be YYYY-MM-DD.');
+    }
 
-        if (!patient_id) {
-            return sendError(res, 404, 'Patient not found.');
+    const termination_date = format_date_only(add_days(delete_date, -1));
+
+    try {
+        const find_query = `
+            SELECT
+                s.sche_id,
+                s.start_date,
+                s.end_date,
+                s.status
+            FROM schedules s
+            INNER JOIN patients p
+                ON s.patient_id = p.patient_id
+            WHERE s.sche_id = $1
+              AND p.mem_id = $2
+            LIMIT 1
+        `;
+
+        const schedule_result = await pool.query(find_query, [parsed_sche_id, mem_id]);
+
+        if (schedule_result.rows.length === 0) {
+            return sendError(res, 404, 'Schedule not found or access denied.');
+        }
+
+        const schedule = schedule_result.rows[0];
+        const start_date_string = to_date_only_string(schedule.start_date);
+        const resolved_end_date_string = to_date_only_string(
+            schedule.end_date || schedule.start_date
+        );
+        const delete_date_string = format_date_only(delete_date);
+
+        if (
+            !start_date_string ||
+            !resolved_end_date_string ||
+            delete_date_string < start_date_string ||
+            delete_date_string > resolved_end_date_string
+        ) {
+            return sendError(res, 400, 'date is outside the schedule period.');
         }
 
         const delete_query = `
-            DELETE FROM schedules
-            WHERE sche_id = $1
-              AND patient_id = $2
+            UPDATE schedules s
+            SET
+                end_date = $2::date,
+                updated_at = CURRENT_TIMESTAMP
+            FROM patients p
+            WHERE s.sche_id = $1
+              AND s.patient_id = p.patient_id
+              AND p.mem_id = $3
             RETURNING
-                sche_id,
-                patient_id,
-                medi_id,
-                time_to_take,
-                start_date,
-                end_date,
-                dose_interval,
-                status
+                s.sche_id,
+                s.patient_id,
+                s.medi_id,
+                s.time_to_take,
+                s.start_date,
+                s.end_date,
+                s.dose_interval,
+                s.status
         `;
 
-        const { rows } = await pool.query(delete_query, [parsed_sche_id, patient_id]);
+        const { rows } = await pool.query(delete_query, [
+            parsed_sche_id,
+            termination_date,
+            mem_id
+        ]);
 
         if (rows.length === 0) {
             return sendError(res, 404, 'Schedule not found or access denied.');

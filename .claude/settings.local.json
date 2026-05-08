@@ -27,7 +27,24 @@
       "Bash(xargs grep *)",
       "Bash(npm install *)",
       "Bash(xargs -I {} bash -c \"wc -l '{}' && echo '---'\")",
-      "WebFetch(domain:pypi.org)"
+      "WebFetch(domain:pypi.org)",
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\smhrd\\\\Desktop\\\\carefull\\\\raspberry\" -Recurse -Force)",
+      "Bash(Select-Object -Property FullName, PSIsContainer)",
+      "Bash(ConvertTo-Json -Depth 100)",
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\smhrd\\\\Desktop\\\\carefull\\\\backend\" -Recurse -Directory)",
+      "Bash(Select-Object -First 20)",
+      "PowerShell(Get-ChildItem -Path \"C:\\\\Users\\\\smhrd\\\\Desktop\\\\carefull\\\\backend\" -Recurse | Where-Object {$_.PSIsContainer} | Select-Object -First 30 FullName)",
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\smhrd\\\\Desktop\\\\carefull\\\\raspberry\" -Recurse -File)",
+      "Bash(Select-Object FullName)",
+      "Bash(pip install *)",
+      "Bash(dir /s /b \"C:\\\\Users\\\\smhrd\\\\Desktop\\\\carefull\\\\raspberry\\\\*.py\")",
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\smhrd\\\\Desktop\\\\carefull\\\\backend\" -Directory)",
+      "Bash(Select-Object Name)",
+      "Bash(Get-ChildItem *)",
+      "PowerShell(head *)",
+      "Bash(del *)",
+      "PowerShell(\\(Get-ChildItem \"C:\\\\Users\\\\smhrd\\\\Desktop\\\\carefull\\\\backend\\\\node_modules\" -Directory | Measure-Object\\).Count)",
+      "PowerShell(Get-ChildItem \"C:\\\\Users\\\\smhrd\\\\Desktop\\\\carefull\\\\backend\\\\node_modules\" -Directory | Where-Object { $_.Name -match \"eleven|elev\" })"
     ]
   }
 }

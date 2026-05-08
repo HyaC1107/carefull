@@ -62,7 +62,7 @@ def authenticate(face_img, threshold=FACE_MATCH_THRESHOLD, expected_user=None):
     except Exception:
         return None, -1
 
-    db = _load_server() or _load_local()
+    db = _load_local() or _load_server()
     if not db:
         return None, -1
 
@@ -72,7 +72,16 @@ def authenticate(face_img, threshold=FACE_MATCH_THRESHOLD, expected_user=None):
     for name, saved_emb in db.items():
         if expected_user and name != expected_user:
             continue
-        score = cosine_similarity(embedding, saved_emb)
+            
+        # 다중 템플릿 처리 (리스트인 경우)
+        if isinstance(saved_emb, list) and len(saved_emb) > 0 and isinstance(saved_emb[0], list):
+            # 저장된 여러 벡터 중 가장 높은 유사도 선택 (Best-Match)
+            scores = [cosine_similarity(embedding, emb) for emb in saved_emb]
+            score = max(scores)
+        else:
+            # 단일 벡터인 경우
+            score = cosine_similarity(embedding, saved_emb)
+            
         if score > best_score:
             best_score = score
             best_match = name

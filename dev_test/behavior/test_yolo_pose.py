@@ -39,7 +39,7 @@ BIN_PATH   = os.path.join(_MODEL_DIR, "model.ncnn.bin")
 MODEL_IMGSZ = 640
 
 # ── 설정 ──────────────────────────────────────────────────────────────────────
-INTAKE_DISTANCE_THRESHOLD = 0.20
+INTAKE_DISTANCE_THRESHOLD = 0.30
 SUCCESS_REQUIRED_FRAMES   = 5
 CONF_THRESHOLD            = 0.3
 IOU_THRESHOLD             = 0.45

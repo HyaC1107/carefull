@@ -19,7 +19,8 @@ class CameraCardWidget(QWidget):
         self.update()
 
     def update_frame(self, bgr_frame):
-        self._frame = cv2.cvtColor(bgr_frame, cv2.COLOR_BGR2RGB)
+        # self._frame = cv2.cvtColor(bgr_frame, cv2.COLOR_BGR2RGB)
+        self._frame = bgr_frame
         self.update()
 
     def paintEvent(self, event):
@@ -35,7 +36,7 @@ class CameraCardWidget(QWidget):
 
         if self._frame is not None:
             h, w, ch = self._frame.shape
-            img = QImage(self._frame.data, w, h, ch * w, QImage.Format_RGB888)
+            img = QImage(self._frame.tobytes(), w, h, ch * w, QImage.Format_RGB888)
             pix = QPixmap.fromImage(img).scaled(
                 self.width(), self.height(),
                 Qt.KeepAspectRatio,

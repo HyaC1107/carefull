@@ -1,6 +1,11 @@
 from PyQt5.QtCore import Qt, QThread, QTimer, pyqtSignal
 from PyQt5.QtGui import QColor, QFont, QPainter, QPen
-from PyQt5.QtWidgets import QLabel, QProgressBar, QVBoxLayout, QWidget
+from PyQt5.QtWidgets import QHBoxLayout, QLabel, QProgressBar, QVBoxLayout, QWidget
+
+from utils.ui_prefs import FONT_SCALE as _FS
+
+def _fs(n: int) -> int:
+    return max(1, int(n * _FS))
 
 _BG = "#dde3f8"
 _INDIGO = "#4338ca"
@@ -70,35 +75,42 @@ class DispensingScreen(QWidget):
         root.addSpacing(20)
 
         title = QLabel("약이 나옵니다")
-        title.setFont(QFont("Sans Serif", 48, QFont.Bold))
+        title.setFont(QFont("Sans Serif", _fs(56), QFont.Bold))
         title.setAlignment(Qt.AlignCenter)
         title.setStyleSheet(f"color: {_DARK};")
         root.addWidget(title)
 
         root.addSpacing(16)
 
+        # ── 진행바 (가로 폭 절반으로 축소) ──
+        prog_row = QHBoxLayout()
+        prog_row.addStretch()
+        
         self._progress_bar = QProgressBar()
         self._progress_bar.setRange(0, 100)
         self._progress_bar.setValue(0)
-        self._progress_bar.setFixedHeight(6)
+        self._progress_bar.setFixedHeight(8)
+        self._progress_bar.setFixedWidth(400) # 가로 폭 고정값으로 제한
         self._progress_bar.setTextVisible(False)
         self._progress_bar.setStyleSheet(f"""
             QProgressBar {{
                 border: none;
-                border-radius: 3px;
+                border-radius: 4px;
                 background: #c7d2fe;
             }}
             QProgressBar::chunk {{
                 background-color: {_INDIGO};
-                border-radius: 3px;
+                border-radius: 4px;
             }}
         """)
-        root.addWidget(self._progress_bar)
+        prog_row.addWidget(self._progress_bar)
+        prog_row.addStretch()
+        root.addLayout(prog_row)
 
         root.addSpacing(14)
 
         sub = QLabel("잠시만 기다려주세요")
-        sub.setFont(QFont("Sans Serif", 30))
+        sub.setFont(QFont("Sans Serif", _fs(36)))
         sub.setAlignment(Qt.AlignCenter)
         sub.setStyleSheet(f"color: {_INDIGO};")
         root.addWidget(sub)

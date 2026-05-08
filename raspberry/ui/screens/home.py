@@ -2,6 +2,10 @@ import json
 import os
 from datetime import datetime
 
+_USER_DB_PATH = os.path.normpath(
+    os.path.join(os.path.dirname(__file__), "..", "..", "db", "user_db.json")
+)
+
 from PyQt5.QtCore import Qt, QThread, QTimer, pyqtSignal
 from PyQt5.QtGui import QColor, QFont, QPainter, QPen, QPixmap
 from PyQt5.QtWidgets import (
@@ -35,9 +39,18 @@ class _DeviceStatusWorker(QThread):
         try:
             from api.client import fetch_device_status
             s = fetch_device_status()
-            self.status_ready.emit(s["is_paired"], s["has_face"])
+            is_paired = s["is_paired"]
         except Exception:
             self.status_ready.emit(False, False)
+            return
+
+        try:
+            with open(_USER_DB_PATH, "r", encoding="utf-8") as f:
+                has_face = bool(json.load(f))
+        except Exception:
+            has_face = False
+
+        self.status_ready.emit(is_paired, has_face)
 
 
 def _fmt_ampm(hour: int, minute: int) -> str:
@@ -48,6 +61,8 @@ def _fmt_ampm(hour: int, minute: int) -> str:
 
 def _next_medication() -> str:
     try:
+        if not os.path.exists(_SCHEDULE_PATH):
+            return "--:--"
         with open(_SCHEDULE_PATH, "r", encoding="utf-8") as f:
             schedules = json.load(f)
     except Exception:
@@ -55,22 +70,34 @@ def _next_medication() -> str:
 
     now = datetime.now()
     now_min = now.hour * 60 + now.minute
+    
     times = []
     for e in schedules:
-        t = e.get("time_to_take") or e.get("time", "")
-        t = str(t)[:5]
+        # time_to_take 또는 time 필드 확인
+        t_str = e.get("time_to_take") or e.get("time", "")
+        if not t_str: continue
+        
         try:
-            h, m = map(int, t.split(":"))
+            # "HH:MM:SS" 또는 "HH:MM" 형식 처리
+            parts = t_str.split(":")
+            h = int(parts[0])
+            m = int(parts[1])
             times.append(h * 60 + m)
-        except Exception:
+        except (ValueError, IndexError):
             continue
-    times.sort()
+            
     if not times:
         return "--:--"
+        
+    times.sort()
+    
+    # 1. 오늘 남은 복약 중 가장 빠른 시간 찾기
     for t in times:
         if t > now_min:
             h, m = divmod(t, 60)
             return f"{h:02d}:{m:02d}"
+            
+    # 2. 오늘 남은 복약이 없다면 내일의 첫 복약 시간 반환
     h, m = divmod(times[0], 60)
     return f"{h:02d}:{m:02d}"
 
@@ -378,12 +405,10 @@ class HomeScreen(QWidget):
     def _on_status_ready(self, is_paired: bool, has_face: bool):
         if not is_paired:
             self._btn_register.hide()
-        elif not has_face:
+        else:
+            # 상시 활성화: 이미 등록된 데이터가 있어도 재등록이 가능하도록 변경
             self._btn_register.show()
             self._btn_register.set_enabled(True)
-        else:
-            self._btn_register.show()
-            self._btn_register.set_enabled(False)
 
     def _go(self, screen: str):
         if self._app:

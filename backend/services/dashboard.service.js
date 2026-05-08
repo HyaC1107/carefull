@@ -5,6 +5,7 @@ const {
     MISSED_STATUSES,
     TEN_MINUTES_IN_MS,
     LOW_MEDICATION_THRESHOLD,
+    getKstDateString,
     getTodayDateString,
     getKstWallClockDate,
     buildKstDateTimeString,
@@ -41,6 +42,296 @@ const measure_dashboard_step = async (step_name, callback) => {
     }
 };
 
+const DAY_IN_MS = 24 * 60 * 60 * 1000;
+
+const normalize_status = (status) => String(status || '').trim().toUpperCase();
+
+const is_completed_status = (status) => COMPLETED_STATUSES.includes(normalize_status(status));
+const is_missed_status = (status) => normalize_status(status) === 'MISSED';
+const is_failed_status = (status) => ['FAILED', 'ERROR'].includes(normalize_status(status));
+
+const parse_kst_date_string = (value) => {
+    if (!value) return null;
+    const text = value instanceof Date
+        ? value.toISOString().slice(0, 10)
+        : String(value).slice(0, 10);
+    const [year, month, day] = text.split('-').map(Number);
+    if (!year || !month || !day) return null;
+    return new Date(Date.UTC(year, month - 1, day));
+};
+
+const format_kst_date_string = (date) => {
+    if (!(date instanceof Date) || Number.isNaN(date.getTime())) return null;
+    return date.toISOString().slice(0, 10);
+};
+
+const add_days = (date, days) => new Date(date.getTime() + days * DAY_IN_MS);
+
+const get_month_key = (date_string) => String(date_string || '').slice(0, 7);
+
+const get_recent_kst_month_buckets = (count = 6) => {
+    const today = parse_kst_date_string(getTodayDateString());
+    const buckets = [];
+
+    for (let index = count - 1; index >= 0; index -= 1) {
+        const month_date = new Date(Date.UTC(
+            today.getUTCFullYear(),
+            today.getUTCMonth() - index,
+            1
+        ));
+        const key = format_kst_date_string(month_date).slice(0, 7);
+        buckets.push({
+            key,
+            month: `${month_date.getUTCMonth() + 1}월`,
+            planned_count: 0,
+            success_count: 0,
+            missed_count: 0,
+            failed_count: 0,
+            success_rate: 0
+        });
+    }
+
+    return buckets;
+};
+
+const get_stats_range = () => {
+    const months = get_recent_kst_month_buckets(6);
+    return {
+        start_date: `${months[0].key}-01`,
+        end_date: getTodayDateString(),
+        months
+    };
+};
+
+const should_include_schedule_instance = (schedule, date_string) => {
+    const schedule_date = parse_kst_date_string(date_string);
+    const start_date = parse_kst_date_string(schedule.start_date);
+    if (!schedule_date || !start_date) return false;
+
+    const step_days = Number.isInteger(Number(schedule.dose_interval)) && Number(schedule.dose_interval) > 0
+        ? Number(schedule.dose_interval)
+        : 1;
+    const diff_days = Math.floor((schedule_date.getTime() - start_date.getTime()) / DAY_IN_MS);
+
+    if (diff_days < 0 || diff_days % step_days !== 0) return false;
+
+    if (!schedule.created_at) return true;
+
+    const planned_at = new Date(`${date_string}T${String(schedule.time_to_take || '00:00:00')}+09:00`);
+    const created_at = new Date(schedule.created_at);
+
+    if (Number.isNaN(planned_at.getTime()) || Number.isNaN(created_at.getTime())) {
+        return true;
+    }
+
+    return planned_at.getTime() >= created_at.getTime();
+};
+
+const get_activity_date_key = (activity) => {
+    if (!activity?.sche_time) return null;
+    return getKstDateString(activity.sche_time);
+};
+
+const rank_activity_status = (status) => {
+    if (is_completed_status(status)) return 3;
+    if (is_failed_status(status)) return 2;
+    if (is_missed_status(status)) return 1;
+    return 0;
+};
+
+const build_activity_lookup = (activities) => {
+    const lookup = new Map();
+
+    for (const activity of activities) {
+        const date_key = get_activity_date_key(activity);
+        if (!date_key || !activity.sche_id) continue;
+
+        const key = `${activity.sche_id}:${date_key}`;
+        const current = lookup.get(key);
+
+        if (
+            !current ||
+            rank_activity_status(activity.status) > rank_activity_status(current.status) ||
+            (
+                rank_activity_status(activity.status) === rank_activity_status(current.status) &&
+                Number(activity.activity_id || 0) > Number(current.activity_id || 0)
+            )
+        ) {
+            lookup.set(key, activity);
+        }
+    }
+
+    return lookup;
+};
+
+const get_dashboard_statistics = async (patient_id) => {
+    const { start_date, end_date, months } = get_stats_range();
+    const weekly_start_date = format_kst_date_string(
+        add_days(parse_kst_date_string(end_date), -6)
+    );
+
+    const schedules_query = `
+        SELECT
+            s.sche_id,
+            s.patient_id,
+            s.medi_id,
+            s.time_to_take,
+            s.start_date,
+            s.end_date,
+            s.dose_interval,
+            s.created_at,
+            m.medi_name
+        FROM schedules s
+        LEFT JOIN medications m
+            ON m.medi_id = s.medi_id
+        WHERE s.patient_id = $1
+          AND s.status = 'ACTIVE'
+          AND s.start_date <= $3::date
+          AND (s.end_date IS NULL OR s.end_date >= $2::date)
+    `;
+
+    const activities_query = `
+        SELECT
+            a.activity_id,
+            a.sche_id,
+            a.sche_time,
+            a.actual_time,
+            a.status,
+            a.created_at,
+            s.medi_id,
+            m.medi_name
+        FROM activities a
+        LEFT JOIN schedules s
+            ON s.sche_id = a.sche_id
+        LEFT JOIN medications m
+            ON m.medi_id = s.medi_id
+        WHERE a.patient_id = $1
+          AND (a.sche_time AT TIME ZONE 'Asia/Seoul')::date >= $2::date
+          AND (a.sche_time AT TIME ZONE 'Asia/Seoul')::date <= $3::date
+    `;
+
+    const [{ rows: schedules }, { rows: activities }] = await Promise.all([
+        pool.query(schedules_query, [patient_id, start_date, end_date]),
+        pool.query(activities_query, [patient_id, start_date, end_date])
+    ]);
+
+    const activity_lookup = build_activity_lookup(activities);
+    const month_map = new Map(months.map((item) => [item.key, { ...item }]));
+    const medication_map = new Map();
+    const weekly = {
+        planned_count: 0,
+        success_count: 0,
+        missed_count: 0,
+        failed_count: 0,
+        success_rate: 0
+    };
+
+    const range_start = parse_kst_date_string(start_date);
+    const range_end = parse_kst_date_string(end_date);
+
+    for (const schedule of schedules) {
+        const schedule_start = parse_kst_date_string(schedule.start_date);
+        const schedule_end = schedule.end_date
+            ? parse_kst_date_string(schedule.end_date)
+            : range_end;
+        if (!schedule_start || !schedule_end) continue;
+
+        let cursor = schedule_start.getTime() > range_start.getTime()
+            ? schedule_start
+            : range_start;
+        const final_date = schedule_end.getTime() < range_end.getTime()
+            ? schedule_end
+            : range_end;
+
+        while (cursor.getTime() <= final_date.getTime()) {
+            const planned_date = format_kst_date_string(cursor);
+            cursor = add_days(cursor, 1);
+
+            if (!should_include_schedule_instance(schedule, planned_date)) continue;
+
+            const activity = activity_lookup.get(`${schedule.sche_id}:${planned_date}`);
+            const completed = activity && is_completed_status(activity.status);
+            const failed = activity && is_failed_status(activity.status);
+            const missed = !completed && !failed;
+            const month_key = get_month_key(planned_date);
+            const month_bucket = month_map.get(month_key);
+
+            if (month_bucket) {
+                month_bucket.planned_count += 1;
+                if (completed) month_bucket.success_count += 1;
+                else if (failed) month_bucket.failed_count += 1;
+                if (missed) month_bucket.missed_count += 1;
+            }
+
+            const medication_key = String(schedule.medi_id);
+            if (!medication_map.has(medication_key)) {
+                medication_map.set(medication_key, {
+                    medi_id: schedule.medi_id,
+                    medi_name: schedule.medi_name || null,
+                    planned_count: 0,
+                    success_count: 0,
+                    missed_count: 0,
+                    failed_count: 0,
+                    success_rate: 0
+                });
+            }
+            const medication_stat = medication_map.get(medication_key);
+            medication_stat.planned_count += 1;
+            if (completed) medication_stat.success_count += 1;
+            else if (failed) medication_stat.failed_count += 1;
+            if (missed) medication_stat.missed_count += 1;
+
+            if (planned_date >= weekly_start_date && planned_date <= end_date) {
+                weekly.planned_count += 1;
+                if (completed) weekly.success_count += 1;
+                else if (failed) weekly.failed_count += 1;
+                if (missed) weekly.missed_count += 1;
+            }
+        }
+    }
+
+    const monthly_trend = Array.from(month_map.values()).map((item) => ({
+        ...item,
+        success_rate: item.planned_count > 0
+            ? Math.round((item.success_count / item.planned_count) * 100)
+            : 0,
+        missed_rate: item.planned_count > 0
+            ? Math.round(((item.missed_count + item.failed_count) / item.planned_count) * 100)
+            : 0
+    }));
+
+    const medication_rates = Array.from(medication_map.values())
+        .map((item) => ({
+            ...item,
+            success_rate: item.planned_count > 0
+                ? Math.round((item.success_count / item.planned_count) * 100)
+                : 0
+        }))
+        .sort((a, b) =>
+            b.planned_count - a.planned_count ||
+            a.success_rate - b.success_rate ||
+            String(a.medi_name || '').localeCompare(String(b.medi_name || ''))
+        )
+        .slice(0, 5);
+
+    weekly.success_rate = weekly.planned_count > 0
+        ? Math.round((weekly.success_count / weekly.planned_count) * 100)
+        : 0;
+
+    return {
+        range: {
+            start_date,
+            end_date,
+            timezone: 'Asia/Seoul'
+        },
+        completed_statuses: COMPLETED_STATUSES,
+        missed_statuses: MISSED_STATUSES,
+        monthly_trend,
+        medication_rates,
+        weekly
+    };
+};
+
 const get_dashboard_data_by_mem_id = async (mem_id) => {
     const total_started_at = Date.now();
 
@@ -74,7 +365,25 @@ const get_dashboard_data_by_mem_id = async (mem_id) => {
                 recent_notifications: await measure_dashboard_step('recent_notifications', () =>
                     get_recent_notifications(mem_id)
                 ),
-                recent_activities: []
+                recent_activities: [],
+                statistics: {
+                    range: {
+                        start_date: get_stats_range().start_date,
+                        end_date: get_stats_range().end_date,
+                        timezone: 'Asia/Seoul'
+                    },
+                    completed_statuses: COMPLETED_STATUSES,
+                    missed_statuses: MISSED_STATUSES,
+                    monthly_trend: [],
+                    medication_rates: [],
+                    weekly: {
+                        planned_count: 0,
+                        success_count: 0,
+                        missed_count: 0,
+                        failed_count: 0,
+                        success_rate: 0
+                    }
+                }
             });
 
             return dashboard_data;
@@ -89,7 +398,8 @@ const get_dashboard_data_by_mem_id = async (mem_id) => {
             medication_stock,
             today_schedules,
             recent_notifications,
-            recent_activities
+            recent_activities,
+            statistics
         ] = await Promise.all([
             measure_dashboard_step('get_patient_header', () => get_patient_header(patient_id)),
             measure_dashboard_step('get_dashboard_summary', () =>
@@ -113,6 +423,9 @@ const get_dashboard_data_by_mem_id = async (mem_id) => {
             ),
             measure_dashboard_step('recent_activities', () =>
                 get_recent_activities(patient_id)
+            ),
+            measure_dashboard_step('get_dashboard_statistics', () =>
+                get_dashboard_statistics(patient_id)
             )
         ]);
 
@@ -131,7 +444,8 @@ const get_dashboard_data_by_mem_id = async (mem_id) => {
             medication_stock,
             today_schedules,
             recent_notifications,
-            recent_activities
+            recent_activities,
+            statistics
         });
 
         return dashboard_data;
@@ -150,7 +464,8 @@ const build_dashboard_data = ({
     medication_stock,
     today_schedules,
     recent_notifications,
-    recent_activities
+    recent_activities,
+    statistics
 }) => {
     return {
         patient_name: patient?.patient_name || null,
@@ -174,7 +489,8 @@ const build_dashboard_data = ({
         estimatedMedicationStock: medication_stock.medications,
         today_schedules,
         recent_notifications,
-        recent_activities
+        recent_activities,
+        statistics
     };
 };
 
@@ -346,7 +662,7 @@ const get_dashboard_summary = async (patient_id) => {
         WHERE patient_id = $1
           AND status = 'ACTIVE'
           AND start_date <= $2::date
-          AND (end_date IS NULL OR end_date >= $2::date)
+          AND COALESCE(end_date, start_date) >= $2::date
           AND (
               $2::date > (created_at AT TIME ZONE 'Asia/Seoul')::date
               OR (
@@ -359,14 +675,20 @@ const get_dashboard_summary = async (patient_id) => {
     const today_activity_summary_query = `
         SELECT
             COUNT(*) FILTER (
-                WHERE UPPER(status) = ANY($2::text[])
+                WHERE UPPER(a.status) = ANY($2::text[])
             )::int AS completed_count,
             COUNT(*) FILTER (
-                WHERE UPPER(status) = ANY($3::text[])
+                WHERE UPPER(a.status) = ANY($3::text[])
             )::int AS missed_count
-        FROM activities
-        WHERE patient_id = $1
-          AND (sche_time AT TIME ZONE 'Asia/Seoul')::date = $4::date
+        FROM activities a
+        INNER JOIN schedules s
+            ON s.sche_id = a.sche_id
+           AND s.patient_id = a.patient_id
+        WHERE a.patient_id = $1
+          AND (a.sche_time AT TIME ZONE 'Asia/Seoul')::date = $4::date
+          AND s.status = 'ACTIVE'
+          AND s.start_date <= (a.sche_time AT TIME ZONE 'Asia/Seoul')::date
+          AND COALESCE(s.end_date, s.start_date) >= (a.sche_time AT TIME ZONE 'Asia/Seoul')::date
     `;
 
     const total_scheduled_result = await pool.query(total_scheduled_query, [

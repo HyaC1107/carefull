@@ -959,3 +959,142 @@ select.settings-form-field__input {
     padding: 28px 16px;
   }
 }
+
+/* ── TTS 신규 UI ─────────────────────────────────────────────── */
+
+/* 섹션 라벨 */
+.voice-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.voice-section__label {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #374151;
+}
+
+/* 텍스트 입력 */
+.voice-text-input {
+  width: 100%;
+  border: 1px solid #d1d5db;
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 0.84rem;
+  color: #1f2937;
+  resize: vertical;
+  line-height: 1.6;
+  box-sizing: border-box;
+  font-family: inherit;
+}
+
+.voice-text-input:focus {
+  outline: none;
+  border-color: #0ea5e9;
+  box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.12);
+}
+
+.voice-text-count {
+  margin: 0;
+  font-size: 0.72rem;
+  color: #9ca3af;
+  text-align: right;
+}
+
+/* 목소리 목록 */
+.voice-loading {
+  font-size: 0.82rem;
+  color: #9ca3af;
+  text-align: center;
+  padding: 16px 0;
+}
+
+/* 목소리 드롭다운 */
+.voice-select {
+  width: 100%;
+  height: 42px;
+  padding: 0 36px 0 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 10px;
+  background: #fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E") no-repeat right 10px center;
+  appearance: none;
+  font-size: 0.84rem;
+  color: #1f2937;
+  cursor: pointer;
+  box-sizing: border-box;
+}
+
+.voice-select:focus {
+  outline: none;
+  border-color: #0ea5e9;
+  box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.12);
+}
+
+.voice-select:disabled {
+  background-color: #f9fafb;
+  color: #9ca3af;
+  cursor: not-allowed;
+}
+
+/* 미리듣기 오디오 플레이어 */
+.voice-preview-player {
+  width: 100%;
+  border-radius: 10px;
+}
+
+/* 액션 버튼 */
+.voice-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.voice-btn {
+  height: 42px;
+  border-radius: 10px;
+  font-size: 0.84rem;
+  font-weight: 700;
+  cursor: pointer;
+  border: none;
+  transition: opacity 0.15s, transform 0.1s;
+}
+
+.voice-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.voice-btn:not(:disabled):active {
+  transform: scale(0.97);
+}
+
+.voice-btn--preview {
+  flex: 1;
+  border: 1px solid #7dd3fc;
+  background: #f0f9ff;
+  color: #0369a1;
+}
+
+.voice-btn--preview:not(:disabled):hover {
+  background: #e0f2fe;
+}
+
+.voice-btn--save {
+  flex: 1;
+  background: linear-gradient(90deg, #0ea5e9, #2563eb);
+  color: #fff;
+}
+
+.voice-btn--save:not(:disabled):hover {
+  opacity: 0.9;
+}
+
+@media (max-width: 640px) {
+  .voice-actions {
+    flex-direction: column;
+  }
+
+  .voice-list {
+    gap: 6px;
+  }
+}

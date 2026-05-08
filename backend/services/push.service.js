@@ -1,5 +1,9 @@
 const pool = require('../db');
-const { COMPLETED_STATUSES, MISSED_STATUSES } = require('../utils/dashboard-helpers');
+const {
+    COMPLETED_STATUSES,
+    KST_TIME_ZONE,
+    MISSED_STATUSES
+} = require('../utils/dashboard-helpers');
 const { get_messaging } = require('./firebase-admin.service');
 
 const PUSH_EVENT_TYPE = {
@@ -33,6 +37,7 @@ const format_push_time = (value) => {
     }
 
     return date.toLocaleTimeString('ko-KR', {
+        timeZone: KST_TIME_ZONE,
         hour: '2-digit',
         minute: '2-digit'
     });

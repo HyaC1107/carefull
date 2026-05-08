@@ -1,9 +1,11 @@
+import logging
 import sys
-
+import time
 from PyQt5.QtCore import QThread, QTimer, pyqtSignal
 from PyQt5.QtWidgets import QApplication, QMainWindow, QStackedWidget
 
 from config.settings import FULLSCREEN, SCHEDULE_POLL_SECONDS, SCREEN_HEIGHT, SCREEN_WIDTH
+logger = logging.getLogger(__name__)
 from ui.screens.auth_result import AuthResultScreen
 from ui.screens.camera_view import CameraViewScreen
 from ui.screens.complete import CompleteScreen
@@ -48,6 +50,16 @@ class _ScheduleSyncWorker(QThread):
             self.sync_done.emit([])
 
 
+class _ModelWarmupWorker(QThread):
+    """앱 시작 시 TFLite 모델을 미리 메모리에 로드 (첫 인증 지연 방지)"""
+    def run(self):
+        try:
+            from face_recognition.model_loader import get_model
+            get_model()
+        except Exception:
+            pass
+
+
 class App(QMainWindow):
     def __init__(self):
         super().__init__()
@@ -57,6 +69,10 @@ class App(QMainWindow):
         self.current_session: dict = _new_session()
         self._cached_schedules: list = []
         self._sync_worker: _ScheduleSyncWorker = None
+
+        # 모델 미리 로드 시작
+        self._warmup_worker = _ModelWarmupWorker()
+        self._warmup_worker.start()
 
         self.stack = QStackedWidget()
         self.setCentralWidget(self.stack)
@@ -91,33 +107,50 @@ class App(QMainWindow):
         self._trigger_sync()
         self._schedule_timer = QTimer(self)
         self._schedule_timer.timeout.connect(self._trigger_sync)
-        self._schedule_timer.start(SCHEDULE_POLL_SECONDS * 1000)
+        # 30초 -> 5초로 단축하여 정시 알람 정확도 향상
+        self._schedule_timer.start(5000)
 
     def _trigger_sync(self):
-        if self._sync_worker and self._sync_worker.isRunning():
-            return
-        self._sync_worker = _ScheduleSyncWorker()
-        self._sync_worker.sync_done.connect(self._on_sync_done)
-        self._sync_worker.finished.connect(self._sync_worker.deleteLater)
-        self._sync_worker.start()
+        # 1분에 한 번만 서버와 실제 동기화, 나머지는 로컬 캐시 체크
+        now_sec = time.time()
+        if not hasattr(self, "_last_server_sync"):
+            self._last_server_sync = 0
+        
+        force_fetch = (now_sec - self._last_server_sync) > 60
+        
+        if force_fetch:
+            if self._sync_worker is not None and self._sync_worker.isRunning():
+                return
+            self._sync_worker = _ScheduleSyncWorker()
+            self._sync_worker.sync_done.connect(self._on_sync_done)
+            self._sync_worker.finished.connect(self._clear_sync_worker)
+            self._sync_worker.start()
+            self._last_server_sync = now_sec
+        else:
+            # 서버 동기화 없이 로컬 캐시로 즉시 체크
+            self._on_sync_done(self._cached_schedules)
+
+    def _clear_sync_worker(self):
+        self._sync_worker = None
 
     def _on_sync_done(self, schedules: list):
         if schedules:
             self._cached_schedules = schedules
 
         from scheduler.schedule import check_schedule
-        due = check_schedule(self._cached_schedules or None)
+        due = check_schedule(self._cached_schedules or None, caller_id="ui")
         if not due:
             return
 
-        # 홈 화면일 때만 자동으로 복약 시작
-        if self.stack.currentWidget() != self.screens["home"]:
-            return
-
         s = due[0]
-        self.current_session = _new_session()
-        self.current_session["sche_id"] = s.get("sche_id")
-        self.show_screen("medication_start")
+        logger.info(f"UI Schedule Triggered: {s.get('sche_id')}")
+
+        # 복약 안내 화면으로 전환 (현재 화면이 다른 작업 중이 아닐 때만)
+        current = self.stack.currentWidget()
+        if current in [self.screens["home"], self.screens["medication_start"], self.screens["auth_result"]]:
+            self.current_session = _new_session()
+            self.current_session["sche_id"] = s.get("sche_id")
+            self.show_screen("medication_start")
 
 
 def run():
