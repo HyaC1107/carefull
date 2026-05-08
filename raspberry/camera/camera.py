@@ -62,17 +62,33 @@ def _init_webcam():
     global _webcam
     if _webcam is not None and _webcam.isOpened():
         return _webcam
-    cap = cv2.VideoCapture(0)
-    cap.set(cv2.CAP_PROP_FRAME_WIDTH, CAMERA_WIDTH)
-    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, CAMERA_HEIGHT)
-    time.sleep(CAMERA_WARMUP_SECONDS)
-    _webcam = cap
-    return _webcam
+
+    # 인덱스 0~3 순서로 사용 가능한 웹캠 탐색
+    for idx in range(4):
+        cap = cv2.VideoCapture(idx)
+        if not cap.isOpened():
+            cap.release()
+            continue
+        ok, _ = cap.read()
+        if ok:
+            cap.set(cv2.CAP_PROP_FRAME_WIDTH, CAMERA_WIDTH)
+            cap.set(cv2.CAP_PROP_FRAME_HEIGHT, CAMERA_HEIGHT)
+            time.sleep(CAMERA_WARMUP_SECONDS)
+            _webcam = cap
+            print(f"[CAMERA] Webcam found at index {idx}.")
+            return _webcam
+        cap.release()
+
+    print("[CAMERA/WEBCAM] No usable webcam found (index 0-3).")
+    _webcam = None
+    return None
 
 
 def _get_frame_webcam() -> "cv2.ndarray | None":
     try:
         cap = _init_webcam()
+        if cap is None:
+            return None
         ok, frame = cap.read()
         if ok:
             # 카메라 상하 반전 장착에 따른 180도 회전

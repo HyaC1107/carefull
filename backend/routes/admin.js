@@ -389,4 +389,153 @@ router.post('/test/push', verifyAdminToken, async (req, res) => {
     }
 });
 
+// ── POST /api/admin/seed-demo ─────────────────────────────────────────────────
+router.post('/seed-demo', verifyAdminToken, async (req, res) => {
+    const log = [];
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+
+        // 1. 보호자 계정
+        let { rows: m } = await client.query("SELECT mem_id FROM members WHERE email='demo@carefull.app' LIMIT 1");
+        let memId;
+        if (m.length === 0) {
+            const r = await client.query(
+                `INSERT INTO members (social_id, provider, email, nick, profile_img, joined_at)
+                 VALUES ('DEMO_CAREFULL_ADMIN_VIEW','kakao','demo@carefull.app','김보호자','',NOW()-INTERVAL '60 days')
+                 RETURNING mem_id`
+            );
+            memId = r.rows[0].mem_id;
+            log.push(`보호자 계정 생성: mem_id=${memId}`);
+        } else {
+            memId = m[0].mem_id;
+            log.push(`보호자 계정 이미 존재: mem_id=${memId}`);
+        }
+
+        // 2. 환자
+        let { rows: p } = await client.query('SELECT patient_id FROM patients WHERE mem_id=$1 LIMIT 1', [memId]);
+        let patientId;
+        if (p.length === 0) {
+            const r = await client.query(
+                `INSERT INTO patients (mem_id, patient_name, birthdate, gender, phone, bloodtype, guardian_name, created_at)
+                 VALUES ($1,'김순자','1952-03-15','F','010-1234-5678','A+','김보호자',NOW()-INTERVAL '55 days')
+                 RETURNING patient_id`,
+                [memId]
+            );
+            patientId = r.rows[0].patient_id;
+            log.push(`환자 등록: patient_id=${patientId}`);
+        } else {
+            patientId = p[0].patient_id;
+            log.push(`환자 이미 존재: patient_id=${patientId}`);
+        }
+
+        // 3. 기기
+        const { rows: d } = await client.query('SELECT device_id FROM devices WHERE patient_id=$1 LIMIT 1', [patientId]);
+        if (d.length === 0) {
+            await client.query(
+                `INSERT INTO devices (device_uid, patient_id, device_status, device_name, registered_at, last_ping)
+                 VALUES ('CF-DEMO-0001',$1,'REGISTERED','데모 디스펜서',NOW()-INTERVAL '50 days',NOW()-INTERVAL '2 hours')`,
+                [patientId]
+            );
+            log.push('기기 등록: CF-DEMO-0001');
+        } else { log.push('기기 이미 존재, 스킵'); }
+
+        // 4. 약
+        const getMedi = async (name) => {
+            let { rows } = await client.query('SELECT medi_id FROM medications WHERE medi_name=$1 LIMIT 1', [name]);
+            if (rows.length > 0) return rows[0].medi_id;
+            const r = await client.query('INSERT INTO medications (medi_name) VALUES ($1) RETURNING medi_id', [name]);
+            return r.rows[0].medi_id;
+        };
+        const medi1 = await getMedi('아스피린 100mg (데모)');
+        const medi2 = await getMedi('암로디핀 5mg (데모)');
+        const medi3 = await getMedi('메트포르민 500mg (데모)');
+        log.push(`약: ${medi1}, ${medi2}, ${medi3}`);
+
+        // 5. 스케줄
+        const getSche = async (time, mediId) => {
+            let { rows } = await client.query(
+                "SELECT sche_id FROM schedules WHERE patient_id=$1 AND time_to_take::TEXT=$2 LIMIT 1",
+                [patientId, time]
+            );
+            if (rows.length > 0) return rows[0].sche_id;
+            const r = await client.query(
+                `INSERT INTO schedules (patient_id, medi_id, time_to_take, start_date, end_date, dose_interval, status)
+                 VALUES ($1,$2,$3,CURRENT_DATE-30,CURRENT_DATE+60,NULL,'ACTIVE') RETURNING sche_id`,
+                [patientId, mediId, time]
+            );
+            return r.rows[0].sche_id;
+        };
+        const sche1 = await getSche('08:00:00', medi1);
+        const sche2 = await getSche('13:00:00', medi2);
+        const sche3 = await getSche('20:00:00', medi3);
+        log.push(`스케줄: ${sche1}, ${sche2}, ${sche3}`);
+
+        // 6. 복약 로그 30일치
+        const { rows: actCheck } = await client.query('SELECT 1 FROM activities WHERE patient_id=$1 LIMIT 1', [patientId]);
+        if (actCheck.length === 0) {
+            const missedM = new Set([3,6,10,14,17,21,25,29]);
+            const missedL = new Set([2,5,9,12,16,19,23,27]);
+            const missedE = new Set([4,9,15,21,28]);
+            for (let i = 1; i <= 30; i++) {
+                for (const [scheId, h, min, missed] of [
+                    [sche1, 8,  2, missedM],
+                    [sche2, 13, 3, missedL],
+                    [sche3, 20, 1, missedE],
+                ]) {
+                    const ok = !missed.has(i);
+                    const hh = String(h).padStart(2,'0');
+                    const mm = String(min).padStart(2,'0');
+                    await client.query(
+                        `INSERT INTO activities (sche_id,patient_id,sche_time,actual_time,status,is_face_auth,is_ai_check,similarity_score,created_at)
+                         VALUES ($1,$2,
+                           (CURRENT_DATE-$3+TIME '${hh}:00:00')::TIMESTAMP AT TIME ZONE 'Asia/Seoul',
+                           ${ok ? `(CURRENT_DATE-$3+TIME '${hh}:${mm}:00')::TIMESTAMP AT TIME ZONE 'Asia/Seoul'` : 'NULL'},
+                           $4,$5,$5,
+                           ${ok ? `ROUND((0.85+($3%13)*0.008)::NUMERIC,3)` : 'NULL'},
+                           (CURRENT_DATE-$3+TIME '${hh}:${mm}:30')::TIMESTAMP AT TIME ZONE 'Asia/Seoul'
+                         )`,
+                        [scheId, patientId, i, ok ? 'SUCCESS' : 'MISSED', ok]
+                    );
+                }
+            }
+            log.push('복약 로그 90건 생성');
+        } else { log.push('복약 로그 이미 존재, 스킵'); }
+
+        // 7. 알림
+        const { rows: nc } = await client.query('SELECT 1 FROM notifications WHERE mem_id=$1 LIMIT 1', [memId]);
+        if (nc.length === 0) {
+            const notis = [
+                ['MISSED','미복용 알림','김순자님이 오늘 점심 약을 복용하지 않으셨습니다.',false,'1 hour'],
+                ['SUCCESS','복약 완료','김순자님이 오늘 아침 약을 복용하셨습니다.',true,'5 hours 58 minutes'],
+                ['MISSED','미복용 알림','김순자님이 어제 저녁 약을 복용하지 않으셨습니다.',true,'1 day 3 hours 30 minutes'],
+                ['SUCCESS','복약 완료','김순자님이 어제 점심 약을 복용하셨습니다.',true,'1 day 9 hours 57 minutes'],
+                ['SUCCESS','복약 완료','김순자님이 어제 아침 약을 복용하셨습니다.',true,'1 day 13 hours 57 minutes'],
+                ['MISSED','미복용 알림','김순자님이 이틀 전 저녁 약을 복용하지 않으셨습니다.',true,'2 days 3 hours 30 minutes'],
+                ['SUCCESS','복약 완료','김순자님이 이틀 전 점심 약을 복용하셨습니다.',true,'2 days 9 hours 57 minutes'],
+                ['SUCCESS','복약 완료','김순자님이 이틀 전 아침 약을 복용하셨습니다.',true,'2 days 13 hours 57 minutes'],
+                ['MISSED','미복용 알림','김순자님이 사흘 전 점심 약을 복용하지 않으셨습니다.',true,'3 days 9 hours 3 minutes'],
+                ['SUCCESS','복약 완료','김순자님이 사흘 전 아침 약을 복용하셨습니다.',true,'3 days 13 hours 58 minutes'],
+            ];
+            for (const [type, title, msg, recv, interval] of notis) {
+                await client.query(
+                    `INSERT INTO notifications (mem_id,noti_type,noti_title,noti_msg,is_received,created_at)
+                     VALUES ($1,$2,$3,$4,$5,NOW()-INTERVAL '${interval}')`,
+                    [memId, type, title, msg, recv]
+                );
+            }
+            log.push('알림 10건 생성');
+        } else { log.push('알림 이미 존재, 스킵'); }
+
+        await client.query('COMMIT');
+        return res.json({ success: true, message: '데모 데이터 시드 완료', log });
+    } catch (err) {
+        await client.query('ROLLBACK');
+        console.error('[ADMIN SEED DEMO]', err);
+        return res.status(500).json({ success: false, message: err.message });
+    } finally {
+        client.release();
+    }
+});
+
 module.exports = router;
