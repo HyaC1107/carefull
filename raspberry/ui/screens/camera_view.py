@@ -427,7 +427,19 @@ class CameraViewScreen(QWidget):
     def _on_auth_failed(self):
         self._stop_thread()
         print(f"\n[AUTH_RESULT] 실패: 일치하는 사용자를 찾을 수 없거나 임계값 미달")
-        if self._app: self._app.show_screen("fingerprint_auth")
+        self._processing_overlay.setStyleSheet("background-color: #3a1a1a;")
+        self._proc_msg.setText("얼굴 인증에 실패했습니다\n지문 인증으로 전환합니다...")
+        self._proc_msg.setStyleSheet("color: #fca5a5;")
+        self._processing_overlay.show()
+        from PyQt5.QtCore import QTimer
+        QTimer.singleShot(2000, self._go_fingerprint_auth)
+
+    def _go_fingerprint_auth(self):
+        self._processing_overlay.hide()
+        self._processing_overlay.setStyleSheet("background-color: #1e293b;")
+        self._proc_msg.setStyleSheet("color: white;")
+        if self._app:
+            self._app.show_screen("fingerprint_auth")
 
     def _on_progress(self, count: int):
         phase_in_count = ((count - 1) % 4) + 1
