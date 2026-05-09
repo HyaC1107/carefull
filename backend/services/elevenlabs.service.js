@@ -27,39 +27,55 @@ async function get_voices() {
     }
 
     const api_key = process.env.ELEVENLABS_API_KEY;
-    if (!api_key) throw new Error('ELEVENLABS_API_KEY 환경변수가 설정되지 않았습니다');
+    if (!api_key) {
+        console.error('[ELEVENLABS] API Key is missing in process.env');
+        throw new Error('ELEVENLABS_API_KEY 환경변수가 설정되지 않았습니다');
+    }
 
-    // SDK 대신 axios를 사용하여 직접 호출 (데이터 구조: { voices: [...] })
-    const response = await axios.get('https://api.elevenlabs.io/v1/shared-voices', {
-        params: {
-            language: 'ko',
-            page_size: 10
-        },
-        headers: {
-            'xi-api-key': api_key
+    try {
+        console.log('[ELEVENLABS] Fetching shared voices... (Key check: OK)');
+
+        // SDK 대신 axios를 사용하여 직접 호출
+        const response = await axios.get('https://api.elevenlabs.io/v1/shared-voices', {
+            params: {
+                language: 'ko',
+                page_size: 10
+            },
+            headers: {
+                'xi-api-key': api_key
+            }
+        });
+
+        const voices = response.data.voices || [];
+        console.log(`[ELEVENLABS] Successfully fetched ${voices.length} voices`);
+
+        const result = voices.map(v => ({
+            voice_id: v.voice_id,
+            name:     v.name  || '',
+            labels:   { 
+                accent: v.accent || '',
+                gender: v.gender || '',
+                age: v.age || '',
+                use_case: v.use_case || '',
+                descriptive: v.descriptive || ''
+            },
+            preview_url_official: v.preview_url
+        }));
+
+        _voices_cache    = result;
+        _voices_cache_at = now;
+        return result;
+    } catch (err) {
+        console.error('[ELEVENLABS] API Request Failed:');
+        if (err.response) {
+            console.error(`  - Status: ${err.response.status}`);
+            console.error(`  - Data: ${JSON.stringify(err.response.data)}`);
+        } else {
+            console.error(`  - Message: ${err.message}`);
         }
-    });
-
-    const voices = response.data.voices || [];
-
-    const result = voices.map(v => ({
-        voice_id: v.voice_id,
-        name:     v.name  || '',
-        labels:   { 
-            accent: v.accent || '',
-            gender: v.gender || '',
-            age: v.age || '',
-            use_case: v.use_case || '',
-            descriptive: v.descriptive || ''
-        },
-        preview_url_official: v.preview_url
-    }));
-
-    _voices_cache    = result;
-    _voices_cache_at = now;
-    return result;
+        throw err;
+    }
 }
-
 /**
  * 지정된 목소리와 텍스트로 TTS MP3 생성 → output_path에 저장
  * @returns {string} 저장된 파일의 절대 경로
