@@ -124,6 +124,44 @@ def play_alarm(filename: str = None, loop: bool = False):
         logger.error("mpg123 실패: %s", e)
 
 
+def play_voice(filename: str):
+    """안내 음성 재생 (assets/voices/ 전용).
+    파일이 없으면 조용히 무시 — 알람 fallback 없음.
+    """
+    file_path = os.path.join(VOICES_DIR, filename)
+    if not os.path.exists(file_path):
+        logger.debug("음성 파일 없음, 스킵: %s", file_path)
+        return
+
+    stop_alarm()
+    logger.info("음성 재생: %s", file_path)
+
+    if _init_pygame():
+        try:
+            import pygame
+            pygame.mixer.music.load(file_path)
+            pygame.mixer.music.play(loops=0)
+            return
+        except Exception as e:
+            logger.warning("pygame 음성 재생 실패, mpg123 fallback: %s", e)
+
+    global _fallback_process
+    try:
+        cmd = ["mpg123", "-q"]
+        if AUDIO_DEVICE:
+            cmd += ["-o", "alsa", "-a", AUDIO_DEVICE]
+        else:
+            usb = _detect_usb_card()
+            if usb is not None:
+                cmd += ["-o", "alsa", "-a", f"plughw:{usb},0"]
+        cmd.append(file_path)
+        _fallback_process = subprocess.Popen(cmd)
+    except FileNotFoundError:
+        logger.error("mpg123 미설치. 설치: sudo apt install mpg123")
+    except Exception as e:
+        logger.error("mpg123 음성 재생 실패: %s", e)
+
+
 def stop_alarm():
     """재생 중인 알람을 즉시 정지."""
     global _fallback_process

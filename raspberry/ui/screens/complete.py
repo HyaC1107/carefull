@@ -24,8 +24,8 @@ _SCHEDULE_PATH = os.path.normpath(
 
 def _play_voice(filename: str):
     try:
-        from hardware.alarm import play_alarm
-        play_alarm(filename)
+        from hardware.alarm import play_voice
+        play_voice(filename)
     except Exception:
         pass
 

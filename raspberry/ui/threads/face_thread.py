@@ -47,9 +47,6 @@ class FaceThread(QThread):
     def run(self):
         self._running = True
         logger.info(f"[FACE_THREAD] Started (mode: {self._mode})")
-        if UI_TEST_MODE:
-            self._run_test_mode()
-            return
         if self._mode == MODE_AUTH:
             self._run_auth()
         else:

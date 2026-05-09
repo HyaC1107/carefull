@@ -22,10 +22,6 @@ class BehaviorThread(QThread):
     def run(self):
         self._running = True
 
-        if UI_TEST_MODE:
-            self._run_test_mode()
-            return
-
         import cv2
         import mediapipe as mp
         import numpy as np
