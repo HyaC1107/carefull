@@ -47,7 +47,7 @@ Carefull (케어풀)
 | **AI / Vision** | **MediaPipe** (Face/Pose), **TensorFlow Lite**, MobileFaceNet, OpenCV, INT8 Quantization |
 | **Backend** | **Node.js (Express)**, PostgreSQL, JWT, **ElevenLabs API**, Firebase Admin SDK |
 | **Frontend** | **React 19**, Vite, MUI (Material UI), Recharts, **PWA (Progressive Web App)** |
-| **Communication** | REST API, **MQTT** (Real-time Sync), FCM (Push Notification) |
+| **Communication** | REST API, FCM (Push Notification) |
 | **DevOps** | **PM2**, GitHub Actions, AWS EC2, Vercel |
 
 ---
