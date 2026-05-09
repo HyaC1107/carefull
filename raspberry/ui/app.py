@@ -110,12 +110,12 @@ class App(QMainWindow):
         self._schedule_timer.start(1000)  # 1초 간격 — 정시 1초 이내 발동
 
     def _trigger_sync(self):
-        # 1분에 한 번만 서버와 실제 동기화, 나머지는 로컬 캐시 체크
+        # 서버와 실제 동기화 주기 설정값 사용
         now_sec = time.time()
         if not hasattr(self, "_last_server_sync"):
             self._last_server_sync = 0
         
-        force_fetch = (now_sec - self._last_server_sync) > 60
+        force_fetch = (now_sec - self._last_server_sync) > SCHEDULE_POLL_SECONDS
         
         if force_fetch:
             if self._sync_worker is not None and self._sync_worker.isRunning():
