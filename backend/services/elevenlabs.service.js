@@ -17,7 +17,7 @@ let _voices_cache_at = 0;
 const VOICES_CACHE_TTL = 30 * 60 * 1000; // 30분
 
 /**
- * ElevenLabs 기성(premade) 목소리 목록 반환
+ * ElevenLabs 보이스 라이브러리에서 한국어 특화(language=ko) 목소리 목록 반환
  */
 async function get_voices() {
     const now = Date.now();
@@ -26,16 +26,25 @@ async function get_voices() {
     }
 
     const client = get_client();
-    // getAll() → Promise<GetVoicesResponse> → { voices: Voice[] }
-    // Voice.voiceId (camelCase)
-    const { voices } = await client.voices.getAll();
+    
+    // 한국어(ko) 필터를 사용하여 공유된 보이스 목록 조회
+    // SDK의 voiceLibrary.getAll 사용 (내부적으로 shared-voices 호출)
+    const response = await client.voiceLibrary.getAll({
+        language: 'ko',
+        pageSize: 10
+    });
 
-    const result = (voices || [])
-        .filter(v => v.category === 'premade')
+    const result = (response.voices || [])
         .map(v => ({
-            voice_id: v.voiceId,
+            voice_id: v.public_owner_id ? v.voice_id : v.voice_id, // 공유 보이스 ID
             name:     v.name  || '',
-            labels:   v.labels || {},
+            labels:   { 
+                accent: v.accent,
+                gender: v.gender,
+                age: v.age,
+                use_case: v.use_case
+            },
+            preview_url_official: v.preview_url // ElevenLabs에서 제공하는 기본 미리보기 URL
         }));
 
     _voices_cache    = result;
@@ -58,6 +67,7 @@ async function generate_tts(voice_id, text, output_path) {
         voiceSettings: {
             stability:       0.5,
             similarityBoost: 0.75,
+            speed:           0.90,
         },
     });
 
