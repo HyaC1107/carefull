@@ -144,13 +144,16 @@ class App(QMainWindow):
         s = due[0]
         logger.info(f"UI Schedule Triggered: {s.get('sche_id')}")
 
-        # 복약 진행 중인 화면이면 스킵 (알람 누락 방지를 위해 마킹도 하지 않음)
+        # 복약 진행 중이거나 사용자 등록 중인 화면이면 스킵
         current = self.stack.currentWidget()
         _in_progress = {
             self.screens["camera_view"],
             self.screens["fingerprint_auth"],
             self.screens["dispensing"],
             self.screens["medication"],
+            self.screens["register"],
+            self.screens["fingerprint_register"],
+            self.screens["register_complete"],
         }
         if current in _in_progress:
             return
