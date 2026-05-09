@@ -17,71 +17,49 @@ let _voices_cache    = null;
 let _voices_cache_at = 0;
 const VOICES_CACHE_TTL = 30 * 60 * 1000; // 30분
 
+// ── 고정된 목소리 목록 (사용자 지정 10인) ───────────────────────────────────────
+const FIXED_VOICES = [
+    // 여성 (5명)
+    { id: 'NHupUXHdYJdFC2k3Gmja', name: '결 (Gyeol)', gender: 'female', age: 'middle_aged' },
+    { id: '1BZBO072RKJTzZcDjRox', name: '소라 (Sora)',  gender: 'female', age: 'young' },
+    { id: '5n5gqmaQi9Ewevrz7bOS', name: '시안 (Sian)',  gender: 'female', age: 'young' },
+    { id: 'NaQdbkW5gNZD8wfwXeTV', name: '온유 (Onyu)',  gender: 'female', age: 'young' },
+    { id: '74i8I1pZi98ZjmmYLdaF', name: '클로이 (Chloe)', gender: 'female', age: 'young' },
+    // 남성 (5명)
+    { id: 'srhGhMYcxqeTNVuSRvWg', name: '준호 (Junho)',  gender: 'male',   age: 'young' },
+    { id: 'LKOcTG4J4tYTPR9DnLeM', name: '미스터 K (Mr.K)', gender: 'male',   age: 'young' },
+    { id: 'KFTSy1J20kTAnUHnQjVx', name: '재욱 (Jaeuk)',  gender: 'male',   age: 'middle_aged' },
+    { id: 'QAuCXfOpYxbxOasYze98', name: '세인 (Sein)',   gender: 'male',   age: 'young' },
+    { id: 'mVMNSRhuCVCkUj7v7Eyq', name: '영석 (YoungSeok)', gender: 'male',  age: 'middle_aged' }
+];
+
 /**
- * ElevenLabs 보이스 라이브러리에서 한국어 특화(language=ko) 목소리 목록 반환
+ * 사용자님이 지정한 고정된 10개의 한국어 목소리 목록 반환
  */
 async function get_voices() {
-    const now = Date.now();
-    if (_voices_cache && now - _voices_cache_at < VOICES_CACHE_TTL) {
+    // 캐시가 유효하면 즉시 반환
+    if (_voices_cache && (Date.now() - _voices_cache_at < VOICES_CACHE_TTL)) {
         return _voices_cache;
     }
 
-    const api_key = process.env.ELEVENLABS_API_KEY;
-    if (!api_key) {
-        console.error('[ELEVENLABS] API Key is missing in process.env');
-        throw new Error('ELEVENLABS_API_KEY 환경변수가 설정되지 않았습니다');
-    }
+    console.log('[ELEVENLABS] Returning fixed voice selection (10 voices)');
 
-    try {
-        console.log('[ELEVENLABS] Fetching shared voices... (Key check: OK)');
-        
-        // 한국어(ko) 필터를 사용하여 공유된 보이스 목록 조회 (성비 조절을 위해 넉넉히 50개 조회)
-        const response = await axios.get('https://api.elevenlabs.io/v1/shared-voices', {
-            params: {
-                language: 'ko',
-                page_size: 50
-            },
-            headers: {
-                'xi-api-key': api_key
-            }
-        });
+    const result = FIXED_VOICES.map(v => ({
+        voice_id: v.id,
+        name:     v.name,
+        labels:   { 
+            gender: v.gender,
+            age:    v.age,
+            accent: 'seoul',
+            use_case: 'care-service'
+        },
+        // 고정 ID 방식이므로 공식 미리보기는 null로 처리 (로컬 샘플 우선 사용)
+        preview_url_official: null
+    }));
 
-        const voices = response.data.voices || [];
-        
-        // 성별에 따라 분류하여 각각 5명씩 추출
-        const male_voices = voices.filter(v => v.gender === 'male').slice(0, 5);
-        const female_voices = voices.filter(v => v.gender === 'female').slice(0, 5);
-        
-        const balanced_voices = [...female_voices, ...male_voices];
-
-        console.log(`[ELEVENLABS] Balanced voices: ${balanced_voices.length} (F: ${female_voices.length}, M: ${male_voices.length})`);
-        
-        const result = balanced_voices.map(v => ({
-            voice_id: v.voice_id,
-            name:     v.name  || '',
-            labels:   { 
-                accent: v.accent || '',
-                gender: v.gender || '',
-                age: v.age || '',
-                use_case: v.use_case || '',
-                descriptive: v.descriptive || ''
-            },
-            preview_url_official: v.preview_url
-        }));
-
-        _voices_cache    = result;
-        _voices_cache_at = now;
-        return result;
-    } catch (err) {
-        console.error('[ELEVENLABS] API Request Failed:');
-        if (err.response) {
-            console.error(`  - Status: ${err.response.status}`);
-            console.error(`  - Data: ${JSON.stringify(err.response.data)}`);
-        } else {
-            console.error(`  - Message: ${err.message}`);
-        }
-        throw err;
-    }
+    _voices_cache    = result;
+    _voices_cache_at = Date.now();
+    return result;
 }
 
 /**
