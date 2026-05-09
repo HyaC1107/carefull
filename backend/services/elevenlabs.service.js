@@ -32,24 +32,29 @@ async function get_voices() {
         throw new Error('ELEVENLABS_API_KEY 환경변수가 설정되지 않았습니다');
     }
 
-    try {
-        console.log('[ELEVENLABS] Fetching shared voices... (Key check: OK)');
+    // 한국어(ko) 필터를 사용하여 공유된 보이스 목록 조회 (성비 조절을 위해 넉넉히 50개 조회)
+    const response = await axios.get('https://api.elevenlabs.io/v1/shared-voices', {
+        params: {
+            language: 'ko',
+            page_size: 50
+        },
+        headers: {
+            'xi-api-key': api_key
+        }
+    });
 
-        // SDK 대신 axios를 사용하여 직접 호출
-        const response = await axios.get('https://api.elevenlabs.io/v1/shared-voices', {
-            params: {
-                language: 'ko',
-                page_size: 10
-            },
-            headers: {
-                'xi-api-key': api_key
-            }
-        });
+    const voices = response.data.voices || [];
 
-        const voices = response.data.voices || [];
-        console.log(`[ELEVENLABS] Successfully fetched ${voices.length} voices`);
+    // 성별에 따라 분류하여 각각 5명씩 추출
+    const male_voices = voices.filter(v => v.gender === 'male').slice(0, 5);
+    const female_voices = voices.filter(v => v.gender === 'female').slice(0, 5);
 
-        const result = voices.map(v => ({
+    const balanced_voices = [...female_voices, ...male_voices];
+
+    console.log(`[ELEVENLABS] Balanced voices: ${balanced_voices.length} (F: ${female_voices.length}, M: ${male_voices.length})`);
+
+    const result = balanced_voices.map(v => ({
+
             voice_id: v.voice_id,
             name:     v.name  || '',
             labels:   { 
