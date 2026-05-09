@@ -229,7 +229,7 @@ function VoiceUploadTab() {
           {previewUrl && (
             <audio
               ref={audioRef}
-              src={`${API_BASE}${previewUrl}`}
+              src={previewUrl.startsWith('http') ? previewUrl : `${API_BASE}${previewUrl}`}
               controls
               className="voice-preview-player"
             />
