@@ -7,6 +7,14 @@ from PyQt5.QtWidgets import (
     QSizePolicy, QVBoxLayout, QWidget,
 )
 
+def _play_voice(filename: str):
+    try:
+        from hardware.alarm import play_alarm
+        play_alarm(filename)
+    except Exception:
+        pass
+
+
 _MAX_FINGERS = 3   # 최대 등록 가능한 손가락 수
 
 _ICONS_DIR = os.path.normpath(
@@ -299,6 +307,7 @@ class FingerprintRegisterScreen(QWidget):
     def _on_slot_ready(self, next_slot: int):
         self._title_lbl.setText("손가락을 올려주세요")
         self._sub_lbl.setText(f"센서에 손가락을 올려주세요  ({self._finger_count + 1}번째)")
+        _play_voice("reg_fp_start.mp3")
         self._start_enroll(next_slot)
 
     def _start_enroll(self, position: int = 1):
@@ -321,6 +330,12 @@ class FingerprintRegisterScreen(QWidget):
 
     def _on_stage(self, msg: str):
         self._title_lbl.setText(msg)
+        if "떼주세요" in msg:
+            _play_voice("reg_fp_lift.mp3")
+        elif "다시 올려주세요" in msg or "번 더 올려주세요" in msg:
+            _play_voice("reg_fp_again.mp3")
+        elif "다시 시도합니다" in msg:
+            _play_voice("reg_fp_error.mp3")
 
     def _on_progress(self, value: int):
         self._progress_bar.setValue(value)
@@ -339,6 +354,7 @@ class FingerprintRegisterScreen(QWidget):
 
         self._title_lbl.setText(f"등록 완료! ({self._finger_count}번째 손가락)")
         self._on_progress(100)
+        _play_voice("reg_fp_done.mp3")
 
         if self._finger_count < _MAX_FINGERS:
             QTimer.singleShot(700, self._show_prompt)
@@ -351,6 +367,7 @@ class FingerprintRegisterScreen(QWidget):
         self._pct_lbl.setText("")
         self._error_lbl.setText(msg)
         self._error_widget.show()
+        _play_voice("reg_fp_error.mp3")
 
     def _on_retry(self):
         self._reset()
@@ -371,6 +388,7 @@ class FingerprintRegisterScreen(QWidget):
             self._fp_widget.set_progress(0)
         self._pct_lbl.setText("")
         self._prompt_widget.show()
+        _play_voice("reg_fp_more.mp3")
 
     def _on_more_finger(self):
         self._prompt_widget.hide()

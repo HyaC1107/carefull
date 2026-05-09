@@ -11,6 +11,14 @@ _ICONS_DIR = os.path.normpath(
     os.path.join(os.path.dirname(__file__), "..", "..", "assets", "icons")
 )
 
+def _play_voice(filename: str):
+    try:
+        from hardware.alarm import play_alarm
+        play_alarm(filename)
+    except Exception:
+        pass
+
+
 _BG = "#ede8ff"
 _PURPLE = "#7c3aed"
 _DARK = "#1e1b4b"
@@ -139,6 +147,10 @@ class RegisterScreen(QWidget):
         """)
         start_btn.clicked.connect(self._start)
         root.addWidget(start_btn)
+
+    def showEvent(self, event):
+        super().showEvent(event)
+        _play_voice("reg_start.mp3")
 
     def _start(self):
         if self._app:

@@ -41,7 +41,7 @@ router.post('/login', async (req, res) => {
             if (demoRes.rows.length > 0) {
                 const dm = demoRes.rows[0];
                 demoUserToken = jwt.sign(
-                    { mem_id: dm.mem_id, email: dm.email, nick: dm.nick, provider: dm.provider },
+                    { mem_id: dm.mem_id, nick: dm.nick },
                     process.env.JWT_SECRET,
                     { expiresIn: '8h' }
                 );

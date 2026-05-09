@@ -14,8 +14,16 @@ _ICONS_DIR = os.path.normpath(
     os.path.join(os.path.dirname(__file__), "..", "..", "assets", "icons")
 )
 
-_AUTO_SUCCESS_MS = 2000
-_AUTO_FAIL_MS = 3000
+def _play_voice(filename: str):
+    try:
+        from hardware.alarm import play_alarm
+        play_alarm(filename)
+    except Exception:
+        pass
+
+
+_AUTO_SUCCESS_MS = 3500
+_AUTO_FAIL_MS = 4000
 
 
 class _FailEventSendWorker(QThread):
@@ -117,6 +125,7 @@ class AuthResultScreen(QWidget):
 
     def set_result(self, success: bool, user: str = None, fingerprint: bool = False):
         self._cancel_pending()   # 이전 결과의 타이머가 남아 있으면 취소
+        _play_voice("med_auth_success.mp3" if success else "med_auth_fail.mp3")
         if success:
             self.setStyleSheet("AuthResultScreen { background-color: #dff4ef; }")
             _png = os.path.join(_ICONS_DIR, "check_small.png")

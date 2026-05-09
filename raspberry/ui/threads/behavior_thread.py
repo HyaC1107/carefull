@@ -30,6 +30,7 @@ class BehaviorThread(QThread):
         import mediapipe as mp
         import numpy as np
         from camera.camera import get_frame
+        from hardware.gimbal import Gimbal
 
         pose = mp.solutions.pose.Pose(
             static_image_mode=False,
@@ -37,6 +38,7 @@ class BehaviorThread(QThread):
             min_detection_confidence=0.5,
             min_tracking_confidence=0.5,
         )
+        gimbal = Gimbal()
 
         counter = 0
 
@@ -50,7 +52,7 @@ class BehaviorThread(QThread):
                 self.frame_ready.emit(frame.copy())
 
                 rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-                h, w = rgb.shape[:2]
+                fh, fw = rgb.shape[:2]
 
                 results = pose.process(rgb)
 
@@ -61,11 +63,22 @@ class BehaviorThread(QThread):
                     l_wrist = lm[_L_WRIST]
                     r_wrist = lm[_R_WRIST]
 
+                    # 짐벌 추적 — 코 위치 기준 가상 bbox로 수평 추적
+                    nose_cx = int(nose.x * fw)
+                    nose_cy = int(nose.y * fh)
+                    face_sz = int(fh * 0.25)
+                    gimbal.track_face(
+                        (nose_cx - face_sz // 2, nose_cy - face_sz // 2, face_sz, face_sz),
+                        fw, fh
+                    )
+
                     dist_l = float(np.hypot(l_wrist.x - nose.x, l_wrist.y - nose.y))
                     dist_r = float(np.hypot(r_wrist.x - nose.x, r_wrist.y - nose.y))
 
                     if min(dist_l, dist_r) < _DIST_THRESHOLD:
                         is_near = True
+                else:
+                    gimbal.update_idle()
 
                 if is_near:
                     counter += 1
@@ -81,6 +94,7 @@ class BehaviorThread(QThread):
 
         finally:
             pose.close()
+            gimbal.stop()
 
     def _run_test_mode(self):
         for i in range(1, _SUCCESS_FRAMES + 1):

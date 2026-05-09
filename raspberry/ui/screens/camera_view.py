@@ -13,6 +13,14 @@ from utils.ui_prefs import FONT_SCALE as _FS
 def _fs(n: int) -> int:
     return max(1, int(n * _FS))
 
+def _play_voice(filename: str):
+    try:
+        from hardware.alarm import play_alarm
+        play_alarm(filename)
+    except Exception:
+        pass
+
+
 _DB_PATH = os.path.normpath(
     os.path.join(os.path.dirname(__file__), "..", "..", "db", "user_db.json")
 )
@@ -364,7 +372,10 @@ class CameraViewScreen(QWidget):
             self._auth_started = True
             self._loading_lbl.hide()
             if self._mode == MODE_AUTH:
+                _play_voice("med_auth_face.mp3")
                 self._begin_auth_countdown()
+            elif self._mode == MODE_REGISTER:
+                _play_voice("reg_face_guide.mp3")
 
     def _begin_auth_countdown(self):
         self._remaining = AUTH_TIMEOUT_SEC
@@ -388,8 +399,9 @@ class CameraViewScreen(QWidget):
     def _on_capture_done(self, face_imgs: list):
         """[중요] 캡처 완료 시 모드에 따라 처리."""
         self._stop_thread()
-        
+
         if self._mode == MODE_REGISTER:
+            _play_voice("reg_face_done.mp3")
             self._last_face_imgs = face_imgs
             self._sub_lbl.setText("저장 중...")
             self._save_worker = _EmbeddingSaveWorker(face_imgs, parent=self)
@@ -430,6 +442,16 @@ class CameraViewScreen(QWidget):
         else:
             self._sub_lbl.setText(f"{direction}을(를) 바라봐 주세요")
             self._sub_lbl.setStyleSheet("color: #93c5fd; background: transparent;")
+            _DIRECTION_VOICE = {
+                "정면": "reg_face_front.mp3",
+                "위": "reg_face_up.mp3",
+                "아래": "reg_face_down.mp3",
+                "왼쪽": "reg_face_left.mp3",
+                "오른쪽": "reg_face_right.mp3",
+            }
+            voice = _DIRECTION_VOICE.get(direction)
+            if voice:
+                _play_voice(voice)
 
     def _on_save_done(self, ok: bool):
         if ok:

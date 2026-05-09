@@ -7,6 +7,14 @@ from utils.ui_prefs import FONT_SCALE as _FS
 def _fs(n: int) -> int:
     return max(1, int(n * _FS))
 
+def _play_voice(filename: str):
+    try:
+        from hardware.alarm import play_alarm
+        play_alarm(filename)
+    except Exception:
+        pass
+
+
 _BG = "#dde3f8"
 _INDIGO = "#4338ca"
 _DARK = "#1e1b5e"
@@ -119,6 +127,7 @@ class DispensingScreen(QWidget):
 
     def showEvent(self, event):
         super().showEvent(event)
+        _play_voice("med_dispensing.mp3")
         self._progress_bar.setValue(0)
         self._start_progress()
         self._start_dispense()
