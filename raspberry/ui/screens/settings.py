@@ -132,7 +132,7 @@ class _WifiScanThread(QThread):
 
     def run(self):
         try:
-            subprocess.run(["nmcli", "dev", "wifi", "rescan"],
+            subprocess.run(["sudo", "nmcli", "dev", "wifi", "rescan"],
                            capture_output=True, timeout=8)
         except Exception:
             pass
@@ -174,15 +174,15 @@ class _WifiConnectThread(QThread):
     def run(self):
         try:
             if self._password:
-                cmd = ["nmcli", "dev", "wifi", "connect",
+                cmd = ["sudo", "nmcli", "dev", "wifi", "connect",
                        self._ssid, "password", self._password]
             else:
-                r = subprocess.run(["nmcli", "con", "up", self._ssid],
+                r = subprocess.run(["sudo", "nmcli", "con", "up", self._ssid],
                                    capture_output=True, text=True, timeout=30)
                 if r.returncode == 0:
                     self.success.emit(self._ssid)
                     return
-                cmd = ["nmcli", "dev", "wifi", "connect", self._ssid]
+                cmd = ["sudo", "nmcli", "dev", "wifi", "connect", self._ssid]
             r = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
             if r.returncode == 0:
                 self.success.emit(self._ssid)
@@ -422,8 +422,12 @@ class _WifiCard(QFrame):
         self._outer.addWidget(self._list_widget)
 
     def _on_scan(self):
+        if self._list_widget.isVisible():
+            self._list_widget.hide()
+            self._status_lbl.hide()
+            self._change_btn.setText("네트워크 변경")
+            return
         self._change_btn.setEnabled(False)
-        self._list_widget.hide()
         self._set_status("네트워크 검색 중...", _GRAY)
         self._scan_thread = _WifiScanThread(parent=self)
         self._scan_thread.done.connect(self._on_scanned)
@@ -450,6 +454,7 @@ class _WifiCard(QFrame):
         for net in networks:
             self._list_lay.addWidget(self._make_row(net))
         self._list_widget.show()
+        self._change_btn.setText("닫기")
 
     def _make_row(self, net: dict) -> QWidget:
         row = QWidget()
@@ -525,11 +530,13 @@ class _WifiCard(QFrame):
         self._ip_lbl.setText(_current_ip())
         self._set_status(f"'{ssid}' 연결 성공!", _GREEN)
         self._change_btn.setEnabled(True)
+        self._change_btn.setText("네트워크 변경")
         QTimer.singleShot(3000, self._status_lbl.hide)
 
     def _on_connect_failed(self, msg: str):
         self._set_status(f"연결 실패: {msg}", _RED)
         self._change_btn.setEnabled(True)
+        self._change_btn.setText("닫기")
         self._list_widget.show()
 
     def _set_status(self, text: str, color: str):

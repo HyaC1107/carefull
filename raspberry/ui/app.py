@@ -107,8 +107,7 @@ class App(QMainWindow):
         self._trigger_sync()
         self._schedule_timer = QTimer(self)
         self._schedule_timer.timeout.connect(self._trigger_sync)
-        # 30초 -> 5초로 단축하여 정시 알람 정확도 향상
-        self._schedule_timer.start(5000)
+        self._schedule_timer.start(1000)  # 1초 간격 — 정시 1초 이내 발동
 
     def _trigger_sync(self):
         # 1분에 한 번만 서버와 실제 동기화, 나머지는 로컬 캐시 체크
@@ -137,7 +136,7 @@ class App(QMainWindow):
         if schedules:
             self._cached_schedules = schedules
 
-        from scheduler.schedule import check_schedule
+        from scheduler.schedule import check_schedule, mark_triggered
         due = check_schedule(self._cached_schedules or None, caller_id="ui")
         if not due:
             return
@@ -145,12 +144,21 @@ class App(QMainWindow):
         s = due[0]
         logger.info(f"UI Schedule Triggered: {s.get('sche_id')}")
 
-        # 복약 안내 화면으로 전환 (현재 화면이 다른 작업 중이 아닐 때만)
+        # 복약 진행 중인 화면이면 스킵 (알람 누락 방지를 위해 마킹도 하지 않음)
         current = self.stack.currentWidget()
-        if current in [self.screens["home"], self.screens["medication_start"], self.screens["auth_result"]]:
-            self.current_session = _new_session()
-            self.current_session["sche_id"] = s.get("sche_id")
-            self.show_screen("medication_start")
+        _in_progress = {
+            self.screens["camera_view"],
+            self.screens["fingerprint_auth"],
+            self.screens["dispensing"],
+            self.screens["medication"],
+        }
+        if current in _in_progress:
+            return
+
+        mark_triggered(s, caller_id="ui")
+        self.current_session = _new_session()
+        self.current_session["sche_id"] = s.get("sche_id")
+        self.show_screen("medication_start")
 
 
 def run():

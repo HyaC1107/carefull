@@ -319,42 +319,30 @@ class HomeScreen(QWidget):
             test_row2 = QHBoxLayout()
             test_row2.setSpacing(12)
 
-            btn_med_test = _MenuButton(
-                "medication.png", "복약", "복약행위 검증",
+            btn_full_med_test = _MenuButton(
+                "medication.png", "💊", "전체 복약 테스트",
+                lambda: self._go_full_med_test(),
+                icon_size=56, font_size=28,
+            )
+            btn_full_med_test.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+            btn_full_med_test.setMinimumHeight(130)
+            btn_full_med_test.setStyleSheet(
+                "QWidget { background-color: #fff8e8; border: 2px solid #fcd34d; border-radius: 14px; }"
+            )
+
+            btn_behavior_test = _MenuButton(
+                "medication.png", "🤸", "복약행위 검증",
                 lambda: self._go("medication"),
                 icon_size=56, font_size=28,
             )
-            btn_med_test.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
-            btn_med_test.setMinimumHeight(130)
-            btn_med_test.setStyleSheet(
+            btn_behavior_test.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+            btn_behavior_test.setMinimumHeight(130)
+            btn_behavior_test.setStyleSheet(
                 "QWidget { background-color: #f0fdf4; border: 2px solid #86efac; border-radius: 14px; }"
             )
 
-            btn_fp_reg = _MenuButton(
-                "fingerprint.png", "지문", "지문 등록",
-                lambda: self._go("fingerprint_register"),
-                icon_size=56, font_size=28,
-            )
-            btn_fp_reg.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
-            btn_fp_reg.setMinimumHeight(130)
-            btn_fp_reg.setStyleSheet(
-                "QWidget { background-color: #fdf4ff; border: 2px solid #e9d5ff; border-radius: 14px; }"
-            )
-
-            btn_fp_test = _MenuButton(
-                "fingerprint.png", "지문", "지문 인증 테스트",
-                lambda: self._go_fp_test(),
-                icon_size=56, font_size=28,
-            )
-            btn_fp_test.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
-            btn_fp_test.setMinimumHeight(130)
-            btn_fp_test.setStyleSheet(
-                "QWidget { background-color: #fff7ed; border: 2px solid #fed7aa; border-radius: 14px; }"
-            )
-
-            test_row2.addWidget(btn_med_test)
-            test_row2.addWidget(btn_fp_reg)
-            test_row2.addWidget(btn_fp_test)
+            test_row2.addWidget(btn_full_med_test)
+            test_row2.addWidget(btn_behavior_test)
             root.addLayout(test_row2)
 
         root.addStretch(1)
@@ -456,3 +444,9 @@ class HomeScreen(QWidget):
         if self._app:
             self._app.current_session["fp_test_mode"] = True
             self._app.show_screen("fingerprint_auth")
+
+    def _go_full_med_test(self):
+        if self._app:
+            from ui.app import _new_session
+            self._app.current_session = _new_session()
+            self._app.show_screen("medication_start")
