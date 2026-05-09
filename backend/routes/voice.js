@@ -12,8 +12,10 @@ const elevenlabs      = require('../services/elevenlabs.service');
 // ─── 디렉터리 ─────────────────────────────────────────────────────────────────
 const SOUNDS_DIR   = path.join(__dirname, '..', 'uploads', 'sounds');
 const PREVIEWS_DIR = path.join(__dirname, '..', 'uploads', 'previews');
+const SAMPLES_DIR  = path.join(__dirname, '..', 'uploads', 'voice_samples');
 fs.mkdirSync(SOUNDS_DIR,   { recursive: true });
 fs.mkdirSync(PREVIEWS_DIR, { recursive: true });
+fs.mkdirSync(SAMPLES_DIR,  { recursive: true });
 
 // ─── 공통 헬퍼 ────────────────────────────────────────────────────────────────
 async function get_patient_id(mem_id) {
