@@ -42,3 +42,13 @@
 **서버 DB 호환성 정보**:
 - 서버(MySQL)의 경우, 현재 `face_vector` 컬럼이 단일 벡터(문자열/Blob)를 저장하는 구조라면, 상위 10개의 **평균값(Mean Embedding)**을 대표로 전송하여 호환성을 유지하고 있습니다.
 - 만약 서버에서도 멀티 매칭을 수행하려면 테이블 구조를 1:N(User:Templates) 관계로 확장해야 합니다. (현재는 기기 로컬 인증 성능 강화에 집중되어 있습니다.)
+
+
+#!/bin/bash
+# 사용법 (SSH에서):
+#   ./record.sh start    # 녹화 시작
+#   ./record.sh stop     # 녹화 종료 및 파일 저장
+#   ./record.sh status   # 녹화 중 여부 확인
+#
+# 설치 (최초 1회):
+#   sudo apt install wf-recorder
