@@ -283,9 +283,9 @@ class HomeScreen(QWidget):
         if UI_TEST_MODE:
             root.addSpacing(16)
 
-            # ── 테스트 단축 버튼 1줄 ─────────────────────────────────────────────
-            test_row1 = QHBoxLayout()
-            test_row1.setSpacing(12)
+            # ── 테스트 단축 버튼 ──────────────────────────────────────────────────
+            test_row = QHBoxLayout()
+            test_row.setSpacing(12)
 
             btn_face_test = _MenuButton(
                 "camera_auth.png", "얼굴", "얼굴 인증 테스트",
@@ -298,27 +298,6 @@ class HomeScreen(QWidget):
                 "QWidget { background-color: #eff6ff; border: 2px solid #93c5fd; border-radius: 14px; }"
             )
 
-            btn_reg_test = _MenuButton(
-                "register.png", "등록", "사용자 등록",
-                lambda: self._go("register"),
-                icon_size=56, font_size=28,
-            )
-            btn_reg_test.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
-            btn_reg_test.setMinimumHeight(130)
-            btn_reg_test.setStyleSheet(
-                "QWidget { background-color: #f5f0ff; border: 2px solid #c4b5fd; border-radius: 14px; }"
-            )
-
-            test_row1.addWidget(btn_face_test)
-            test_row1.addWidget(btn_reg_test)
-            root.addLayout(test_row1)
-
-            root.addSpacing(12)
-
-            # ── 테스트 단축 버튼 2줄 ─────────────────────────────────────────────
-            test_row2 = QHBoxLayout()
-            test_row2.setSpacing(12)
-
             btn_full_med_test = _MenuButton(
                 "medication.png", "💊", "전체 복약 테스트",
                 lambda: self._go_full_med_test(),
@@ -330,20 +309,9 @@ class HomeScreen(QWidget):
                 "QWidget { background-color: #fff8e8; border: 2px solid #fcd34d; border-radius: 14px; }"
             )
 
-            btn_behavior_test = _MenuButton(
-                "medication.png", "🤸", "복약행위 검증",
-                lambda: self._go("medication"),
-                icon_size=56, font_size=28,
-            )
-            btn_behavior_test.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
-            btn_behavior_test.setMinimumHeight(130)
-            btn_behavior_test.setStyleSheet(
-                "QWidget { background-color: #f0fdf4; border: 2px solid #86efac; border-radius: 14px; }"
-            )
-
-            test_row2.addWidget(btn_full_med_test)
-            test_row2.addWidget(btn_behavior_test)
-            root.addLayout(test_row2)
+            test_row.addWidget(btn_face_test)
+            test_row.addWidget(btn_full_med_test)
+            root.addLayout(test_row)
 
         root.addStretch(1)
 
