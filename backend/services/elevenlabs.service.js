@@ -1,8 +1,9 @@
 const fs   = require('fs');
 const path = require('path');
+const axios = require('axios');
 const { ElevenLabsClient } = require('@elevenlabs/elevenlabs-js');
 
-const MODEL_ID     = 'eleven_v3';
+const MODEL_ID     = 'eleven_multilingual_v2';
 const DEFAULT_TEXT = '약 먹을 시간이에요. 보호자님이 알려드려요. 물과 함께 천천히 약을 복용해주세요.';
 
 function get_client() {
@@ -25,32 +26,39 @@ async function get_voices() {
         return _voices_cache;
     }
 
-    const client = get_client();
-    
-    // 한국어(ko) 필터를 사용하여 공유된 보이스 목록 조회
-    // SDK의 voiceLibrary.getAll 사용 (내부적으로 shared-voices 호출)
-    const response = await client.voiceLibrary.getAll({
-        language: 'ko',
-        pageSize: 10
+    const api_key = process.env.ELEVENLABS_API_KEY;
+    if (!api_key) throw new Error('ELEVENLABS_API_KEY 환경변수가 설정되지 않았습니다');
+
+    // SDK 대신 axios를 사용하여 직접 호출 (안정성 확보)
+    const response = await axios.get('https://api.elevenlabs.io/v1/shared-voices', {
+        params: {
+            language: 'ko',
+            page_size: 10
+        },
+        headers: {
+            'xi-api-key': api_key
+        }
     });
 
-    const result = (response.voices || [])
-        .map(v => ({
-            voice_id: v.public_owner_id ? v.voice_id : v.voice_id, // 공유 보이스 ID
-            name:     v.name  || '',
-            labels:   { 
-                accent: v.accent,
-                gender: v.gender,
-                age: v.age,
-                use_case: v.use_case
-            },
-            preview_url_official: v.preview_url // ElevenLabs에서 제공하는 기본 미리보기 URL
-        }));
+    const voices = response.data.voices || [];
+
+    const result = voices.map(v => ({
+        voice_id: v.voice_id,
+        name:     v.name  || '',
+        labels:   { 
+            accent: v.accent,
+            gender: v.gender,
+            age: v.age,
+            use_case: v.use_case
+        },
+        preview_url_official: v.preview_url
+    }));
 
     _voices_cache    = result;
     _voices_cache_at = now;
     return result;
 }
+
 
 /**
  * 지정된 목소리와 텍스트로 TTS MP3 생성 → output_path에 저장
