@@ -54,38 +54,7 @@ Carefull (케어풀)
 
 ## 🏗 시스템 아키텍처
 
-```mermaid
-flowchart TD
-    subgraph "Cloud & Server Layer"
-        API[Backend API: Node.js/Express]
-        DB[(PostgreSQL)]
-        FCM[Firebase Cloud Messaging]
-        Eleven[ElevenLabs AI Voice API]
-    end
-
-    subgraph "Guardian Web (React)"
-        Web[Dashboard / Schedule / TTS Settings]
-    end
-
-    subgraph "Edge Device (Raspberry Pi)"
-        App[PyQt5 Main Application]
-        Camera[Pi Camera / Face Tracking]
-        Auth[Face & Fingerprint Auth]
-        Pose[MediaPipe Pose Detection]
-        Hardware[Motor / Pump / Buzzer]
-    end
-
-    Web <-->|REST API / JWT| API
-    API <--> DB
-    API -->|TTS Generation| Eleven
-    API -->|Push Notification| FCM
-    FCM -->|Mobile Alert| Web
-    App <-->|Sync Schedule & Logs| API
-    App --> Hardware
-    Camera --> App
-```
-
----
+![Carefull architecture](시스템아키텍쳐.png)
 
 ## 📈 데이터 흐름 및 로직
 
