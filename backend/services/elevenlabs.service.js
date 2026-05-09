@@ -29,7 +29,7 @@ async function get_voices() {
     const api_key = process.env.ELEVENLABS_API_KEY;
     if (!api_key) throw new Error('ELEVENLABS_API_KEY 환경변수가 설정되지 않았습니다');
 
-    // SDK 대신 axios를 사용하여 직접 호출 (안정성 확보)
+    // SDK 대신 axios를 사용하여 직접 호출 (데이터 구조: { voices: [...] })
     const response = await axios.get('https://api.elevenlabs.io/v1/shared-voices', {
         params: {
             language: 'ko',
@@ -46,10 +46,11 @@ async function get_voices() {
         voice_id: v.voice_id,
         name:     v.name  || '',
         labels:   { 
-            accent: v.accent,
-            gender: v.gender,
-            age: v.age,
-            use_case: v.use_case
+            accent: v.accent || '',
+            gender: v.gender || '',
+            age: v.age || '',
+            use_case: v.use_case || '',
+            descriptive: v.descriptive || ''
         },
         preview_url_official: v.preview_url
     }));
@@ -58,7 +59,6 @@ async function get_voices() {
     _voices_cache_at = now;
     return result;
 }
-
 
 /**
  * 지정된 목소리와 텍스트로 TTS MP3 생성 → output_path에 저장
