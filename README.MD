@@ -82,12 +82,12 @@ carefull/
 
 | 이름 | 역할 | 핵심 기여 내용 |
 | :--- | :--- | :--- |
-| **양채린** | **PM / AI** | AI 모델링(MobileFaceNet), DB 설계, 프로젝트 총괄 |
-| **오승현** | **IoT / Embedded** | 하드웨어 제어 로직, 짐벌 추적 시스템, 디바이스 UI 개발 |
-| **이승형** | **Backend** | API 설계, ElevenLabs TTS 시스템 구축, FCM 알림 로직 |
-| **한세범** | **Frontend** | 웹 대시보드 개발, PWA 연동, 실시간 데이터 시각화 |
-| **송현수** | **UI/UX Design** | 고령자 맞춤형 GUI 디자인 및 웹/앱 퍼블리싱 |
-| **양일오** | **Hardware Assist** | 기구부 설계 및 하드웨어 테스트 지원 |
+| **장철영** | **PM / AI** | AI 모델링(MobileFaceNet), DB 설계, 프로젝트 총괄 |
+| **---** | **IoT / Embedded** | 하드웨어 제어 로직, 짐벌 추적 시스템, 디바이스 UI 개발 |
+| **---** | **Backend** | API 설계, ElevenLabs TTS 시스템 구축, FCM 알림 로직 |
+| **---** | **Frontend** | 웹 대시보드 개발, PWA 연동, 실시간 데이터 시각화 |
+| **---** | **UI/UX Design** | 고령자 맞춤형 GUI 디자인 및 웹/앱 퍼블리싱 |
+| **---** | **Hardware Assist** | 기구부 설계 및 하드웨어 테스트 지원 |
 
 ---
 
