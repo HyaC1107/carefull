@@ -61,15 +61,28 @@ async function generate_tts(voice_id, text, output_path) {
         },
     });
 
-    // Node.js 18+: ReadableStream<Uint8Array> 은 async iterable 지원
-    const chunks = [];
-    for await (const chunk of audio_stream) {
-        chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+    fs.mkdirSync(path.dirname(output_path), { recursive: true });
+
+    // 안정적인 스트리밍 방식으로 파일 쓰기
+    const file_stream = fs.createWriteStream(output_path);
+    
+    try {
+        for await (const chunk of audio_stream) {
+            file_stream.write(Buffer.from(chunk));
+        }
+    } catch (err) {
+        file_stream.end();
+        throw err;
     }
 
-    fs.mkdirSync(path.dirname(output_path), { recursive: true });
-    fs.writeFileSync(output_path, Buffer.concat(chunks));
-    return output_path;
+    return new Promise((resolve, reject) => {
+        file_stream.end();
+        file_stream.on('finish', () => {
+            console.log(`[TTS] File saved successfully: ${output_path} (Size: ${fs.statSync(output_path).size} bytes)`);
+            resolve(output_path);
+        });
+        file_stream.on('error', reject);
+    });
 }
 
 /**
