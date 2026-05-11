@@ -1,9 +1,12 @@
+import logging
 import os
 import time
 
 import cv2
 
 from config.settings import CAMERA_HEIGHT, CAMERA_WARMUP_SECONDS, CAMERA_WIDTH
+
+logger = logging.getLogger(__name__)
 
 # CAREFULL_USE_WEBCAM=1 이면 PC 웹캠, 아니면 Picamera2 시도 후 폴백
 _USE_WEBCAM = os.getenv("CAREFULL_USE_WEBCAM", "0") == "1"
@@ -35,8 +38,8 @@ def _init_picamera():
         _picam2 = cam
         return _picam2
     except Exception as e:
-        _picam2_available = False # 한 번 실패하면 해당 세션에서는 다시 시도하지 않음
-        print(f"[CAMERA/PICAM ERROR] {e} - Picamera2 disabled, falling back to webcam.")
+        _picam2_available = False
+        logger.error(f"[CAMERA/PICAM INIT ERROR] {e} - Picamera2 disabled, falling back to webcam.")
         return None
 
 
@@ -52,7 +55,7 @@ def _get_frame_picamera() -> "cv2.ndarray | None":
         frame = cv2.flip(frame, -1)
         return cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
     except Exception as e:
-        print(f"[CAMERA/PICAM CAPTURE ERROR] {e}")
+        logger.error(f"[CAMERA/PICAM CAPTURE ERROR] {e}")
         return None
 
 
@@ -62,24 +65,39 @@ def _init_webcam():
     global _webcam
     if _webcam is not None and _webcam.isOpened():
         return _webcam
-    cap = cv2.VideoCapture(0)
-    cap.set(cv2.CAP_PROP_FRAME_WIDTH, CAMERA_WIDTH)
-    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, CAMERA_HEIGHT)
-    time.sleep(CAMERA_WARMUP_SECONDS)
-    _webcam = cap
-    return _webcam
+
+    for idx in range(4):
+        cap = cv2.VideoCapture(idx)
+        if not cap.isOpened():
+            cap.release()
+            continue
+        ok, _ = cap.read()
+        if ok:
+            cap.set(cv2.CAP_PROP_FRAME_WIDTH, CAMERA_WIDTH)
+            cap.set(cv2.CAP_PROP_FRAME_HEIGHT, CAMERA_HEIGHT)
+            time.sleep(CAMERA_WARMUP_SECONDS)
+            _webcam = cap
+            logger.info(f"[CAMERA] Webcam found at index {idx}.")
+            return _webcam
+        cap.release()
+
+    logger.warning("[CAMERA/WEBCAM] No usable webcam found (index 0-3).")
+    _webcam = None
+    return None
 
 
 def _get_frame_webcam() -> "cv2.ndarray | None":
     try:
         cap = _init_webcam()
+        if cap is None:
+            return None
         ok, frame = cap.read()
         if ok:
             # 카메라 상하 반전 장착에 따른 180도 회전
             return cv2.flip(frame, -1)
         return None
     except Exception as e:
-        print(f"[CAMERA/WEBCAM ERROR] {e}")
+        logger.error(f"[CAMERA/WEBCAM ERROR] {e}")
         return None
 
 
@@ -100,7 +118,7 @@ def release_camera():
         except Exception:
             pass
         _picam2 = None
-        print("[CAMERA] Picamera2 stopped.")
+        logger.info("[CAMERA] Picamera2 stopped.")
 
     if _webcam is not None:
         try:
@@ -108,7 +126,7 @@ def release_camera():
         except Exception:
             pass
         _webcam = None
-        print("[CAMERA] Webcam released.")
+        logger.info("[CAMERA] Webcam released.")
 
     # 해제 후에는 다음 시도에서 재초기화 허용
     _picam2_available = True

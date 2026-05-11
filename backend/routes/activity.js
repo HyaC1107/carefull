@@ -591,6 +591,8 @@ router.post('/device-event', async (req, res) => {
 
         if (duplicated_activity) {
             await touch_device_last_ping_by_device_uid(client, device_uid);
+            await client.query('COMMIT'); // 핑 업데이트 후 커밋 필요
+            transaction_started = false;
             return sendSuccess(res, 200, {
                 message: 'Duplicate device event ignored. Existing activity returned.',
                 activity: to_activity_response(duplicated_activity),

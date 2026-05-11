@@ -1,6 +1,6 @@
 import time
 
-from PyQt5.QtCore import Qt, QRectF, QThread, pyqtSignal
+from PyQt5.QtCore import Qt, QRectF, QThread, QTimer, pyqtSignal
 from PyQt5.QtGui import QColor, QFont, QPainter, QPainterPath, QPen
 from PyQt5.QtWidgets import (
     QPushButton, QSizePolicy, QVBoxLayout, QWidget, QLabel,
@@ -10,6 +10,14 @@ from utils.ui_prefs import FONT_SCALE as _FS
 
 def _fs(n: int) -> int:
     return max(1, int(n * _FS))
+
+def _play_voice(filename: str):
+    try:
+        from hardware.alarm import play_voice
+        play_voice(filename)
+    except Exception:
+        pass
+
 
 _BG     = "#fff8e8"
 _ORANGE = "#f97316"
@@ -138,15 +146,25 @@ class MedicationStartScreen(QWidget):
 
     def showEvent(self, event):
         super().showEvent(event)
-        self._start_alarm()
+        _play_voice("med_alarm.mp3")
+        self._alarm_loop_timer = QTimer(self)
+        self._alarm_loop_timer.setSingleShot(True)
+        self._alarm_loop_timer.timeout.connect(self._start_alarm_loop)
+        self._alarm_loop_timer.start(4500)
         self._start_face_watch()
 
     def hideEvent(self, event):
         super().hideEvent(event)
         self._stop_face_watch()
         self._stop_alarm()
+        if hasattr(self, "_alarm_loop_timer"):
+            self._alarm_loop_timer.stop()
 
     # ── 알람 ─────────────────────────────────────────────────────────────────
+
+    def _start_alarm_loop(self):
+        if self.isVisible():
+            self._start_alarm()
 
     def _start_alarm(self):
         try:

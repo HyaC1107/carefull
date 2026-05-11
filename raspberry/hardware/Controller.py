@@ -17,7 +17,7 @@ except ImportError:
         def cleanup(self): pass
     GPIO = MockGPIO()
 
-from scheduler.schedule import check_schedule, sync_schedules
+from scheduler.schedule import check_schedule, mark_triggered, sync_schedules
 from hardware.alarm import play_alarm, stop_alarm
 from camera.camera import check_camera_health, release_camera
 from config.settings import VOICES_DIR, STEP_PINS, PUMP_PIN
@@ -119,15 +119,14 @@ class Controller(threading.Thread):
                         medi_name = s.get("medi_name", "약")
                         logger.info(f"Schedule due: {medi_name} (ID: {sche_id}) — alarm only, UI handles the rest")
 
+                        mark_triggered(s, caller_id="controller")
+
                         # 알람만 울림 — 인증/배출/검증은 app.py UI 흐름이 담당
-                        # 보호자 맞춤 음성(voice_id.mp3) 우선 확인
                         custom_voice = f"voice_{sche_id}.mp3"
-                        
                         logger.info(f"Triggering alarm for schedule {sche_id}")
                         play_alarm(custom_voice)
-                        
-                # 30초 -> 5초로 단축하여 정시 알람 정확도 향상
-                time.sleep(5)
+
+                time.sleep(1)
                 
             except Exception as e:
                 logger.error(f"Error in Controller loop: {e}")

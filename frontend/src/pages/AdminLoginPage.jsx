@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { adminRequest, setAdminToken } from '../adminApi'
+import { adminRequest, setAdminToken, setDemoUserToken } from '../adminApi'
 
 export default function AdminLoginPage() {
   const navigate = useNavigate()
@@ -20,7 +20,12 @@ export default function AdminLoginPage() {
         body: { login_id: loginId, password },
       })
       setAdminToken(data.token)
-      navigate('/admin/dashboard', { replace: true })
+      if (data.demo_user_token) {
+        setDemoUserToken(data.demo_user_token)
+        navigate('/dashboard', { replace: true })
+      } else {
+        navigate('/admin/panel', { replace: true })
+      }
     } catch (err) {
       setError(err.message || '로그인에 실패했습니다.')
     } finally {

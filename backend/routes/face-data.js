@@ -130,6 +130,12 @@ router.get('/device', async (req, res) => {
     }
 
     try {
+        // 기기 상태(last_ping) 업데이트
+        await pool.query(
+            'UPDATE devices SET last_ping = CURRENT_TIMESTAMP WHERE device_uid = $1',
+            [String(device_uid).trim()]
+        );
+
         const query = `
             SELECT
                 fe.face_id,

@@ -13,6 +13,14 @@ from utils.ui_prefs import FONT_SCALE as _FS
 def _fs(n: int) -> int:
     return max(1, int(n * _FS))
 
+def _play_voice(filename: str):
+    try:
+        from hardware.alarm import play_voice
+        play_voice(filename)
+    except Exception:
+        pass
+
+
 _DB_PATH = os.path.normpath(
     os.path.join(os.path.dirname(__file__), "..", "..", "db", "user_db.json")
 )
@@ -341,6 +349,7 @@ class CameraViewScreen(QWidget):
         self._thread.capture_done.connect(self._on_capture_done)
 
         if self._mode == MODE_AUTH:
+            self._thread.auth_success.connect(self._on_auth_success)
             self._thread.auth_failed.connect(self._on_auth_failed)
         else:
             self._thread.capture_progress.connect(self._on_progress)
@@ -363,7 +372,10 @@ class CameraViewScreen(QWidget):
             self._auth_started = True
             self._loading_lbl.hide()
             if self._mode == MODE_AUTH:
+                _play_voice("med_auth_face.mp3")
                 self._begin_auth_countdown()
+            elif self._mode == MODE_REGISTER:
+                _play_voice("reg_face_guide.mp3")
 
     def _begin_auth_countdown(self):
         self._remaining = AUTH_TIMEOUT_SEC
@@ -387,8 +399,9 @@ class CameraViewScreen(QWidget):
     def _on_capture_done(self, face_imgs: list):
         """[중요] 캡처 완료 시 모드에 따라 처리."""
         self._stop_thread()
-        
+
         if self._mode == MODE_REGISTER:
+            _play_voice("reg_face_done.mp3")
             self._last_face_imgs = face_imgs
             self._sub_lbl.setText("저장 중...")
             self._save_worker = _EmbeddingSaveWorker(face_imgs, parent=self)
@@ -414,7 +427,19 @@ class CameraViewScreen(QWidget):
     def _on_auth_failed(self):
         self._stop_thread()
         print(f"\n[AUTH_RESULT] 실패: 일치하는 사용자를 찾을 수 없거나 임계값 미달")
-        if self._app: self._app.show_screen("fingerprint_auth")
+        self._processing_overlay.setStyleSheet("background-color: #3a1a1a;")
+        self._proc_msg.setText("얼굴 인증에 실패했습니다\n지문 인증으로 전환합니다...")
+        self._proc_msg.setStyleSheet("color: #fca5a5;")
+        self._processing_overlay.show()
+        from PyQt5.QtCore import QTimer
+        QTimer.singleShot(2000, self._go_fingerprint_auth)
+
+    def _go_fingerprint_auth(self):
+        self._processing_overlay.hide()
+        self._processing_overlay.setStyleSheet("background-color: #1e293b;")
+        self._proc_msg.setStyleSheet("color: white;")
+        if self._app:
+            self._app.show_screen("fingerprint_auth")
 
     def _on_progress(self, count: int):
         phase_in_count = ((count - 1) % 4) + 1
@@ -429,6 +454,16 @@ class CameraViewScreen(QWidget):
         else:
             self._sub_lbl.setText(f"{direction}을(를) 바라봐 주세요")
             self._sub_lbl.setStyleSheet("color: #93c5fd; background: transparent;")
+            _DIRECTION_VOICE = {
+                "정면": "reg_face_front.mp3",
+                "위": "reg_face_up.mp3",
+                "아래": "reg_face_down.mp3",
+                "왼쪽": "reg_face_left.mp3",
+                "오른쪽": "reg_face_right.mp3",
+            }
+            voice = _DIRECTION_VOICE.get(direction)
+            if voice:
+                _play_voice(voice)
 
     def _on_save_done(self, ok: bool):
         if ok:

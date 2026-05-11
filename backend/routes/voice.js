@@ -12,8 +12,10 @@ const elevenlabs      = require('../services/elevenlabs.service');
 // ─── 디렉터리 ─────────────────────────────────────────────────────────────────
 const SOUNDS_DIR   = path.join(__dirname, '..', 'uploads', 'sounds');
 const PREVIEWS_DIR = path.join(__dirname, '..', 'uploads', 'previews');
+const SAMPLES_DIR  = path.join(__dirname, '..', 'uploads', 'voice_samples');
 fs.mkdirSync(SOUNDS_DIR,   { recursive: true });
 fs.mkdirSync(PREVIEWS_DIR, { recursive: true });
+fs.mkdirSync(SAMPLES_DIR,  { recursive: true });
 
 // ─── 공통 헬퍼 ────────────────────────────────────────────────────────────────
 async function get_patient_id(mem_id) {
@@ -51,7 +53,22 @@ async function delete_patient_voices(patient_id) {
 router.get('/voices', verifyToken, async (req, res) => {
     try {
         const voices = await elevenlabs.get_voices();
-        return sendSuccess(res, 200, { voices });
+
+        // 각 목소리별로 /uploads/voice_samples 폴더에 샘플 파일이 있는지 확인
+        const voices_with_samples = voices.map(v => {
+            const sample_filename = `${v.voice_id}.mp3`;
+            const has_sample = fs.existsSync(path.join(SAMPLES_DIR, sample_filename));
+            
+            return {
+                ...v,
+                // 로컬 샘플이 있으면 우선 사용, 없으면 ElevenLabs 공식 미리보기 URL 사용
+                preview_url: has_sample 
+                    ? `/uploads/voice_samples/${sample_filename}` 
+                    : (v.preview_url_official || null)
+            };
+        });
+
+        return sendSuccess(res, 200, { voices: voices_with_samples });
     } catch (err) {
         console.error('[GET /api/voice/voices]', err.message);
         return sendError(res, 502, 'ElevenLabs 목소리 목록을 가져오지 못했습니다');

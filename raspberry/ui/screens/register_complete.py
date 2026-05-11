@@ -8,6 +8,14 @@ _ICONS_DIR = os.path.normpath(
     os.path.join(os.path.dirname(__file__), "..", "..", "assets", "icons")
 )
 
+def _play_voice(filename: str):
+    try:
+        from hardware.alarm import play_voice
+        play_voice(filename)
+    except Exception:
+        pass
+
+
 _BG = "#c8f5e2"
 _GREEN = "#16a34a"
 _DARK = "#14532d"
@@ -87,7 +95,8 @@ class RegisterCompleteScreen(QWidget):
 
     def showEvent(self, event):
         super().showEvent(event)
-        QTimer.singleShot(2500, self._go_home)
+        _play_voice("reg_complete.mp3")
+        QTimer.singleShot(5000, self._go_home)
 
     def _go_home(self):
         if self._app:

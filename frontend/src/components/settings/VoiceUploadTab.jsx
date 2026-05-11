@@ -51,8 +51,30 @@ function VoiceUploadTab() {
   }
 
   async function handlePreview() {
-    if (!selectedVoice) { setErrorMsg('목소리를 먼저 선택해주세요'); return }
-    if (!text.trim())   { setErrorMsg('알림 문구를 입력해주세요');    return }
+    if (!selectedVoice) {
+      setErrorMsg('목소리를 먼저 선택해주세요')
+      return
+    }
+    // 정적 샘플 URL이 있으면 그것을 사용 (API 호출 안 함)
+    if (selectedVoice.preview_url) {
+      setErrorMsg('')
+      setPreviewUrl(selectedVoice.preview_url)
+      // src 변경 후 오디오 로드 및 재생을 위해 약간의 지연 후 play 호출
+      setTimeout(() => {
+        if (audioRef.current) {
+          audioRef.current.pause()
+          audioRef.current.load()
+          audioRef.current.play().catch(() => {})
+        }
+      }, 50)
+      return
+    }
+
+    // 샘플이 없는 경우에만 기존처럼 API 생성 시도 (대비책)
+    if (!text.trim()) {
+      setErrorMsg('알림 문구를 입력해주세요')
+      return
+    }
     setPreviewLoading(true)
     setErrorMsg('')
     setPreviewUrl(null)
@@ -60,7 +82,10 @@ function VoiceUploadTab() {
       const res = await fetch(`${API_BASE}/api/voice/preview`, {
         method: 'POST',
         headers: authHeaders(),
-        body: JSON.stringify({ voice_id: selectedVoice.voice_id, text: text.trim() }),
+        body: JSON.stringify({
+          voice_id: selectedVoice.voice_id,
+          text: text.trim(),
+        }),
       })
       if (!res.ok) {
         const e = await res.json().catch(() => ({}))
@@ -77,18 +102,25 @@ function VoiceUploadTab() {
   }
 
   async function handleSave() {
-    if (!selectedVoice) { setErrorMsg('목소리를 먼저 선택해주세요'); return }
-    if (!text.trim())   { setErrorMsg('알림 문구를 입력해주세요');    return }
+    if (!selectedVoice) {
+      setErrorMsg('목소리를 먼저 선택해주세요')
+      return
+    }
+    if (!text.trim()) {
+      setErrorMsg('알림 문구를 입력해주세요')
+      return
+    }
     setMode('saving')
     setErrorMsg('')
     try {
+      // 실제 ElevenLabs API를 호출하여 TTS 파일 생성 및 DB 저장
       const res = await fetch(`${API_BASE}/api/voice/generate`, {
         method: 'POST',
         headers: authHeaders(),
         body: JSON.stringify({
-          voice_id:   selectedVoice.voice_id,
+          voice_id: selectedVoice.voice_id,
           voice_name: selectedVoice.name,
-          text:       text.trim(),
+          text: text.trim(),
         }),
       })
       if (!res.ok) {
@@ -197,7 +229,7 @@ function VoiceUploadTab() {
           {previewUrl && (
             <audio
               ref={audioRef}
-              src={`${API_BASE}${previewUrl}`}
+              src={previewUrl.startsWith('http') ? previewUrl : `${API_BASE}${previewUrl}`}
               controls
               className="voice-preview-player"
             />

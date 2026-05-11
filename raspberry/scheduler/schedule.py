@@ -58,10 +58,18 @@ def check_schedule(schedules: list = None, caller_id: str = "default") -> list:
             continue
         sche_time = _to_hhmm(time_val)
 
-        # 호출처별로 별도의 트리거 기록 관리
         key = f"{caller_id}_{sche_id}_{sche_time}"
         if sche_time == now_time and last_triggered.get(key) != today:
             due.append(s)
-            last_triggered[key] = today
+            # 마킹은 여기서 하지 않음 — 실제로 화면 전환이 된 뒤 mark_triggered() 호출
 
     return due
+
+
+def mark_triggered(s: dict, caller_id: str = "default"):
+    """스케줄을 오늘 발동된 것으로 기록. check_schedule()로 감지한 뒤 실제 처리 시 호출."""
+    today = datetime.now().strftime("%Y-%m-%d")
+    sche_id = s.get("sche_id")
+    sche_time = _to_hhmm(s.get("time_to_take", ""))
+    key = f"{caller_id}_{sche_id}_{sche_time}"
+    last_triggered[key] = today

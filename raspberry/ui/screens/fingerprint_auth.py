@@ -20,6 +20,14 @@ _BLUE  = "#3b82f6"
 _DARK  = "#1e3a5f"
 _RED   = "#ef4444"
 
+def _play_voice(filename: str):
+    try:
+        from hardware.alarm import play_voice
+        play_voice(filename)
+    except Exception:
+        pass
+
+
 _AUTH_TIMEOUT_MS = 30_000
 _MAX_RETRIES     = 3
 
@@ -277,6 +285,7 @@ class FingerprintAuthScreen(QWidget):
 
     def showEvent(self, event):
         super().showEvent(event)
+        _play_voice("med_auth_fp.mp3")
         self._retry_count = 0
         self._reset()
         self._start_auth()
@@ -358,9 +367,10 @@ class FingerprintAuthScreen(QWidget):
             self._on_auth_failure() # 3회 실패 시 자동으로 전체 재시도 확인 화면으로
         else:
             print(f"[FP_AUTH] Not found. Retry {self._retry_count}/{_MAX_RETRIES}")
+            _play_voice("med_auth_fp_retry.mp3")
             self._title_lbl.setText("지문이 일치하지 않습니다")
             self._sub_lbl.setText(f"다시 센서에 손가락을 올려주세요 ({self._retry_count}/{_MAX_RETRIES})")
-            QTimer.singleShot(1500, self._on_retry)
+            QTimer.singleShot(3000, self._on_retry)
 
     def _on_failed(self, msg: str):
         self._stop_timers()

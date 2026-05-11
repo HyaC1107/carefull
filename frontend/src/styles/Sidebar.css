@@ -118,6 +118,28 @@
   text-align: left;
 }
 
+/* 관리자 메뉴 구분선 */
+.sidebar__divider {
+  height: 1px;
+  background: #e5e7eb;
+  margin: 4px 2px;
+}
+
+/* 관리자 메뉴 버튼 */
+.sidebar__menu-button--admin {
+  color: #6b21a8;
+}
+
+.sidebar__menu-button--admin:hover {
+  background: #f5f3ff;
+  color: #6b21a8;
+}
+
+.sidebar__menu-button--admin.sidebar__menu-button--active {
+  background: #7c3aed;
+  color: #ffffff;
+}
+
 /* 알림 숫자 뱃지 */
 .sidebar__menu-badge {
   min-width: 20px;

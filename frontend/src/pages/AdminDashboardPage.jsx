@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { API_BASE_URL } from '../api'
-import { adminRequest, clearAdminToken, getAdminToken, sendTestPush } from '../adminApi'
+import { adminRequest, clearAdminSession, getAdminToken, sendTestPush } from '../adminApi'
 
 /* ─── JWT 디코딩 ─────────────────────────────────────────────────────────── */
 function decodeAdminToken() {
@@ -562,7 +562,7 @@ export default function AdminDashboardPage() {
   useEffect(() => { loadStats() }, [])
   useEffect(() => { if (tab !== 'overview' && tab !== 'test') loadTab(tab, 0) }, [tab])
 
-  const handleLogout = () => { clearAdminToken(); navigate('/admin', { replace: true }) }
+  const handleLogout = () => { clearAdminSession(); navigate('/admin', { replace: true }) }
 
   const authFail = (err) => {
     if (err.status === 401 || err.status === 403) handleLogout()
@@ -624,6 +624,7 @@ export default function AdminDashboardPage() {
         <div style={s.sideBottom}>
           <p style={s.adminName}>{admin?.name ?? '관리자'}</p>
           <p style={s.adminRole}>{admin?.role ?? ''}</p>
+          <button style={s.userViewBtn} onClick={() => navigate('/dashboard')}>← 사용자 화면</button>
           <button style={s.logoutBtn} onClick={handleLogout}>로그아웃</button>
         </div>
       </aside>
@@ -833,6 +834,7 @@ const s = {
   sideBottom: { padding: '14px 18px', borderTop: '1px solid #1e293b' },
   adminName: { color: '#fff', fontWeight: 600, fontSize: 14, margin: '0 0 2px' },
   adminRole: { color: '#64748b', fontSize: 12, margin: '0 0 10px' },
+  userViewBtn: { width: '100%', padding: '8px', marginBottom: 6, background: '#1d4ed8', color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, cursor: 'pointer' },
   logoutBtn: { width: '100%', padding: '8px', background: '#1e293b', color: '#94a3b8', border: '1px solid #334155', borderRadius: 8, fontSize: 13, cursor: 'pointer' },
 
   main: { flex: 1, padding: '28px 32px', overflowY: 'auto', minWidth: 0 },

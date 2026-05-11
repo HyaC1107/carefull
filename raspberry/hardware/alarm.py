@@ -63,11 +63,48 @@ def _init_pygame() -> bool:
 
 # ── 공개 API ─────────────────────────────────────────────────────────────────
 
+def _find_audio_file(filename: str) -> str | None:
+    """assets/sounds/ 및 assets/voices/ (하위 폴더 포함)에서 파일을 검색."""
+    if not filename:
+        return None
+
+    # 확장자 보정 (.mp3가 없으면 추가, .mp3.mp3 케이스 대응)
+    search_names = [filename]
+    if not filename.endswith(".mp3"):
+        search_names.append(filename + ".mp3")
+    
+    # 검색 경로 순서
+    search_dirs = [
+        SOUNDS_DIR,
+        VOICES_DIR,
+        os.path.join(VOICES_DIR, "behavior"),
+        os.path.join(VOICES_DIR, "register"),
+    ]
+
+    for name in search_names:
+        # 1. 직접 경로인 경우
+        if os.path.isabs(name) and os.path.exists(name):
+            return name
+        
+        # 2. 검색 디렉토리 순회
+        for d in search_dirs:
+            path = os.path.join(d, name)
+            if os.path.exists(path):
+                return path
+            
+            # 3. .mp3.mp3 중복 확장자 대응
+            path_double = path + ".mp3"
+            if os.path.exists(path_double):
+                return path_double
+                
+    return None
+
+
 def play_alarm(filename: str = None, loop: bool = False):
     """알람 재생.
 
     파일 탐색 순서:
-      1. filename 지정 시 assets/sounds/, assets/voices/ 에서 탐색
+      1. filename 지정 시 전체 폴더 탐색
       2. assets/sounds/alarm.mp3   (보호자 업로드 알림음)
       3. assets/voices/voice.mp3   (보호자 TTS 음성)
       4. assets/sounds/default_alarm.mp3  (기본 알림음)
@@ -76,18 +113,19 @@ def play_alarm(filename: str = None, loop: bool = False):
     """
     stop_alarm()
 
-    candidates = []
-    if filename:
-        candidates += [os.path.join(SOUNDS_DIR, filename), os.path.join(VOICES_DIR, filename)]
-    candidates += [
-        ALARM_SOUND_PATH,
-        TTS_VOICE_PATH,
-        os.path.join(SOUNDS_DIR, "default_alarm.mp3"),
-    ]
-
-    file_path = next((p for p in candidates if os.path.exists(p)), None)
+    file_path = _find_audio_file(filename)
+    
     if not file_path:
-        logger.error("알람 파일 없음: %s", candidates)
+        # 기본 후보들 확인
+        candidates = [
+            ALARM_SOUND_PATH,
+            TTS_VOICE_PATH,
+            os.path.join(SOUNDS_DIR, "default_alarm.mp3"),
+        ]
+        file_path = next((p for p in candidates if os.path.exists(p)), None)
+
+    if not file_path:
+        logger.error("알람 파일 없음")
         return
 
     logger.info("알람 재생: %s  loop=%s", file_path, loop)
@@ -122,6 +160,43 @@ def play_alarm(filename: str = None, loop: bool = False):
         logger.error("mpg123 미설치. 설치: sudo apt install mpg123")
     except Exception as e:
         logger.error("mpg123 실패: %s", e)
+
+
+def play_voice(filename: str):
+    """안내 음성 재생. 파일이 없으면 조용히 무시 (알람 fallback 없음)."""
+    file_path = _find_audio_file(filename)
+    
+    if not file_path:
+        logger.debug("음성 파일 없음, 스킵: %s", filename)
+        return
+
+    stop_alarm()
+    logger.info("음성 재생: %s", file_path)
+
+    if _init_pygame():
+        try:
+            import pygame
+            pygame.mixer.music.load(file_path)
+            pygame.mixer.music.play(loops=0)
+            return
+        except Exception as e:
+            logger.warning("pygame 음성 재생 실패, mpg123 fallback: %s", e)
+
+    global _fallback_process
+    try:
+        cmd = ["mpg123", "-q"]
+        if AUDIO_DEVICE:
+            cmd += ["-o", "alsa", "-a", AUDIO_DEVICE]
+        else:
+            usb = _detect_usb_card()
+            if usb is not None:
+                cmd += ["-o", "alsa", "-a", f"plughw:{usb},0"]
+        cmd.append(file_path)
+        _fallback_process = subprocess.Popen(cmd)
+    except FileNotFoundError:
+        logger.error("mpg123 미설치. 설치: sudo apt install mpg123")
+    except Exception as e:
+        logger.error("mpg123 음성 재생 실패: %s", e)
 
 
 def stop_alarm():

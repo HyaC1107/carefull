@@ -22,6 +22,14 @@ _SCHEDULE_PATH = os.path.normpath(
     os.path.join(os.path.dirname(__file__), "..", "..", "db", "schedule.json")
 )
 
+def _play_voice(filename: str):
+    try:
+        from hardware.alarm import play_voice
+        play_voice(filename)
+    except Exception:
+        pass
+
+
 _BG = "#c8f5e2"
 _GREEN = "#16a34a"
 _DARK = "#14532d"
@@ -74,8 +82,7 @@ def _next_medication_time() -> str:
         if t > now_min:
             h, m = divmod(t, 60)
             return f"{h:02d}:{m:02d}"
-    h, m = divmod(times[0], 60)
-    return f"{h:02d}:{m:02d}"
+    return "--:--"
 
 
 class _CheckCircleWidget(QWidget):
@@ -178,6 +185,7 @@ class CompleteScreen(QWidget):
 
     def showEvent(self, event):
         super().showEvent(event)
+        _play_voice("med_complete.mp3")
         self._next_time_lbl.setText(_next_medication_time())
 
         # 복약 결과를 백그라운드에서 백엔드로 전송

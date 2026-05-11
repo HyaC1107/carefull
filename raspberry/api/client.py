@@ -1,8 +1,10 @@
 import logging
 import os
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 
 import requests
+
+_KST = timezone(timedelta(hours=9))
 
 from config.settings import API_BASE_URL, API_TIMEOUT, DEVICE_UID
 
@@ -14,10 +16,14 @@ def _url(path: str) -> str:
 
 
 def _log_error(context: str, exc: Exception) -> None:
-    """HTTP 응답이 있으면 상태 코드 포함해서 로깅."""
+    """HTTP 응답이 있으면 상태 코드와 응답 본문 포함해서 로깅."""
     response = getattr(exc, "response", None)
     if response is not None:
-        logger.error("%s failed: HTTP %s", context, response.status_code)
+        try:
+            body = response.json()
+        except Exception:
+            body = response.text
+        logger.error("%s failed: HTTP %s — %s", context, response.status_code, body)
     else:
         logger.error("%s failed: %s", context, exc)
 
@@ -99,7 +105,7 @@ def send_device_event(
         "dispensed": dispensed,
         "action_verified": action_verified,
         "raw_confidence": raw_confidence,
-        "event_time": event_time or datetime.now().isoformat(),
+        "event_time": event_time or datetime.now(_KST).isoformat(timespec='seconds'),
     }
     if error_code:
         payload["error_code"] = error_code

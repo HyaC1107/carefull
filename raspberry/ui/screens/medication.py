@@ -9,6 +9,14 @@ from utils.ui_prefs import FONT_SCALE as _FS
 def _fs(n: int) -> int:
     return max(1, int(n * _FS))
 
+def _play_voice(filename: str):
+    try:
+        from hardware.alarm import play_voice
+        play_voice(filename)
+    except Exception:
+        pass
+
+
 _MANUAL_TIMEOUT_MS = 60_000
 
 
@@ -87,6 +95,7 @@ class MedicationScreen(QWidget):
 
     def showEvent(self, event):
         super().showEvent(event)
+        _play_voice("med_take.mp3")
         self._sub_lbl.setText("물과 함께 드세요")
         self._sub_lbl.setStyleSheet("color: #93c5fd; background: transparent;")
         self._start_thread()
