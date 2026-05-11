@@ -22,7 +22,7 @@ Carefull (케어풀)
 *   **복합 생체 인증:** **MediaPipe Face Detection** 및 **MobileFaceNet(TFLite)** 기반의 안면 인식을 수행하며, 실패 시 지문 인식을 통해 보안과 편의성을 동시에 확보합니다.
 
 ### 2. 자동 약 배출 및 짐벌 추적
-*   **정밀 배출:** 스텝 모터와 펌프 제어를 통해 정해진 회차의 약을 정확하게 배출합니다.
+*   **정밀 배출:** 스텝 모터제어를 통해 정해진 회차의 약을 정확하게 배출합니다.
 *   **얼굴 추적 짐벌:** 카메라 짐벌이 사용자의 얼굴 위치를 실시간으로 추적(Face Tracking)하여 최적의 각도에서 복약 과정을 기록하고 분석합니다.
 
 ### 3. AI 기반 복약 행위 감지 (Intake Detection)
@@ -44,7 +44,7 @@ Carefull (케어풀)
 | 분류 | 상세 기술 |
 | :--- | :--- |
 | **IoT / Hardware** | **Raspberry Pi 4/5**, PyQt5, **Step Motor**, Pump, Servo Gimbal, Fingerprint Sensor |
-| **AI / Vision** | **MediaPipe** (Face/Pose), **TensorFlow Lite**, MobileFaceNet, OpenCV, INT8 Quantization |
+| **AI / Vision** | **MediaPipe** (Face/Pose), **TensorFlow Lite**, MobileFaceNet, OpenCV |
 | **Backend** | **Node.js (Express)**, PostgreSQL, JWT, **ElevenLabs API**, Firebase Admin SDK |
 | **Frontend** | **React 19**, Vite, MUI (Material UI), Recharts, **PWA (Progressive Web App)** |
 | **Communication** | REST API, FCM (Push Notification) |
@@ -92,15 +92,3 @@ carefull/
 ---
 
 ## ⚠️ 트러블슈팅
-
-### 1. 엣지 환경의 리소스 한계 극복
-*   **문제:** 라즈베리파이에서 다수의 AI 모델과 카메라 처리를 동시 수행 시 지연 발생.
-*   **해결:** YOLO 대신 **MediaPipe**를 주력으로 채택하고, 안면 인식 모델을 **INT8 양자화**하여 CPU 점유율을 40% 이상 절감했습니다.
-
-### 2. TTS 생성 및 재생 안정화
-*   **문제:** ElevenLabs API 연동 시 스트리밍 데이터 누락으로 미리듣기 파일이 0바이트로 생성되는 현상.
-*   **해결:** `fs.writeFileSync` 대신 `fs.createWriteStream`을 사용한 **완전 비동기 스트리밍 저장 방식**으로 전환하여 안정성을 확보했습니다.
-
-### 3. 기기 연결 상태 실시간성 확보
-*   **문제:** 기기가 꺼졌음에도 대시보드에 '연결됨'으로 표시되는 시간차 발생.
-*   **해결:** 스케줄 조회 및 활동 보고 API 호출 시 자동으로 `last_ping`을 갱신하는 **Auto-Ping 로직**을 백엔드에 통합하여 실시간성을 높였습니다.
