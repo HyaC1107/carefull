@@ -16,7 +16,7 @@ const DEFAULT_NOTIF_PREFS = {
   LOW_STOCK: true,
   ERROR: true,
   FAILED: true,
-  SUCCESS: false,
+  SUCCESS: true,
 }
 
 function loadNotifPrefs() {

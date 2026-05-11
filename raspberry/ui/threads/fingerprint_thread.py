@@ -48,10 +48,22 @@ class FingerprintEnrollThread(QThread):
         self._running  = True
 
     def run(self):
-        if UI_TEST_MODE:
+        # 1. 센서가 실제로 연결되어 있는지 확인
+        has_sensor = False
+        try:
+            from hardware.fingerprint import get_fingerprint_manager
+            mgr = get_fingerprint_manager()
+            has_sensor = (mgr.sensor is not None)
+        except Exception:
+            pass
+
+        # 2. 센서가 있으면 실기 로직, 없는데 테스트 모드면 Mock 로직, 둘 다 아니면 실패 처리
+        if has_sensor:
+            self._run_real()
+        elif UI_TEST_MODE:
             self._run_mock()
-            return
-        self._run_real()
+        else:
+            self.failed.emit("센서 연결 실패")
 
     def _run_mock(self):
         import time
@@ -221,10 +233,22 @@ class FingerprintSearchThread(QThread):
         self._running = True
 
     def run(self):
-        if UI_TEST_MODE:
+        # 1. 센서가 실제로 연결되어 있는지 확인
+        has_sensor = False
+        try:
+            from hardware.fingerprint import get_fingerprint_manager
+            mgr = get_fingerprint_manager()
+            has_sensor = (mgr.sensor is not None)
+        except Exception:
+            pass
+
+        # 2. 센서가 있으면 실기 로직, 없는데 테스트 모드면 Mock 로직, 둘 다 아니면 실패 처리
+        if has_sensor:
+            self._run_real()
+        elif UI_TEST_MODE:
             self._run_mock()
-            return
-        self._run_real()
+        else:
+            self.failed.emit("센서 연결 실패")
 
     def _run_mock(self):
         import time
