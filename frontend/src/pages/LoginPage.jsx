@@ -1,4 +1,5 @@
 import LoginCard from '../components/auth/LoginCard'
+import { useNavigate } from 'react-router-dom'
 import { API_BASE_URL } from '../api'
 import '../styles/LoginPage.css'
 
@@ -9,9 +10,11 @@ const SOCIAL_LOGIN_START_PATHS = {
 }
 
 function LoginPage() {
+  const navigate = useNavigate()
   const handleKakaoLogin = () => startSocialLogin('kakao')
   const handleNaverLogin = () => startSocialLogin('naver')
   const handleGoogleLogin = () => startSocialLogin('google')
+  const handleAdminLogin = () => navigate('/admin')
 
   return (
     <main className="login-page">
@@ -19,6 +22,7 @@ function LoginPage() {
         onKakaoLogin={handleKakaoLogin}
         onNaverLogin={handleNaverLogin}
         onGoogleLogin={handleGoogleLogin}
+        onAdminLogin={handleAdminLogin}
       />
     </main>
   )

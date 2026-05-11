@@ -88,7 +88,7 @@ BEGIN
     FROM schedules WHERE patient_id = v_patient_id AND time_to_take::TEXT = '08:00:00' LIMIT 1;
     IF v_sche_id_1 IS NULL THEN
         INSERT INTO schedules (patient_id, medi_id, time_to_take, start_date, end_date, dose_interval, status)
-        VALUES (v_patient_id, v_medi_id_1, '08:00:00', CURRENT_DATE - 30, CURRENT_DATE + 60, NULL, 'ACTIVE')
+        VALUES (v_patient_id, v_medi_id_1, '08:00:00', CURRENT_DATE - 30, CURRENT_DATE + 60, 1, 'ACTIVE')
         RETURNING sche_id INTO v_sche_id_1;
     END IF;
 
@@ -96,7 +96,7 @@ BEGIN
     FROM schedules WHERE patient_id = v_patient_id AND time_to_take::TEXT = '13:00:00' LIMIT 1;
     IF v_sche_id_2 IS NULL THEN
         INSERT INTO schedules (patient_id, medi_id, time_to_take, start_date, end_date, dose_interval, status)
-        VALUES (v_patient_id, v_medi_id_2, '13:00:00', CURRENT_DATE - 30, CURRENT_DATE + 60, NULL, 'ACTIVE')
+        VALUES (v_patient_id, v_medi_id_2, '13:00:00', CURRENT_DATE - 30, CURRENT_DATE + 60, 1, 'ACTIVE')
         RETURNING sche_id INTO v_sche_id_2;
     END IF;
 
@@ -104,7 +104,7 @@ BEGIN
     FROM schedules WHERE patient_id = v_patient_id AND time_to_take::TEXT = '20:00:00' LIMIT 1;
     IF v_sche_id_3 IS NULL THEN
         INSERT INTO schedules (patient_id, medi_id, time_to_take, start_date, end_date, dose_interval, status)
-        VALUES (v_patient_id, v_medi_id_3, '20:00:00', CURRENT_DATE - 30, CURRENT_DATE + 60, NULL, 'ACTIVE')
+        VALUES (v_patient_id, v_medi_id_3, '20:00:00', CURRENT_DATE - 30, CURRENT_DATE + 60, 1, 'ACTIVE')
         RETURNING sche_id INTO v_sche_id_3;
     END IF;
     RAISE NOTICE '[5] 스케줄: sche_id %, %, %', v_sche_id_1, v_sche_id_2, v_sche_id_3;
@@ -171,18 +171,18 @@ BEGIN
 
     -- ── 7. 알림 내역 10건 ────────────────────────────────────────────────────
     IF NOT EXISTS (SELECT 1 FROM notifications WHERE mem_id = v_mem_id) THEN
-        INSERT INTO notifications (mem_id, noti_type, noti_title, noti_msg, is_received, created_at)
+        INSERT INTO notifications (mem_id, patient_id, noti_type, noti_title, noti_msg, is_received, created_at)
         VALUES
-        (v_mem_id, 'MISSED',  '미복용 알림', '김순자님이 오늘 점심 약을 복용하지 않으셨습니다.',         false, NOW() - INTERVAL '1 hour'),
-        (v_mem_id, 'SUCCESS', '복약 완료',   '김순자님이 오늘 아침 약을 복용하셨습니다.',                true,  NOW() - INTERVAL '5 hours 58 minutes'),
-        (v_mem_id, 'MISSED',  '미복용 알림', '김순자님이 어제 저녁 약을 복용하지 않으셨습니다.',         true,  NOW() - INTERVAL '1 day 3 hours 30 minutes'),
-        (v_mem_id, 'SUCCESS', '복약 완료',   '김순자님이 어제 점심 약을 복용하셨습니다.',                true,  NOW() - INTERVAL '1 day 9 hours 57 minutes'),
-        (v_mem_id, 'SUCCESS', '복약 완료',   '김순자님이 어제 아침 약을 복용하셨습니다.',                true,  NOW() - INTERVAL '1 day 13 hours 57 minutes'),
-        (v_mem_id, 'MISSED',  '미복용 알림', '김순자님이 이틀 전 저녁 약을 복용하지 않으셨습니다.',     true,  NOW() - INTERVAL '2 days 3 hours 30 minutes'),
-        (v_mem_id, 'SUCCESS', '복약 완료',   '김순자님이 이틀 전 점심 약을 복용하셨습니다.',             true,  NOW() - INTERVAL '2 days 9 hours 57 minutes'),
-        (v_mem_id, 'SUCCESS', '복약 완료',   '김순자님이 이틀 전 아침 약을 복용하셨습니다.',             true,  NOW() - INTERVAL '2 days 13 hours 57 minutes'),
-        (v_mem_id, 'MISSED',  '미복용 알림', '김순자님이 사흘 전 점심 약을 복용하지 않으셨습니다.',     true,  NOW() - INTERVAL '3 days 9 hours 3 minutes'),
-        (v_mem_id, 'SUCCESS', '복약 완료',   '김순자님이 사흘 전 아침 약을 복용하셨습니다.',             true,  NOW() - INTERVAL '3 days 13 hours 58 minutes');
+        (v_mem_id, v_patient_id, 'MISSED',  '미복용 알림', '김순자님이 오늘 점심 약을 복용하지 않으셨습니다.',         false, NOW() - INTERVAL '1 hour'),
+        (v_mem_id, v_patient_id, 'SUCCESS', '복약 완료',   '김순자님이 오늘 아침 약을 복용하셨습니다.',                true,  NOW() - INTERVAL '5 hours 58 minutes'),
+        (v_mem_id, v_patient_id, 'MISSED',  '미복용 알림', '김순자님이 어제 저녁 약을 복용하지 않으셨습니다.',         true,  NOW() - INTERVAL '1 day 3 hours 30 minutes'),
+        (v_mem_id, v_patient_id, 'SUCCESS', '복약 완료',   '김순자님이 어제 점심 약을 복용하셨습니다.',                true,  NOW() - INTERVAL '1 day 9 hours 57 minutes'),
+        (v_mem_id, v_patient_id, 'SUCCESS', '복약 완료',   '김순자님이 어제 아침 약을 복용하셨습니다.',                true,  NOW() - INTERVAL '1 day 13 hours 57 minutes'),
+        (v_mem_id, v_patient_id, 'MISSED',  '미복용 알림', '김순자님이 이틀 전 저녁 약을 복용하지 않으셨습니다.',     true,  NOW() - INTERVAL '2 days 3 hours 30 minutes'),
+        (v_mem_id, v_patient_id, 'SUCCESS', '복약 완료',   '김순자님이 이틀 전 점심 약을 복용하셨습니다.',             true,  NOW() - INTERVAL '2 days 9 hours 57 minutes'),
+        (v_mem_id, v_patient_id, 'SUCCESS', '복약 완료',   '김순자님이 이틀 전 아침 약을 복용하셨습니다.',             true,  NOW() - INTERVAL '2 days 13 hours 57 minutes'),
+        (v_mem_id, v_patient_id, 'MISSED',  '미복용 알림', '김순자님이 사흘 전 점심 약을 복용하지 않으셨습니다.',     true,  NOW() - INTERVAL '3 days 9 hours 3 minutes'),
+        (v_mem_id, v_patient_id, 'SUCCESS', '복약 완료',   '김순자님이 사흘 전 아침 약을 복용하셨습니다.',             true,  NOW() - INTERVAL '3 days 13 hours 58 minutes');
         RAISE NOTICE '[7] 알림 10건 생성 완료';
     ELSE
         RAISE NOTICE '[7] 알림 이미 존재, 스킵';

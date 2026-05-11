@@ -519,9 +519,9 @@ router.post('/seed-demo', verifyAdminToken, async (req, res) => {
             ];
             for (const [type, title, msg, recv, interval] of notis) {
                 await client.query(
-                    `INSERT INTO notifications (mem_id,noti_type,noti_title,noti_msg,is_received,created_at)
-                     VALUES ($1,$2,$3,$4,$5,NOW()-INTERVAL '${interval}')`,
-                    [memId, type, title, msg, recv]
+                    `INSERT INTO notifications (mem_id,patient_id,noti_type,noti_title,noti_msg,is_received,created_at)
+                     VALUES ($1,$2,$3,$4,$5,$6,NOW()-INTERVAL '${interval}')`,
+                    [memId, patientId, type, title, msg, recv]
                 );
             }
             log.push('알림 10건 생성');

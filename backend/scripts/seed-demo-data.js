@@ -83,7 +83,7 @@ async function seed() {
             if (rows.length > 0) return rows[0].sche_id;
             const r = await client.query(
                 `INSERT INTO schedules (patient_id, medi_id, time_to_take, start_date, end_date, dose_interval, status)
-                 VALUES ($1, $2, $3, CURRENT_DATE - 30, CURRENT_DATE + 60, NULL, 'ACTIVE')
+                 VALUES ($1, $2, $3, CURRENT_DATE - 30, CURRENT_DATE + 60, 1, 'ACTIVE')
                  RETURNING sche_id`,
                 [patientId, mediId, time]
             );
@@ -112,11 +112,11 @@ async function seed() {
                         (sche_id, patient_id, sche_time, actual_time, status, is_face_auth, is_ai_check, similarity_score, created_at)
                      VALUES (
                          $1, $2,
-                         (CURRENT_DATE - $3 + TIME '${String(hour).padStart(2,'0')}:00:00')::TIMESTAMP AT TIME ZONE 'Asia/Seoul',
-                         ${success ? `(CURRENT_DATE - $3 + TIME '${String(hour).padStart(2,'0')}:0${min}:00')::TIMESTAMP AT TIME ZONE 'Asia/Seoul'` : 'NULL'},
+                         (CURRENT_DATE - ($3::int) + TIME '${String(hour).padStart(2,'0')}:00:00')::TIMESTAMP AT TIME ZONE 'Asia/Seoul',
+                         ${success ? `(CURRENT_DATE - ($3::int) + TIME '${String(hour).padStart(2,'0')}:0${min}:00')::TIMESTAMP AT TIME ZONE 'Asia/Seoul'` : 'NULL'},
                          $4, $5, $5,
-                         ${success ? `ROUND((0.85 + ($3 % 13) * 0.008)::NUMERIC, 3)` : 'NULL'},
-                         (CURRENT_DATE - $3 + TIME '${String(hour).padStart(2,'0')}:0${min + 1}:00')::TIMESTAMP AT TIME ZONE 'Asia/Seoul'
+                         ${success ? `ROUND((0.85 + (($3::int) % 13) * 0.008)::NUMERIC, 3)` : 'NULL'},
+                         (CURRENT_DATE - ($3::int) + TIME '${String(hour).padStart(2,'0')}:0${min + 1}:00')::TIMESTAMP AT TIME ZONE 'Asia/Seoul'
                      )`,
                     [scheId, patientId, dayOffset, success ? 'SUCCESS' : 'MISSED', success]
                 );
@@ -151,9 +151,9 @@ async function seed() {
             ];
             for (const [type, title, msg, received, interval] of notis) {
                 await client.query(
-                    `INSERT INTO notifications (mem_id, noti_type, noti_title, noti_msg, is_received, created_at)
-                     VALUES ($1, $2, $3, $4, $5, NOW() - INTERVAL '${interval}')`,
-                    [memId, type, title, msg, received]
+                    `INSERT INTO notifications (mem_id, patient_id, noti_type, noti_title, noti_msg, is_received, created_at)
+                     VALUES ($1, $2, $3, $4, $5, $6, NOW() - INTERVAL '${interval}')`,
+                    [memId, patientId, type, title, msg, received]
                 );
             }
             console.log('[7] 알림 10건 생성 완료');

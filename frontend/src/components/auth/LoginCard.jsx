@@ -4,7 +4,7 @@
 import SocialLoginButton from './SocialLoginButton'
 import '../../styles/LoginCard.css'
 
-function LoginCard({ onKakaoLogin, onNaverLogin, onGoogleLogin }) {
+function LoginCard({ onKakaoLogin, onNaverLogin, onGoogleLogin, onAdminLogin }) {
   return (
     <section className="login-card">
       <div className="login-card__logo" aria-hidden="true">
@@ -37,6 +37,14 @@ function LoginCard({ onKakaoLogin, onNaverLogin, onGoogleLogin }) {
           onClick={onGoogleLogin}
         />
       </div>
+
+      <button
+        type="button"
+        className="login-card__admin-button"
+        onClick={onAdminLogin}
+      >
+        관리자 로그인
+      </button>
     </section>
   )
 }
