@@ -7,6 +7,11 @@ from PyQt5.QtWidgets import (
     QSizePolicy, QVBoxLayout, QWidget,
 )
 
+from utils.ui_prefs import FONT_SCALE as _FS
+
+def _fs(n: int) -> int:
+    return max(1, int(n * _FS))
+
 def _play_voice(filename: str):
     try:
         from hardware.alarm import play_voice
@@ -47,7 +52,7 @@ class _FingerprintWidget(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self._progress = 0
-        self.setFixedSize(220, 220)
+        self.setFixedSize(_fs(220), _fs(220))
 
     def set_progress(self, pct: int):
         self._progress = max(0, min(100, pct))
@@ -58,27 +63,28 @@ class _FingerprintWidget(QWidget):
         p.setRenderHint(QPainter.Antialiasing)
 
         w, h = self.width(), self.height()
+        sc = w / 220.0  # 스케일 비율
 
         p.setBrush(QColor("#1e1535"))
         p.setPen(Qt.NoPen)
-        p.drawRoundedRect(0, 0, w, h, 20, 20)
+        p.drawRoundedRect(0, 0, w, h, _fs(20), _fs(20))
 
         cx, cy = w / 2, h / 2
 
         arcs = [
-            (14,  -30 * 16, 240 * 16),
-            (23,  -40 * 16, 260 * 16),
-            (33,  -50 * 16, 280 * 16),
-            (43,  -55 * 16, 290 * 16),
-            (52,  -55 * 16, 290 * 16),
-            (62,  -50 * 16, 280 * 16),
-            (72,  -40 * 16, 250 * 16),
+            (14 * sc,  -30 * 16, 240 * 16),
+            (23 * sc,  -40 * 16, 260 * 16),
+            (33 * sc,  -50 * 16, 280 * 16),
+            (43 * sc,  -55 * 16, 290 * 16),
+            (52 * sc,  -55 * 16, 290 * 16),
+            (62 * sc,  -50 * 16, 280 * 16),
+            (72 * sc,  -40 * 16, 250 * 16),
         ]
         for i, (r, start, span) in enumerate(arcs):
             arc_alpha = min(255, 60 + int((self._progress / 100) * 195) + i * 10)
             c = QColor(_PURPLE)
             c.setAlpha(arc_alpha)
-            pen = QPen(c, 2.5, Qt.SolidLine, Qt.RoundCap)
+            pen = QPen(c, _fs(2.5), Qt.SolidLine, Qt.RoundCap)
             p.setPen(pen)
             p.drawArc(
                 QRectF(cx - r, cy - r, r * 2, r * 2),
@@ -100,7 +106,7 @@ class FingerprintRegisterScreen(QWidget):
     def _build_ui(self):
         self.setStyleSheet(f"FingerprintRegisterScreen {{ background-color: {_BG}; }}")
         root = QVBoxLayout(self)
-        root.setContentsMargins(24, 0, 24, 24)
+        root.setContentsMargins(_fs(24), 0, _fs(24), _fs(24))
         root.setSpacing(0)
         root.setAlignment(Qt.AlignCenter)
 
@@ -111,29 +117,29 @@ class FingerprintRegisterScreen(QWidget):
         if os.path.exists(_fp_path):
             self._fp_widget = QLabel()
             self._fp_widget.setAlignment(Qt.AlignCenter)
-            _pix = QPixmap(_fp_path).scaled(240, 240, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+            _pix = QPixmap(_fp_path).scaled(_fs(240), _fs(240), Qt.KeepAspectRatio, Qt.SmoothTransformation)
             self._fp_widget.setPixmap(_pix)
         else:
             self._fp_widget = _FingerprintWidget()
         root.addWidget(self._fp_widget, alignment=Qt.AlignCenter)
-        root.addSpacing(20)
+        root.addSpacing(_fs(20))
 
         # ── 진행바 ───────────────────────────────────────────────────────────
         self._progress_bar = QProgressBar()
         self._progress_bar.setRange(0, 100)
         self._progress_bar.setValue(0)
-        self._progress_bar.setFixedHeight(8)
-        self._progress_bar.setFixedWidth(600)
+        self._progress_bar.setFixedHeight(_fs(8))
+        self._progress_bar.setFixedWidth(_fs(600))
         self._progress_bar.setTextVisible(False)
         self._progress_bar.setStyleSheet(f"""
             QProgressBar {{
                 border: none;
-                border-radius: 4px;
+                border-radius: {_fs(4)}px;
                 background: #d8b4fe;
             }}
             QProgressBar::chunk {{
                 background-color: {_PURPLE};
-                border-radius: 4px;
+                border-radius: {_fs(4)}px;
             }}
         """)
         _prog_row = QHBoxLayout()
@@ -141,61 +147,61 @@ class FingerprintRegisterScreen(QWidget):
         _prog_row.addWidget(self._progress_bar)
         _prog_row.addStretch()
         root.addLayout(_prog_row)
-        root.addSpacing(16)
+        root.addSpacing(_fs(16))
 
         # ── 안내 텍스트 ──────────────────────────────────────────────────────
         self._title_lbl = QLabel("준비 중...")
-        self._title_lbl.setFont(QFont("Sans Serif", 42, QFont.Bold))
+        self._title_lbl.setFont(QFont("Sans Serif", _fs(42), QFont.Bold))
         self._title_lbl.setAlignment(Qt.AlignCenter)
         self._title_lbl.setStyleSheet(f"color: {_DARK};")
         root.addWidget(self._title_lbl)
 
-        root.addSpacing(8)
+        root.addSpacing(_fs(8))
 
         self._sub_lbl = QLabel("센서에 손가락을 올려주세요")
-        self._sub_lbl.setFont(QFont("Sans Serif", 30))
+        self._sub_lbl.setFont(QFont("Sans Serif", _fs(30)))
         self._sub_lbl.setAlignment(Qt.AlignCenter)
         self._sub_lbl.setStyleSheet(f"color: {_PURPLE};")
         root.addWidget(self._sub_lbl)
 
-        root.addSpacing(8)
+        root.addSpacing(_fs(8))
 
         self._pct_lbl = QLabel("0%")
-        self._pct_lbl.setFont(QFont("Sans Serif", 32, QFont.Bold))
+        self._pct_lbl.setFont(QFont("Sans Serif", _fs(32), QFont.Bold))
         self._pct_lbl.setAlignment(Qt.AlignCenter)
         self._pct_lbl.setStyleSheet(f"color: {_DARK};")
         root.addWidget(self._pct_lbl)
 
-        root.addSpacing(20)
+        root.addSpacing(_fs(20))
 
         # ── 오류 + 재시도 위젯 ───────────────────────────────────────────────
         self._error_widget = QWidget()
-        self._error_widget.setStyleSheet("""
-            QWidget {
+        self._error_widget.setStyleSheet(f"""
+            QWidget {{
                 background-color: #fff1f2;
                 border: 2px solid #fecaca;
-                border-radius: 16px;
-            }
+                border-radius: {_fs(16)}px;
+            }}
         """)
         error_layout = QVBoxLayout(self._error_widget)
-        error_layout.setContentsMargins(20, 16, 20, 16)
-        error_layout.setSpacing(12)
+        error_layout.setContentsMargins(_fs(20), _fs(16), _fs(20), _fs(16))
+        error_layout.setSpacing(_fs(12))
 
         self._error_lbl = QLabel("")
-        self._error_lbl.setFont(QFont("Sans Serif", 28, QFont.Bold))
+        self._error_lbl.setFont(QFont("Sans Serif", _fs(28), QFont.Bold))
         self._error_lbl.setAlignment(Qt.AlignCenter)
         self._error_lbl.setWordWrap(True)
         self._error_lbl.setStyleSheet("color: #dc2626; border: none; background: transparent;")
         error_layout.addWidget(self._error_lbl)
 
         self._btn_retry = QPushButton("다시 시도")
-        self._btn_retry.setFont(QFont("Sans Serif", 28, QFont.Bold))
-        self._btn_retry.setFixedHeight(72)
+        self._btn_retry.setFont(QFont("Sans Serif", _fs(28), QFont.Bold))
+        self._btn_retry.setFixedHeight(_fs(72))
         self._btn_retry.setStyleSheet(f"""
             QPushButton {{
                 background-color: #dc2626;
                 color: white;
-                border-radius: 16px;
+                border-radius: {_fs(16)}px;
                 border: none;
             }}
             QPushButton:pressed {{ background-color: #b91c1c; }}
@@ -206,7 +212,7 @@ class FingerprintRegisterScreen(QWidget):
         self._error_widget.hide()
         root.addWidget(self._error_widget)
 
-        root.addSpacing(20)
+        root.addSpacing(_fs(20))
 
         # ── 다손가락 등록 프롬프트 (등록 완료 후 표시) ──────────────────────
         self._prompt_widget = QWidget()
@@ -214,37 +220,37 @@ class FingerprintRegisterScreen(QWidget):
             QWidget {{
                 background-color: #f5f3ff;
                 border: 2px solid #c4b5fd;
-                border-radius: 16px;
+                border-radius: {_fs(16)}px;
             }}
         """)
         prompt_layout = QVBoxLayout(self._prompt_widget)
-        prompt_layout.setContentsMargins(20, 16, 20, 16)
-        prompt_layout.setSpacing(14)
+        prompt_layout.setContentsMargins(_fs(20), _fs(16), _fs(20), _fs(16))
+        prompt_layout.setSpacing(_fs(14))
 
         self._prompt_lbl = QLabel("다른 손가락도 등록할까요?")
-        self._prompt_lbl.setFont(QFont("Sans Serif", 34, QFont.Bold))
+        self._prompt_lbl.setFont(QFont("Sans Serif", _fs(34), QFont.Bold))
         self._prompt_lbl.setAlignment(Qt.AlignCenter)
         self._prompt_lbl.setStyleSheet(f"color: {_DARK}; border: none; background: transparent;")
         prompt_layout.addWidget(self._prompt_lbl)
 
         self._prompt_sub_lbl = QLabel("")
-        self._prompt_sub_lbl.setFont(QFont("Sans Serif", 26))
+        self._prompt_sub_lbl.setFont(QFont("Sans Serif", _fs(26)))
         self._prompt_sub_lbl.setAlignment(Qt.AlignCenter)
         self._prompt_sub_lbl.setStyleSheet(f"color: {_PURPLE}; border: none; background: transparent;")
         prompt_layout.addWidget(self._prompt_sub_lbl)
 
         btn_row = QHBoxLayout()
-        btn_row.setSpacing(20)
-        btn_row.setContentsMargins(60, 0, 60, 0) # 버튼 가로 폭 조절
+        btn_row.setSpacing(_fs(20))
+        btn_row.setContentsMargins(_fs(60), 0, _fs(60), 0) # 버튼 가로 폭 조절
 
         self._btn_more = QPushButton("다른 손가락 등록")
-        self._btn_more.setFont(QFont("Sans Serif", 26, QFont.Bold))
-        self._btn_more.setFixedHeight(80)
+        self._btn_more.setFont(QFont("Sans Serif", _fs(26), QFont.Bold))
+        self._btn_more.setFixedHeight(_fs(80))
         self._btn_more.setStyleSheet(f"""
             QPushButton {{
                 background-color: {_PURPLE};
                 color: white;
-                border-radius: 18px;
+                border-radius: {_fs(18)}px;
                 border: none;
             }}
             QPushButton:pressed {{ background-color: #6d28d9; }}
@@ -252,27 +258,18 @@ class FingerprintRegisterScreen(QWidget):
         self._btn_more.clicked.connect(self._on_more_finger)
 
         self._btn_done = QPushButton("등록 완료")
-        self._btn_done.setFont(QFont("Sans Serif", 26))
-        self._btn_done.setFixedHeight(80)
+        self._btn_done.setFont(QFont("Sans Serif", _fs(26)))
+        self._btn_done.setFixedHeight(_fs(80))
         self._btn_done.setStyleSheet(f"""
             QPushButton {{
                 background-color: white;
                 color: {_GREEN};
-                border-radius: 18px;
+                border-radius: {_fs(18)}px;
                 border: 2.5px solid {_GREEN};
             }}
             QPushButton:pressed {{ background-color: #f0fdf4; }}
         """)
         self._btn_done.clicked.connect(self._go_complete)
-
-        btn_row.addWidget(self._btn_more, 1) # 1:1 비율
-        btn_row.addWidget(self._btn_done, 1)
-        prompt_layout.addLayout(btn_row)
-
-        self._prompt_widget.hide()
-        root.addWidget(self._prompt_widget)
-
-        root.addStretch(2)
 
     # ── 생명주기 ─────────────────────────────────────────────────────────────
 

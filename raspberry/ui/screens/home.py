@@ -13,6 +13,10 @@ from PyQt5.QtWidgets import (
 )
 
 from config.settings import UI_TEST_MODE, DEVICE_UID
+from utils.ui_prefs import FONT_SCALE as _FS
+
+def _fs(n: int) -> int:
+    return max(1, int(n * _FS))
 
 _ICONS_DIR = os.path.normpath(
     os.path.join(os.path.dirname(__file__), "..", "..", "assets", "icons")
@@ -198,7 +202,7 @@ class HomeScreen(QWidget):
             clock_icon.setPixmap(_pix)
 
         time_label = QLabel("현재 시간")
-        time_label.setFont(QFont("Sans Serif", 36))
+        time_label.setFont(QFont("Sans Serif", _fs(36)))
         time_label.setStyleSheet(f"color: {_GRAY}; background-color: {_BG}; border: none;")
 
         time_row.addWidget(clock_icon)
@@ -210,7 +214,7 @@ class HomeScreen(QWidget):
         # ── 대형 시계 ─────────────────────────────────────────────────────────
         self._clock_lbl = QLabel()
         self._clock_lbl.setAlignment(Qt.AlignCenter)
-        self._clock_lbl.setFont(QFont("Sans Serif", 96, QFont.Bold))
+        self._clock_lbl.setFont(QFont("Sans Serif", _fs(96), QFont.Bold))
         self._clock_lbl.setStyleSheet(f"""
             color: {_DARK};
             background-color: {_BG};
@@ -224,7 +228,7 @@ class HomeScreen(QWidget):
         # ── 다음 복약 뱃지 ────────────────────────────────────────────────────
         self._badge_lbl = QLabel()
         self._badge_lbl.setAlignment(Qt.AlignCenter)
-        self._badge_lbl.setFont(QFont("Sans Serif", 50, QFont.Bold))
+        self._badge_lbl.setFont(QFont("Sans Serif", _fs(50), QFont.Bold))
         self._badge_lbl.setStyleSheet(f"""
             color: #1d4ed8;
             background-color: white;
@@ -242,11 +246,11 @@ class HomeScreen(QWidget):
         status_row.setAlignment(Qt.AlignCenter)
 
         dot = QLabel("●")
-        dot.setFont(QFont("Sans Serif", 22))
+        dot.setFont(QFont("Sans Serif", _fs(22)))
         dot.setStyleSheet(f"color: {_GREEN};")
 
         status_text = QLabel("정상 작동 중")
-        status_text.setFont(QFont("Sans Serif", 42, QFont.Bold))
+        status_text.setFont(QFont("Sans Serif", _fs(42), QFont.Bold))
         status_text.setStyleSheet(f"color: {_GREEN};")
 
         status_row.addWidget(dot)
@@ -262,19 +266,19 @@ class HomeScreen(QWidget):
         self._btn_register = _MenuButton(
             "register.png", "등록", "사용자 등록",
             lambda: self._on_register_click(),
-            icon_size=90, font_size=42,
+            icon_size=_fs(90), font_size=_fs(42),
         )
         self._btn_register.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
-        self._btn_register.setMinimumHeight(280)
+        self._btn_register.setMinimumHeight(_fs(280))
         self._btn_register.hide()
 
         btn_settings = _MenuButton(
             "settings.png", "설정", "설정",
             lambda: self._go("settings"),
-            icon_size=90, font_size=42,
+            icon_size=_fs(90), font_size=_fs(42),
         )
         btn_settings.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
-        btn_settings.setMinimumHeight(280)
+        btn_settings.setMinimumHeight(_fs(280))
 
         btn_row.addWidget(self._btn_register)
         btn_row.addWidget(btn_settings)
@@ -290,10 +294,10 @@ class HomeScreen(QWidget):
             btn_face_test = _MenuButton(
                 "camera_auth.png", "얼굴", "얼굴 인증 테스트",
                 lambda: self._go_auth_test(),
-                icon_size=56, font_size=28,
+                icon_size=_fs(56), font_size=_fs(28),
             )
             btn_face_test.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
-            btn_face_test.setMinimumHeight(130)
+            btn_face_test.setMinimumHeight(_fs(130))
             btn_face_test.setStyleSheet(
                 "QWidget { background-color: #eff6ff; border: 2px solid #93c5fd; border-radius: 14px; }"
             )
@@ -301,10 +305,10 @@ class HomeScreen(QWidget):
             btn_full_med_test = _MenuButton(
                 "medication.png", "💊", "전체 복약 테스트",
                 lambda: self._go_full_med_test(),
-                icon_size=56, font_size=28,
+                icon_size=_fs(56), font_size=_fs(28),
             )
             btn_full_med_test.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
-            btn_full_med_test.setMinimumHeight(130)
+            btn_full_med_test.setMinimumHeight(_fs(130))
             btn_full_med_test.setStyleSheet(
                 "QWidget { background-color: #fff8e8; border: 2px solid #fcd34d; border-radius: 14px; }"
             )
@@ -318,9 +322,9 @@ class HomeScreen(QWidget):
         # ── 기기 UID ──────────────────────────────────────────────────────────
         uid_text = DEVICE_UID or "(UID 미생성)"
         uid_lbl = QLabel(f"기기 UID:  {uid_text}")
-        uid_lbl.setFont(QFont("Monospace", 22))
+        uid_lbl.setFont(QFont("Monospace", _fs(22)))
         uid_lbl.setAlignment(Qt.AlignCenter)
-        uid_lbl.setStyleSheet("""
+        uid_lbl.setStyleSheet(f"""
             color: #64748b;
             background-color: #e2e8f0;
             border-radius: 8px;

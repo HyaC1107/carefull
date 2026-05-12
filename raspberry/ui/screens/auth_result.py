@@ -130,7 +130,7 @@ class AuthResultScreen(QWidget):
             self.setStyleSheet("AuthResultScreen { background-color: #dff4ef; }")
             _png = os.path.join(_ICONS_DIR, "check_small.png")
             if os.path.exists(_png):
-                _pix = QPixmap(_png).scaled(190, 190, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+                _pix = QPixmap(_png).scaled(_fs(190), _fs(190), Qt.KeepAspectRatio, Qt.SmoothTransformation)
                 self._icon_lbl.setPixmap(_pix)
                 self._icon_lbl.show()
                 self._card.hide()
@@ -168,7 +168,7 @@ class AuthResultScreen(QWidget):
     def _build_ui(self):
         self.setStyleSheet("AuthResultScreen { background-color: #dff4ef; }")
         root = QVBoxLayout(self)
-        root.setContentsMargins(20, 20, 20, 24)
+        root.setContentsMargins(_fs(20), _fs(20), _fs(20), _fs(24))
         root.setSpacing(0)
 
         self._card = _ResultCardWidget()
@@ -182,14 +182,14 @@ class AuthResultScreen(QWidget):
         root.addWidget(self._icon_lbl, stretch=3)
         self._icon_lbl.hide()
 
-        root.addSpacing(18)
+        root.addSpacing(_fs(18))
 
         self._title_lbl = QLabel("인증 완료")
         self._title_lbl.setFont(QFont("Sans Serif", _fs(52), QFont.Bold))
         self._title_lbl.setAlignment(Qt.AlignCenter)
         root.addWidget(self._title_lbl)
 
-        root.addSpacing(6)
+        root.addSpacing(_fs(6))
 
         self._sub_lbl = QLabel("약을 준비하고 있습니다")
         self._sub_lbl.setFont(QFont("Sans Serif", _fs(36)))

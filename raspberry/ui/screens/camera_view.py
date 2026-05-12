@@ -259,9 +259,9 @@ class CameraViewScreen(QWidget):
         err_btn_row.setAlignment(Qt.AlignCenter)
 
         self._btn_upload_retry = QPushButton("다시 시도", self._upload_error_overlay)
-        self._btn_upload_retry.setFont(QFont("Sans Serif", 28, QFont.Bold))
-        self._btn_upload_retry.setFixedHeight(90)
-        self._btn_upload_retry.setFixedWidth(320)
+        self._btn_upload_retry.setFont(QFont("Sans Serif", _fs(28), QFont.Bold))
+        self._btn_upload_retry.setFixedHeight(_fs(90))
+        self._btn_upload_retry.setFixedWidth(_fs(320))
         self._btn_upload_retry.setStyleSheet("""
             QPushButton {
                 background-color: #3b82f6;
@@ -274,9 +274,9 @@ class CameraViewScreen(QWidget):
         self._btn_upload_retry.clicked.connect(self._on_upload_retry)
 
         self._btn_upload_continue = QPushButton("계속 진행", self._upload_error_overlay)
-        self._btn_upload_continue.setFont(QFont("Sans Serif", 28, QFont.Bold))
-        self._btn_upload_continue.setFixedHeight(90)
-        self._btn_upload_continue.setFixedWidth(320)
+        self._btn_upload_continue.setFont(QFont("Sans Serif", _fs(28), QFont.Bold))
+        self._btn_upload_continue.setFixedHeight(_fs(90))
+        self._btn_upload_continue.setFixedWidth(_fs(320))
         self._btn_upload_continue.setStyleSheet("""
             QPushButton {
                 background-color: transparent;
@@ -298,16 +298,18 @@ class CameraViewScreen(QWidget):
         super().resizeEvent(event)
         w, h = self.width(), self.height()
         self._camera_card.setGeometry(0, 0, w, h)
-        self._btn_cancel.setGeometry(w - 160, 20, 140, _fs(60))
+        
+        btn_w, btn_h = _fs(140), _fs(60)
+        self._btn_cancel.setGeometry(w - btn_w - _fs(20), _fs(20), btn_w, btn_h)
 
         # 폰트 실측 높이 기반으로 label geometry 계산 (고정px 쓰면 잘림)
-        title_h = QFontMetrics(self._title_lbl.font()).height() + 16
-        sub_h   = QFontMetrics(self._sub_lbl.font()).height() + 14
-        pad_bot = 24
+        title_h = QFontMetrics(self._title_lbl.font()).height() + _fs(16)
+        sub_h   = QFontMetrics(self._sub_lbl.font()).height() + _fs(14)
+        pad_bot = _fs(24)
         sub_y   = h - pad_bot - sub_h
-        title_y = sub_y - 12 - title_h
+        title_y = sub_y - _fs(12) - title_h
 
-        gradient_top = max(0, title_y - 24)
+        gradient_top = max(0, title_y - _fs(24))
         self._gradient.setGeometry(0, gradient_top, w, h - gradient_top)
         self._title_lbl.setGeometry(0, title_y, w, title_h)
         self._sub_lbl.setGeometry(0, sub_y, w, sub_h)

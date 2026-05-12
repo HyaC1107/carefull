@@ -12,6 +12,11 @@ from PyQt5.QtWidgets import (
     QScrollArea, QScroller, QSizePolicy, QSlider, QVBoxLayout, QWidget,
 )
 
+from utils.ui_prefs import FONT_SCALE as _FS
+
+def _fs(n: int) -> int:
+    return max(1, int(n * _FS))
+
 _BG    = "#f5f6fa"
 _CARD  = "white"
 _DARK  = "#1e293b"
@@ -91,23 +96,23 @@ def _check_network() -> bool:
 class _StatusCard(QFrame):
     def __init__(self, png_name: str, fallback_icon: str, title: str, subtitle: str, ok: bool, parent=None):
         super().__init__(parent)
-        self.setStyleSheet(f"QFrame {{ background-color: {_CARD}; border-radius: 16px; }}")
+        self.setStyleSheet(f"QFrame {{ background-color: {_CARD}; border-radius: {_fs(16)}px; }}")
         lay = QHBoxLayout(self)
-        lay.setContentsMargins(_CARD_PAD_H, _CARD_PAD_V, _CARD_PAD_H, _CARD_PAD_V)
-        lay.setSpacing(20)
+        lay.setContentsMargins(_fs(_CARD_PAD_H), _fs(_CARD_PAD_V), _fs(_CARD_PAD_H), _fs(_CARD_PAD_V))
+        lay.setSpacing(_fs(20))
 
-        lay.addWidget(_icon_label(png_name, fallback_icon))
+        lay.addWidget(_icon_label(png_name, fallback_icon, size=_fs(_ICON_SIZE)))
 
         text_lay = QVBoxLayout()
-        text_lay.setSpacing(4)
+        text_lay.setSpacing(_fs(4))
 
         t = QLabel(title)
-        t.setFont(QFont("Sans Serif", 22, QFont.Bold))
+        t.setFont(QFont("Sans Serif", _fs(22), QFont.Bold))
         t.setStyleSheet(f"color: {_DARK}; background: transparent; border: none;")
         text_lay.addWidget(t)
 
         s = QLabel(subtitle)
-        s.setFont(QFont("Sans Serif", 18))
+        s.setFont(QFont("Sans Serif", _fs(18)))
         s.setStyleSheet(f"color: {_GRAY}; background: transparent; border: none;")
         text_lay.addWidget(s)
 
@@ -115,14 +120,14 @@ class _StatusCard(QFrame):
         lay.addStretch()
 
         badge = QLabel("정상" if ok else "오류")
-        badge.setFont(QFont("Sans Serif", 18, QFont.Bold))
+        badge.setFont(QFont("Sans Serif", _fs(18), QFont.Bold))
         badge_color = "#dcfce7" if ok else "#fee2e2"
         badge_text = _GREEN if ok else "#dc2626"
         badge.setStyleSheet(f"""
             background-color: {badge_color};
             color: {badge_text};
-            border-radius: 10px;
-            padding: 6px 18px;
+            border-radius: {_fs(10)}px;
+            padding: {_fs(6)}px {_fs(18)}px;
         """)
         lay.addWidget(badge)
 
@@ -362,30 +367,30 @@ class _WifiCard(QFrame):
         super().__init__(parent)
         self._scan_thread    = None
         self._connect_thread = None
-        self.setStyleSheet(f"QFrame {{ background-color: {_CARD}; border-radius: 16px; }}")
+        self.setStyleSheet(f"QFrame {{ background-color: {_CARD}; border-radius: {_fs(16)}px; }}")
 
         self._outer = QVBoxLayout(self)
-        self._outer.setContentsMargins(_CARD_PAD_H, _CARD_PAD_V, _CARD_PAD_H, _CARD_PAD_V)
-        self._outer.setSpacing(12)
+        self._outer.setContentsMargins(_fs(_CARD_PAD_H), _fs(_CARD_PAD_V), _fs(_CARD_PAD_H), _fs(_CARD_PAD_V))
+        self._outer.setSpacing(_fs(12))
 
         # 헤더
         hdr = QHBoxLayout()
-        hdr.addWidget(_icon_label("wifi.png", "WiFi"))
-        hdr.addSpacing(12)
+        hdr.addWidget(_icon_label("wifi.png", "WiFi", size=_fs(_ICON_SIZE)))
+        hdr.addSpacing(_fs(12))
 
         info = QVBoxLayout()
-        info.setSpacing(2)
+        info.setSpacing(_fs(2))
         title_lbl = QLabel("와이파이")
-        title_lbl.setFont(QFont("Sans Serif", 22, QFont.Bold))
+        title_lbl.setFont(QFont("Sans Serif", _fs(22), QFont.Bold))
         title_lbl.setStyleSheet(f"color: {_DARK}; background: transparent; border: none;")
         info.addWidget(title_lbl)
         self._ssid_lbl = QLabel(_current_ssid())
-        self._ssid_lbl.setFont(QFont("Sans Serif", 18))
+        self._ssid_lbl.setFont(QFont("Sans Serif", _fs(18)))
         self._ssid_lbl.setStyleSheet(f"color: {_GRAY}; background: transparent; border: none;")
         info.addWidget(self._ssid_lbl)
 
         self._ip_lbl = QLabel(_current_ip())
-        self._ip_lbl.setFont(QFont("Monospace", 17))
+        self._ip_lbl.setFont(QFont("Monospace", _fs(17)))
         self._ip_lbl.setStyleSheet(f"color: {_BLUE}; background: transparent; border: none;")
         info.addWidget(self._ip_lbl)
 
@@ -393,11 +398,11 @@ class _WifiCard(QFrame):
         hdr.addStretch()
 
         self._change_btn = QPushButton("네트워크 변경")
-        self._change_btn.setFont(QFont("Sans Serif", 18, QFont.Bold))
-        self._change_btn.setFixedHeight(52)
+        self._change_btn.setFont(QFont("Sans Serif", _fs(18), QFont.Bold))
+        self._change_btn.setFixedHeight(_fs(52))
         self._change_btn.setStyleSheet(f"""
             QPushButton {{ background: {_BLUE}; color: white;
-                           border-radius: 10px; padding: 0 18px; border: none; }}
+                           border-radius: {_fs(10)}px; padding: 0 {_fs(18)}px; border: none; }}
             QPushButton:pressed {{ background: #2563eb; }}
         """)
         self._change_btn.clicked.connect(self._on_scan)
@@ -406,7 +411,7 @@ class _WifiCard(QFrame):
 
         # 상태 레이블
         self._status_lbl = QLabel("")
-        self._status_lbl.setFont(QFont("Sans Serif", 18))
+        self._status_lbl.setFont(QFont("Sans Serif", _fs(18)))
         self._status_lbl.setAlignment(Qt.AlignCenter)
         self._status_lbl.setStyleSheet(f"color: {_GRAY}; background: transparent; border: none;")
         self._status_lbl.hide()
@@ -417,7 +422,7 @@ class _WifiCard(QFrame):
         self._list_widget.setStyleSheet("background: transparent;")
         self._list_lay = QVBoxLayout(self._list_widget)
         self._list_lay.setContentsMargins(0, 0, 0, 0)
-        self._list_lay.setSpacing(6)
+        self._list_lay.setSpacing(_fs(6))
         self._list_widget.hide()
         self._outer.addWidget(self._list_widget)
 
@@ -460,20 +465,20 @@ class _WifiCard(QFrame):
         row = QWidget()
         row.setStyleSheet(f"""
             QWidget {{ background: {"#eff6ff" if net["connected"] else "#f8fafc"};
-                      border-radius: 10px; }}
+                      border-radius: {_fs(10)}px; }}
         """)
         rl = QHBoxLayout(row)
-        rl.setContentsMargins(12, 8, 12, 8)
-        rl.setSpacing(10)
+        rl.setContentsMargins(_fs(12), _fs(8), _fs(12), _fs(8))
+        rl.setSpacing(_fs(10))
 
         sig_lbl = QLabel(_signal_icon(net["signal"]))
-        sig_lbl.setFont(QFont("Monospace", 14))
-        sig_lbl.setFixedWidth(52)
+        sig_lbl.setFont(QFont("Monospace", _fs(14)))
+        sig_lbl.setFixedWidth(_fs(52))
         sig_lbl.setStyleSheet("background: transparent; color: #64748b; border: none;")
         rl.addWidget(sig_lbl)
 
         ssid_lbl = QLabel(net["ssid"])
-        ssid_lbl.setFont(QFont("Sans Serif", 20,
+        ssid_lbl.setFont(QFont("Sans Serif", _fs(20),
                                QFont.Bold if net["connected"] else QFont.Normal))
         ssid_lbl.setStyleSheet(
             f"background: transparent; color: {_BLUE if net['connected'] else _DARK}; border: none;")
@@ -481,25 +486,25 @@ class _WifiCard(QFrame):
 
         if net["connected"]:
             badge = QLabel("연결됨")
-            badge.setFont(QFont("Sans Serif", 16, QFont.Bold))
+            badge.setFont(QFont("Sans Serif", _fs(16), QFont.Bold))
             badge.setStyleSheet(
-                f"background: #dcfce7; color: {_GREEN}; border-radius: 8px; padding: 4px 12px;")
+                f"background: #dcfce7; color: {_GREEN}; border-radius: {_fs(8)}px; padding: {_fs(4)}px {_fs(12)}px;")
             rl.addWidget(badge)
 
         if net["secured"]:
             lock = QLabel("🔒")
-            lock.setFont(QFont("Sans Serif", 16))
+            lock.setFont(QFont("Sans Serif", _fs(16)))
             lock.setStyleSheet("background: transparent; border: none;")
             rl.addWidget(lock)
 
         if not net["connected"]:
             conn_btn = QPushButton("연결")
-            conn_btn.setFont(QFont("Sans Serif", 18, QFont.Bold))
-            conn_btn.setFixedHeight(44)
-            conn_btn.setFixedWidth(80)
+            conn_btn.setFont(QFont("Sans Serif", _fs(18), QFont.Bold))
+            conn_btn.setFixedHeight(_fs(44))
+            conn_btn.setFixedWidth(_fs(80))
             conn_btn.setStyleSheet(f"""
                 QPushButton {{ background: {_BLUE}; color: white;
-                               border-radius: 8px; border: none; }}
+                               border-radius: {_fs(8)}px; border: none; }}
                 QPushButton:pressed {{ background: #2563eb; }}
             """)
             conn_btn.clicked.connect(lambda _, n=net: self._on_connect(n))
@@ -549,21 +554,21 @@ class _WifiCard(QFrame):
 class _VolumeCard(QFrame):
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setStyleSheet(f"QFrame {{ background-color: {_CARD}; border-radius: 16px; }}")
+        self.setStyleSheet(f"QFrame {{ background-color: {_CARD}; border-radius: {_fs(16)}px; }}")
         lay = QVBoxLayout(self)
-        lay.setContentsMargins(_CARD_PAD_H, _CARD_PAD_V, _CARD_PAD_H, _CARD_PAD_V)
-        lay.setSpacing(14)
+        lay.setContentsMargins(_fs(_CARD_PAD_H), _fs(_CARD_PAD_V), _fs(_CARD_PAD_H), _fs(_CARD_PAD_V))
+        lay.setSpacing(_fs(14))
 
         top = QHBoxLayout()
-        top.addWidget(_icon_label("volume.png", "♪"))
-        top.addSpacing(16)
+        top.addWidget(_icon_label("volume.png", "♪", size=_fs(_ICON_SIZE)))
+        top.addSpacing(_fs(16))
 
         title_lbl = QLabel("알림 음량")
-        title_lbl.setFont(QFont("Sans Serif", 22, QFont.Bold))
+        title_lbl.setFont(QFont("Sans Serif", _fs(22), QFont.Bold))
         title_lbl.setStyleSheet(f"color: {_DARK}; background: transparent; border: none;")
 
         self._pct_lbl = QLabel("70%")
-        self._pct_lbl.setFont(QFont("Sans Serif", 22, QFont.Bold))
+        self._pct_lbl.setFont(QFont("Sans Serif", _fs(22), QFont.Bold))
         self._pct_lbl.setStyleSheet(f"color: {_BLUE}; background: transparent; border: none;")
 
         top.addWidget(title_lbl)
@@ -577,7 +582,7 @@ class _VolumeCard(QFrame):
         self._slider = QSlider(Qt.Horizontal)
         self._slider.setRange(0, 100)
         self._slider.setValue(current_vol)
-        self._slider.setFixedHeight(40)
+        self._slider.setFixedHeight(_fs(40))
         self._slider.setStyleSheet(f"""
             QSlider::groove:horizontal {{
                 height: 8px;
@@ -585,11 +590,11 @@ class _VolumeCard(QFrame):
                 border-radius: 4px;
             }}
             QSlider::handle:horizontal {{
-                width: 28px;
-                height: 28px;
+                width: {_fs(28)}px;
+                height: {_fs(28)}px;
                 margin: -10px 0;
                 background: {_BLUE};
-                border-radius: 14px;
+                border-radius: {_fs(14)}px;
             }}
             QSlider::sub-page:horizontal {{
                 background: {_BLUE};
@@ -601,14 +606,14 @@ class _VolumeCard(QFrame):
         lay.addWidget(self._slider)
 
         self._test_btn = QPushButton("소리 확인")
-        self._test_btn.setFont(QFont("Sans Serif", 20, QFont.Bold))
-        self._test_btn.setFixedHeight(68)
+        self._test_btn.setFont(QFont("Sans Serif", _fs(20), QFont.Bold))
+        self._test_btn.setFixedHeight(_fs(68))
         self._test_btn.setStyleSheet(f"""
             QPushButton {{
                 background-color: #eff6ff;
                 color: {_BLUE};
                 border: 2px solid #bfdbfe;
-                border-radius: 14px;
+                border-radius: {_fs(14)}px;
             }}
             QPushButton:pressed {{ background-color: #dbeafe; }}
             QPushButton:disabled {{
@@ -670,30 +675,30 @@ class _FontSizeCard(QFrame):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setStyleSheet(f"QFrame {{ background-color: {_CARD}; border-radius: 16px; }}")
+        self.setStyleSheet(f"QFrame {{ background-color: {_CARD}; border-radius: {_fs(16)}px; }}")
         lay = QVBoxLayout(self)
-        lay.setContentsMargins(_CARD_PAD_H, _CARD_PAD_V, _CARD_PAD_H, _CARD_PAD_V)
-        lay.setSpacing(14)
+        lay.setContentsMargins(_fs(_CARD_PAD_H), _fs(_CARD_PAD_V), _fs(_CARD_PAD_H), _fs(_CARD_PAD_V))
+        lay.setSpacing(_fs(14))
 
         top = QHBoxLayout()
-        top.addWidget(_icon_label("font.png", "Aa"))
-        top.addSpacing(16)
+        top.addWidget(_icon_label("font.png", "Aa", size=_fs(_ICON_SIZE)))
+        top.addSpacing(_fs(16))
 
         title_lbl = QLabel("글자 크기")
-        title_lbl.setFont(QFont("Sans Serif", 22, QFont.Bold))
+        title_lbl.setFont(QFont("Sans Serif", _fs(22), QFont.Bold))
         title_lbl.setStyleSheet(f"color: {_DARK}; background: transparent; border: none;")
         top.addWidget(title_lbl)
         top.addStretch()
         lay.addLayout(top)
 
         btn_row = QHBoxLayout()
-        btn_row.setSpacing(12)
+        btn_row.setSpacing(_fs(12))
 
         self._btns: dict = {}
         for key, label in self._OPTIONS:
             btn = QPushButton(label)
-            btn.setFont(QFont("Sans Serif", 20, QFont.Bold))
-            btn.setFixedHeight(64)
+            btn.setFont(QFont("Sans Serif", _fs(20), QFont.Bold))
+            btn.setFixedHeight(_fs(64))
             btn.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
             btn.clicked.connect(lambda _, k=key: self._on_select(k))
             self._btns[key] = btn
@@ -701,7 +706,7 @@ class _FontSizeCard(QFrame):
         lay.addLayout(btn_row)
 
         self._notice_lbl = QLabel("")
-        self._notice_lbl.setFont(QFont("Sans Serif", 18))
+        self._notice_lbl.setFont(QFont("Sans Serif", _fs(18)))
         self._notice_lbl.setAlignment(Qt.AlignCenter)
         self._notice_lbl.setStyleSheet(f"color: {_GRAY}; background: transparent; border: none;")
         lay.addWidget(self._notice_lbl)
@@ -717,7 +722,7 @@ class _FontSizeCard(QFrame):
                     QPushButton {{
                         background-color: {_BLUE};
                         color: white;
-                        border-radius: 12px;
+                        border-radius: {_fs(12)}px;
                         border: none;
                     }}
                 """)
@@ -726,7 +731,7 @@ class _FontSizeCard(QFrame):
                     QPushButton {{
                         background-color: #f1f5f9;
                         color: {_DARK};
-                        border-radius: 12px;
+                        border-radius: {_fs(12)}px;
                         border: 2px solid #e2e8f0;
                     }}
                     QPushButton:pressed {{ background-color: #e2e8f0; }}
@@ -744,31 +749,31 @@ class _FontSizeCard(QFrame):
 class _ControlCard(QFrame):
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setStyleSheet(f"QFrame {{ background-color: {_CARD}; border-radius: 16px; }}")
+        self.setStyleSheet(f"QFrame {{ background-color: {_CARD}; border-radius: {_fs(16)}px; }}")
         lay = QVBoxLayout(self)
-        lay.setContentsMargins(_CARD_PAD_H, _CARD_PAD_V, _CARD_PAD_H, _CARD_PAD_V)
-        lay.setSpacing(14)
+        lay.setContentsMargins(_fs(_CARD_PAD_H), _fs(_CARD_PAD_V), _fs(_CARD_PAD_H), _fs(_CARD_PAD_V))
+        lay.setSpacing(_fs(14))
 
         top = QHBoxLayout()
-        top.addWidget(_icon_label("control.png", "⚙"))
-        top.addSpacing(16)
+        top.addWidget(_icon_label("control.png", "⚙", size=_fs(_ICON_SIZE)))
+        top.addSpacing(_fs(16))
 
         title_lbl = QLabel("기기 제어")
-        title_lbl.setFont(QFont("Sans Serif", 22, QFont.Bold))
+        title_lbl.setFont(QFont("Sans Serif", _fs(22), QFont.Bold))
         title_lbl.setStyleSheet(f"color: {_DARK}; background: transparent; border: none;")
         top.addWidget(title_lbl)
         top.addStretch()
         lay.addLayout(top)
 
         restart_btn = QPushButton("재시작")
-        restart_btn.setMinimumHeight(80)
-        restart_btn.setFont(QFont("Sans Serif", 24, QFont.Bold))
+        restart_btn.setMinimumHeight(_fs(80))
+        restart_btn.setFont(QFont("Sans Serif", _fs(24), QFont.Bold))
         restart_btn.setStyleSheet(f"""
             QPushButton {{
                 background-color: #fff3e0;
                 color: {_ORANGE};
                 border: 2px solid #fed7aa;
-                border-radius: 16px;
+                border-radius: {_fs(16)}px;
             }}
             QPushButton:pressed {{ background-color: #ffe0b2; }}
         """)
@@ -776,16 +781,16 @@ class _ControlCard(QFrame):
         lay.addWidget(restart_btn)
 
         exit_btn = QPushButton("앱 종료")
-        exit_btn.setMinimumHeight(80)
-        exit_btn.setFont(QFont("Sans Serif", 24, QFont.Bold))
-        exit_btn.setStyleSheet("""
-            QPushButton {
+        exit_btn.setMinimumHeight(_fs(80))
+        exit_btn.setFont(QFont("Sans Serif", _fs(24), QFont.Bold))
+        exit_btn.setStyleSheet(f"""
+            QPushButton {{
                 background-color: #fee2e2;
                 color: #dc2626;
                 border: 2px solid #fca5a5;
-                border-radius: 16px;
-            }
-            QPushButton:pressed { background-color: #fecaca; }
+                border-radius: {_fs(16)}px;
+            }}
+            QPushButton:pressed {{ background-color: #fecaca; }}
         """)
         exit_btn.clicked.connect(self._exit)
         lay.addWidget(exit_btn)
@@ -866,24 +871,24 @@ class _FaceCard(QFrame):
     def __init__(self, parent=None):
         super().__init__(parent)
         self._worker = None
-        self.setStyleSheet(f"QFrame {{ background-color: {_CARD}; border-radius: 16px; }}")
+        self.setStyleSheet(f"QFrame {{ background-color: {_CARD}; border-radius: {_fs(16)}px; }}")
 
         outer = QVBoxLayout(self)
-        outer.setContentsMargins(_CARD_PAD_H, _CARD_PAD_V, _CARD_PAD_H, _CARD_PAD_V)
-        outer.setSpacing(12)
+        outer.setContentsMargins(_fs(_CARD_PAD_H), _fs(_CARD_PAD_V), _fs(_CARD_PAD_H), _fs(_CARD_PAD_V))
+        outer.setSpacing(_fs(12))
 
         header = QHBoxLayout()
-        header.addWidget(_icon_label("face.png", "👤"))
-        header.addSpacing(12)
+        header.addWidget(_icon_label("face.png", "👤", size=_fs(_ICON_SIZE)))
+        header.addSpacing(_fs(12))
 
         title = QLabel("사용자 얼굴")
-        title.setFont(QFont("Sans Serif", 22, QFont.Bold))
+        title.setFont(QFont("Sans Serif", _fs(22), QFont.Bold))
         title.setStyleSheet(f"color: {_DARK}; background: transparent; border: none;")
         header.addWidget(title)
         header.addStretch()
 
         self._badge = QLabel()
-        self._badge.setFont(QFont("Sans Serif", 18, QFont.Bold))
+        self._badge.setFont(QFont("Sans Serif", _fs(18), QFont.Bold))
         header.addWidget(self._badge)
         outer.addLayout(header)
 
@@ -893,14 +898,14 @@ class _FaceCard(QFrame):
         outer.addWidget(sep)
 
         self._del_btn = QPushButton("등록된 사용자 삭제")
-        self._del_btn.setMinimumHeight(80)
-        self._del_btn.setFont(QFont("Sans Serif", 22, QFont.Bold))
+        self._del_btn.setMinimumHeight(_fs(80))
+        self._del_btn.setFont(QFont("Sans Serif", _fs(22), QFont.Bold))
         self._del_btn.setStyleSheet(f"""
             QPushButton {{
                 background-color: #fee2e2;
                 color: {_RED};
                 border: 2px solid #fca5a5;
-                border-radius: 16px;
+                border-radius: {_fs(16)}px;
             }}
             QPushButton:pressed {{ background-color: #fecaca; }}
             QPushButton:disabled {{
@@ -926,12 +931,12 @@ class _FaceCard(QFrame):
         if has:
             self._badge.setText("등록됨")
             self._badge.setStyleSheet(
-                f"background: #dcfce7; color: {_GREEN}; border-radius: 10px; padding: 6px 18px;"
+                f"background: #dcfce7; color: {_GREEN}; border-radius: {_fs(10)}px; padding: {_fs(6)}px {_fs(18)}px;"
             )
         else:
             self._badge.setText("미등록")
             self._badge.setStyleSheet(
-                "background: #e2e8f0; color: #64748b; border-radius: 10px; padding: 6px 18px;"
+                f"background: #e2e8f0; color: #64748b; border-radius: {_fs(10)}px; padding: {_fs(6)}px {_fs(18)}px;"
             )
         self._del_btn.setEnabled(has)
 
@@ -943,10 +948,10 @@ class _FaceCard(QFrame):
         box.setDefaultButton(QMessageBox.No)
         box.button(QMessageBox.Yes).setText("삭제")
         box.button(QMessageBox.No).setText("취소")
-        box.setStyleSheet("""
-            QMessageBox { background: white; }
-            QLabel { font-size: 22px; color: #1e293b; }
-            QPushButton { min-height: 60px; min-width: 110px; font-size: 20px; border-radius: 10px; }
+        box.setStyleSheet(f"""
+            QMessageBox {{ background: white; }}
+            QLabel {{ font-size: {_fs(22)}px; color: #1e293b; }}
+            QPushButton {{ min-height: {_fs(60)}px; min-width: {_fs(110)}px; font-size: {_fs(20)}px; border-radius: {_fs(10)}px; }}
         """)
         if box.exec_() != QMessageBox.Yes:
             return
@@ -1001,32 +1006,32 @@ class _FingerprintCard(QFrame):
         super().__init__(parent)
         self._app = app
         self._workers = []
-        self.setStyleSheet(f"QFrame {{ background-color: {_CARD}; border-radius: 16px; }}")
+        self.setStyleSheet(f"QFrame {{ background-color: {_CARD}; border-radius: {_fs(16)}px; }}")
 
         outer = QVBoxLayout(self)
-        outer.setContentsMargins(_CARD_PAD_H, _CARD_PAD_V, _CARD_PAD_H, _CARD_PAD_V)
-        outer.setSpacing(12)
+        outer.setContentsMargins(_fs(_CARD_PAD_H), _fs(_CARD_PAD_V), _fs(_CARD_PAD_H), _fs(_CARD_PAD_V))
+        outer.setSpacing(_fs(12))
 
         # 헤더 행
         header = QHBoxLayout()
-        header.addWidget(_icon_label("fingerprint.png", "🔒"))
-        header.addSpacing(12)
+        header.addWidget(_icon_label("fingerprint.png", "🔒", size=_fs(_ICON_SIZE)))
+        header.addSpacing(_fs(12))
 
         title = QLabel("지문 관리")
-        title.setFont(QFont("Sans Serif", 22, QFont.Bold))
+        title.setFont(QFont("Sans Serif", _fs(22), QFont.Bold))
         title.setStyleSheet(f"color: {_DARK}; background: transparent; border: none;")
         header.addWidget(title)
         header.addStretch()
 
         add_btn = QPushButton("추가 등록")
-        add_btn.setFont(QFont("Sans Serif", 18, QFont.Bold))
-        add_btn.setFixedHeight(48)
+        add_btn.setFont(QFont("Sans Serif", _fs(18), QFont.Bold))
+        add_btn.setFixedHeight(_fs(48))
         add_btn.setStyleSheet(f"""
             QPushButton {{
                 background-color: {_BLUE};
                 color: white;
-                border-radius: 10px;
-                padding: 0 18px;
+                border-radius: {_fs(10)}px;
+                padding: 0 {_fs(18)}px;
                 border: none;
             }}
             QPushButton:pressed {{ background-color: #2563eb; }}
@@ -1044,11 +1049,11 @@ class _FingerprintCard(QFrame):
         self._list_container.setStyleSheet("background: transparent;")
         self._list_lay = QVBoxLayout(self._list_container)
         self._list_lay.setContentsMargins(0, 0, 0, 0)
-        self._list_lay.setSpacing(8)
+        self._list_lay.setSpacing(_fs(8))
         outer.addWidget(self._list_container)
 
         self._status_lbl = QLabel("불러오는 중...")
-        self._status_lbl.setFont(QFont("Sans Serif", 18))
+        self._status_lbl.setFont(QFont("Sans Serif", _fs(18)))
         self._status_lbl.setAlignment(Qt.AlignCenter)
         self._status_lbl.setStyleSheet(f"color: {_GRAY}; background: transparent; border: none;")
         self._list_lay.addWidget(self._status_lbl)
@@ -1086,39 +1091,39 @@ class _FingerprintCard(QFrame):
         row = QWidget()
         row.setStyleSheet("background: transparent;")
         lay = QHBoxLayout(row)
-        lay.setContentsMargins(0, 4, 0, 4)
-        lay.setSpacing(12)
+        lay.setContentsMargins(0, _fs(4), 0, _fs(4))
+        lay.setSpacing(_fs(12))
 
         badge = QLabel(str(fp["slot_id"]))
-        badge.setFont(QFont("Sans Serif", 18, QFont.Bold))
-        badge.setFixedSize(40, 40)
+        badge.setFont(QFont("Sans Serif", _fs(18), QFont.Bold))
+        badge.setFixedSize(_fs(40), _fs(40))
         badge.setAlignment(Qt.AlignCenter)
-        badge.setStyleSheet(f"background: {_BLUE}; color: white; border-radius: 20px;")
+        badge.setStyleSheet(f"background: {_BLUE}; color: white; border-radius: {_fs(20)}px;")
         lay.addWidget(badge)
 
         name_lbl = QLabel(fp.get("label", "지문"))
-        name_lbl.setFont(QFont("Sans Serif", 20))
+        name_lbl.setFont(QFont("Sans Serif", _fs(20)))
         name_lbl.setStyleSheet(f"color: {_DARK}; background: transparent; border: none;")
         lay.addWidget(name_lbl)
 
         if fp.get("registered_at"):
             date_lbl = QLabel(str(fp["registered_at"])[:10])
-            date_lbl.setFont(QFont("Sans Serif", 18))
+            date_lbl.setFont(QFont("Sans Serif", _fs(18)))
             date_lbl.setStyleSheet(f"color: {_GRAY}; background: transparent; border: none;")
             lay.addWidget(date_lbl)
 
         lay.addStretch()
 
         del_btn = QPushButton("삭제")
-        del_btn.setFont(QFont("Sans Serif", 18))
-        del_btn.setFixedHeight(48)
+        del_btn.setFont(QFont("Sans Serif", _fs(18)))
+        del_btn.setFixedHeight(_fs(48))
         del_btn.setStyleSheet(f"""
             QPushButton {{
                 background: #fee2e2;
                 color: {_RED};
                 border: 1.5px solid #fca5a5;
-                border-radius: 8px;
-                padding: 0 14px;
+                border-radius: {_fs(8)}px;
+                padding: 0 {_fs(14)}px;
             }}
             QPushButton:pressed {{ background: #fecaca; }}
         """)
@@ -1156,29 +1161,29 @@ class SettingsScreen(QWidget):
     def _build_ui(self):
         self.setStyleSheet(f"SettingsScreen {{ background-color: {_BG}; }}")
         root = QVBoxLayout(self)
-        root.setContentsMargins(80, 24, 80, 24)
+        root.setContentsMargins(_fs(80), _fs(24), _fs(80), _fs(24))
         root.setSpacing(0)
 
         # 상단 헤더
         header = QHBoxLayout()
         back_btn = QPushButton("← 메인으로")
-        back_btn.setFont(QFont("Sans Serif", 22))
-        back_btn.setFixedHeight(64)
+        back_btn.setFont(QFont("Sans Serif", _fs(22)))
+        back_btn.setFixedHeight(_fs(64))
         back_btn.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
-        back_btn.setStyleSheet("""
-            QPushButton {
+        back_btn.setStyleSheet(f"""
+            QPushButton {{
                 background: white;
                 color: #374151;
                 border: 2px solid #d0d5dd;
-                border-radius: 14px;
-                padding: 4px 24px;
-            }
-            QPushButton:pressed { background: #f0f0f0; }
+                border-radius: {_fs(14)}px;
+                padding: 4px {_fs(24)}px;
+            }}
+            QPushButton:pressed {{ background: #f0f0f0; }}
         """)
         back_btn.clicked.connect(lambda: self._app.show_screen("home"))
 
         title = QLabel("설정")
-        title.setFont(QFont("Sans Serif", 28, QFont.Bold))
+        title.setFont(QFont("Sans Serif", _fs(28), QFont.Bold))
         title.setAlignment(Qt.AlignCenter)
         title.setStyleSheet(f"color: {_DARK};")
 
@@ -1192,7 +1197,7 @@ class SettingsScreen(QWidget):
         header.addWidget(spacer)
         root.addLayout(header)
 
-        root.addSpacing(14)
+        root.addSpacing(_fs(14))
 
         # 스크롤 영역
         scroll = QScrollArea()
@@ -1207,7 +1212,7 @@ class SettingsScreen(QWidget):
         content = QWidget()
         content.setStyleSheet("background: transparent;")
         c_lay = QVBoxLayout(content)
-        c_lay.setSpacing(14)
+        c_lay.setSpacing(_fs(14))
         c_lay.setContentsMargins(0, 0, 0, 0)
 
         c_lay.addWidget(_WifiCard())
@@ -1229,10 +1234,10 @@ class SettingsScreen(QWidget):
         scroll.setWidget(content)
         root.addWidget(scroll, stretch=1)
 
-        root.addSpacing(8)
+        root.addSpacing(_fs(8))
 
         ver = QLabel("Smart Medication Dispenser v1.0")
-        ver.setFont(QFont("Sans Serif", 16))
+        ver.setFont(QFont("Sans Serif", _fs(16)))
         ver.setAlignment(Qt.AlignCenter)
         ver.setStyleSheet(f"color: {_GRAY};")
         root.addWidget(ver)

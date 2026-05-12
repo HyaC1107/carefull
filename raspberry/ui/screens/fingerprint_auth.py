@@ -38,7 +38,7 @@ class _FingerprintWidget(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self._progress = 0
-        self.setFixedSize(220, 220)
+        self.setFixedSize(_fs(220), _fs(220))
 
     def set_progress(self, pct: int):
         self._progress = max(0, min(100, pct))
@@ -49,27 +49,28 @@ class _FingerprintWidget(QWidget):
         p.setRenderHint(QPainter.Antialiasing)
 
         w, h = self.width(), self.height()
+        sc = w / 220.0  # 스케일 비율
 
         p.setBrush(QColor("#0f1e3a"))
         p.setPen(Qt.NoPen)
-        p.drawRoundedRect(0, 0, w, h, 20, 20)
+        p.drawRoundedRect(0, 0, w, h, _fs(20), _fs(20))
 
         cx, cy = w / 2, h / 2
 
         arcs = [
-            (14, -30 * 16, 240 * 16),
-            (23, -40 * 16, 260 * 16),
-            (33, -50 * 16, 280 * 16),
-            (43, -55 * 16, 290 * 16),
-            (52, -55 * 16, 290 * 16),
-            (62, -50 * 16, 280 * 16),
-            (72, -40 * 16, 250 * 16),
+            (14 * sc, -30 * 16, 240 * 16),
+            (23 * sc, -40 * 16, 260 * 16),
+            (33 * sc, -50 * 16, 280 * 16),
+            (43 * sc, -55 * 16, 290 * 16),
+            (52 * sc, -55 * 16, 290 * 16),
+            (62 * sc, -50 * 16, 280 * 16),
+            (72 * sc, -40 * 16, 250 * 16),
         ]
         for i, (r, start, span) in enumerate(arcs):
             arc_alpha = min(255, 60 + int((self._progress / 100) * 195) + i * 10)
             c = QColor(_BLUE)
             c.setAlpha(arc_alpha)
-            pen = QPen(c, 2.5, Qt.SolidLine, Qt.RoundCap)
+            pen = QPen(c, _fs(2.5), Qt.SolidLine, Qt.RoundCap)
             p.setPen(pen)
             p.drawArc(
                 QRectF(cx - r, cy - r, r * 2, r * 2),
@@ -91,7 +92,7 @@ class FingerprintAuthScreen(QWidget):
     def _build_ui(self):
         self.setStyleSheet(f"FingerprintAuthScreen {{ background-color: {_BG}; }}")
         root = QVBoxLayout(self)
-        root.setContentsMargins(120, 20, 120, 40)
+        root.setContentsMargins(_fs(120), _fs(20), _fs(120), _fs(40))
         root.setSpacing(0)
         root.setAlignment(Qt.AlignCenter)
 
@@ -101,14 +102,14 @@ class FingerprintAuthScreen(QWidget):
         self._btn_cancel.setFont(QFont("Sans Serif", _fs(28)))
         self._btn_cancel.setFixedHeight(_fs(68))
         self._btn_cancel.setFixedWidth(_fs(200))
-        self._btn_cancel.setStyleSheet("""
-            QPushButton {
+        self._btn_cancel.setStyleSheet(f"""
+            QPushButton {{
                 background: white;
                 color: #374151;
                 border: 2px solid #d0d5dd;
-                border-radius: 12px;
-            }
-            QPushButton:pressed { background: #f0f0f0; }
+                border-radius: {_fs(12)}px;
+            }}
+            QPushButton:pressed {{ background: #f0f0f0; }}
         """)
         self._btn_cancel.clicked.connect(self._on_auth_failure)
         top_lay.addWidget(self._btn_cancel)
@@ -121,28 +122,28 @@ class FingerprintAuthScreen(QWidget):
         if os.path.exists(_fp_path):
             self._fp_widget = QLabel()
             self._fp_widget.setAlignment(Qt.AlignCenter)
-            _pix = QPixmap(_fp_path).scaled(240, 240, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+            _pix = QPixmap(_fp_path).scaled(_fs(240), _fs(240), Qt.KeepAspectRatio, Qt.SmoothTransformation)
             self._fp_widget.setPixmap(_pix)
         else:
             self._fp_widget = _FingerprintWidget()
         root.addWidget(self._fp_widget, alignment=Qt.AlignCenter)
-        root.addSpacing(20)
+        root.addSpacing(_fs(20))
 
         self._progress_bar = QProgressBar()
         self._progress_bar.setRange(0, 100)
         self._progress_bar.setValue(0)
-        self._progress_bar.setFixedHeight(8)
-        self._progress_bar.setFixedWidth(520)
+        self._progress_bar.setFixedHeight(_fs(8))
+        self._progress_bar.setFixedWidth(_fs(520))
         self._progress_bar.setTextVisible(False)
         self._progress_bar.setStyleSheet(f"""
             QProgressBar {{
                 border: none;
-                border-radius: 4px;
+                border-radius: {_fs(4)}px;
                 background: #bfdbfe;
             }}
             QProgressBar::chunk {{
                 background-color: {_BLUE};
-                border-radius: 4px;
+                border-radius: {_fs(4)}px;
             }}
         """)
         _prog_row = QHBoxLayout()
@@ -150,7 +151,7 @@ class FingerprintAuthScreen(QWidget):
         _prog_row.addWidget(self._progress_bar)
         _prog_row.addStretch()
         root.addLayout(_prog_row)
-        root.addSpacing(16)
+        root.addSpacing(_fs(16))
 
         self._title_lbl = QLabel("지문을 인증하는 중...")
         self._title_lbl.setFont(QFont("Sans Serif", _fs(52), QFont.Bold))
@@ -158,7 +159,7 @@ class FingerprintAuthScreen(QWidget):
         self._title_lbl.setStyleSheet(f"color: {_DARK};")
         root.addWidget(self._title_lbl)
 
-        root.addSpacing(8)
+        root.addSpacing(_fs(8))
 
         self._sub_lbl = QLabel("센서에 손가락을 올려주세요")
         self._sub_lbl.setFont(QFont("Sans Serif", _fs(36)))
@@ -167,7 +168,7 @@ class FingerprintAuthScreen(QWidget):
         self._sub_lbl.setStyleSheet(f"color: {_BLUE};")
         root.addWidget(self._sub_lbl)
 
-        root.addSpacing(8)
+        root.addSpacing(_fs(8))
 
         self._pct_lbl = QLabel("0%")
         self._pct_lbl.setFont(QFont("Sans Serif", _fs(38), QFont.Bold))
@@ -175,13 +176,13 @@ class FingerprintAuthScreen(QWidget):
         self._pct_lbl.setStyleSheet(f"color: {_DARK};")
         root.addWidget(self._pct_lbl)
 
-        root.addSpacing(24)
+        root.addSpacing(_fs(24))
 
         # ── 재시도 버튼 영역 (실패 시에만 표시) ──────────────────────────
         self._retry_widget = QWidget()
         retry_row = QHBoxLayout(self._retry_widget)
         retry_row.setContentsMargins(0, 0, 0, 0)
-        retry_row.setSpacing(24)
+        retry_row.setSpacing(_fs(24))
 
         self._btn_retry = QPushButton("다시 시도")
         self._btn_retry.setFont(QFont("Sans Serif", _fs(34), QFont.Bold))
@@ -191,7 +192,7 @@ class FingerprintAuthScreen(QWidget):
             QPushButton {{
                 background-color: {_BLUE};
                 color: white;
-                border-radius: 18px;
+                border-radius: {_fs(18)}px;
                 border: none;
             }}
             QPushButton:pressed {{ background-color: #2563eb; }}
@@ -206,7 +207,7 @@ class FingerprintAuthScreen(QWidget):
             QPushButton {{
                 background-color: white;
                 color: {_RED};
-                border-radius: 18px;
+                border-radius: {_fs(18)}px;
                 border: 2px solid {_RED};
             }}
             QPushButton:pressed {{ background-color: #fef2f2; }}
@@ -223,7 +224,7 @@ class FingerprintAuthScreen(QWidget):
         self._full_retry_widget = QWidget()
         full_retry_lay = QVBoxLayout(self._full_retry_widget)
         full_retry_lay.setContentsMargins(0, 0, 0, 0)
-        full_retry_lay.setSpacing(16)
+        full_retry_lay.setSpacing(_fs(16))
         full_retry_lay.setAlignment(Qt.AlignCenter)
 
         self._full_retry_title_lbl = QLabel("다시 시도하시겠습니까?")
@@ -240,7 +241,7 @@ class FingerprintAuthScreen(QWidget):
         full_retry_lay.addWidget(self._full_retry_sub_lbl)
 
         full_retry_btn_row = QHBoxLayout()
-        full_retry_btn_row.setSpacing(24)
+        full_retry_btn_row.setSpacing(_fs(24))
 
         self._btn_full_retry_yes = QPushButton("예, 처음부터")
         self._btn_full_retry_yes.setFont(QFont("Sans Serif", _fs(34), QFont.Bold))
@@ -250,7 +251,7 @@ class FingerprintAuthScreen(QWidget):
             QPushButton {{
                 background-color: {_BLUE};
                 color: white;
-                border-radius: 18px;
+                border-radius: {_fs(18)}px;
                 border: none;
             }}
             QPushButton:pressed {{ background-color: #2563eb; }}
@@ -265,7 +266,7 @@ class FingerprintAuthScreen(QWidget):
             QPushButton {{
                 background-color: white;
                 color: {_RED};
-                border-radius: 18px;
+                border-radius: {_fs(18)}px;
                 border: 2px solid {_RED};
             }}
             QPushButton:pressed {{ background-color: #fef2f2; }}

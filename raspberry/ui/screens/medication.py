@@ -79,16 +79,17 @@ class MedicationScreen(QWidget):
         self._camera_card.setGeometry(0, 0, w, h)
 
         # 우측 상단 중단 버튼 배치
-        self._btn_cancel.setGeometry(w - 160, 20, 140, _fs(60))
+        btn_w, btn_h = _fs(140), _fs(60)
+        self._btn_cancel.setGeometry(w - btn_w - _fs(20), _fs(20), btn_w, btn_h)
 
         # 폰트 실측 높이 기반으로 label geometry 계산 (고정px 쓰면 잘림)
-        title_h = QFontMetrics(self._title_lbl.font()).height() + 16
-        sub_h   = QFontMetrics(self._sub_lbl.font()).height() + 14
-        pad_bot = 24
+        title_h = QFontMetrics(self._title_lbl.font()).height() + _fs(16)
+        sub_h   = QFontMetrics(self._sub_lbl.font()).height() + _fs(14)
+        pad_bot = _fs(24)
         sub_y   = h - pad_bot - sub_h
-        title_y = sub_y - 12 - title_h
+        title_y = sub_y - _fs(12) - title_h
 
-        gradient_top = max(0, title_y - 24)
+        gradient_top = max(0, title_y - _fs(24))
         self._gradient.setGeometry(0, gradient_top, w, h - gradient_top)
         self._title_lbl.setGeometry(0, title_y, w, title_h)
         self._sub_lbl.setGeometry(0, sub_y, w, sub_h)

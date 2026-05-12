@@ -154,9 +154,10 @@ class FaceThread(QThread):
 
         if self._running:
             if face_imgs:
-                logger.info(f"[FACE_THREAD] Capture done: {len(face_imgs)} frames.")
+                logger.info(f"[FACE_THREAD] Capture done: {len(face_imgs)} frames. Proceeding to inference.")
                 self.capture_done.emit(face_imgs)
             else:
+                logger.warning("[FACE_THREAD] No faces captured. Authentication failed.")
                 self.auth_failed.emit()
 
     # ─────────────────────────────── register ────────────────────────────────

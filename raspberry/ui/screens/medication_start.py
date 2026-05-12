@@ -62,31 +62,32 @@ class _BellWidget(QWidget):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setFixedSize(120, 120)
+        self.setFixedSize(_fs(120), _fs(120))
 
     def paintEvent(self, event):
         p = QPainter(self)
         p.setRenderHint(QPainter.Antialiasing)
 
         cx, cy = self.width() / 2, self.height() / 2
+        sc = self.width() / 120.0  # 스케일 비율
 
-        pen = QPen(QColor(_ORANGE), 4, Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin)
+        pen = QPen(QColor(_ORANGE), _fs(4), Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin)
         p.setPen(pen)
         p.setBrush(Qt.NoBrush)
 
         body = QPainterPath()
-        body.moveTo(cx, cy - 30)
-        body.cubicTo(cx + 24, cy - 30, cx + 28, cy - 10, cx + 28, cy + 8)
-        body.lineTo(cx - 28, cy + 8)
-        body.cubicTo(cx - 28, cy - 10, cx - 24, cy - 30, cx, cy - 30)
+        body.moveTo(cx, cy - 30 * sc)
+        body.cubicTo(cx + 24 * sc, cy - 30 * sc, cx + 28 * sc, cy - 10 * sc, cx + 28 * sc, cy + 8 * sc)
+        body.lineTo(cx - 28 * sc, cy + 8 * sc)
+        body.cubicTo(cx - 28 * sc, cy - 10 * sc, cx - 24 * sc, cy - 30 * sc, cx, cy - 30 * sc)
         p.drawPath(body)
 
-        p.drawArc(int(cx - 8), int(cy - 36), 16, 14, 0, 180 * 16)
-        p.drawArc(int(cx - 10), int(cy + 6), 20, 12, 180 * 16, 180 * 16)
+        p.drawArc(int(cx - 8 * sc), int(cy - 36 * sc), int(16 * sc), int(14 * sc), 0, 180 * 16)
+        p.drawArc(int(cx - 10 * sc), int(cy + 6 * sc), int(20 * sc), int(12 * sc), 180 * 16, 180 * 16)
 
         p.setPen(Qt.NoPen)
         p.setBrush(QColor("#fb7185"))
-        p.drawEllipse(QRectF(cx + 16, cy - 32, 14, 14))
+        p.drawEllipse(QRectF(cx + 16 * sc, cy - 32 * sc, 14 * sc, 14 * sc))
 
 
 class MedicationStartScreen(QWidget):
@@ -100,7 +101,7 @@ class MedicationStartScreen(QWidget):
     def _build_ui(self):
         self.setStyleSheet(f"MedicationStartScreen {{ background-color: {_BG}; }}")
         root = QVBoxLayout(self)
-        root.setContentsMargins(32, 0, 32, 24)
+        root.setContentsMargins(_fs(32), 0, _fs(32), _fs(24))
         root.setSpacing(0)
         root.setAlignment(Qt.AlignCenter)
 
@@ -108,7 +109,7 @@ class MedicationStartScreen(QWidget):
 
         bell = _BellWidget()
         root.addWidget(bell, alignment=Qt.AlignCenter)
-        root.addSpacing(24)
+        root.addSpacing(_fs(24))
 
         title = QLabel("약 드실 시간입니다")
         title.setFont(QFont("Sans Serif", _fs(56), QFont.Bold))
@@ -116,7 +117,7 @@ class MedicationStartScreen(QWidget):
         title.setStyleSheet(f"color: {_TEXT};")
         root.addWidget(title)
 
-        root.addSpacing(10)
+        root.addSpacing(_fs(10))
 
         self._sub_lbl = QLabel("카메라 앞에 서시면 자동으로 시작됩니다")
         self._sub_lbl.setFont(QFont("Sans Serif", _fs(36)))
@@ -128,7 +129,7 @@ class MedicationStartScreen(QWidget):
         root.addStretch(2)
 
         start_btn = QPushButton("복약 프로세스 시작")
-        start_btn.setMinimumHeight(72)
+        start_btn.setMinimumHeight(_fs(72))
         start_btn.setFont(QFont("Sans Serif", _fs(34), QFont.Bold))
         start_btn.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         start_btn.setStyleSheet(f"""
@@ -136,7 +137,7 @@ class MedicationStartScreen(QWidget):
                 background-color: {_ORANGE};
                 color: white;
                 border: none;
-                border-radius: 14px;
+                border-radius: {_fs(14)}px;
             }}
             QPushButton:pressed {{ background-color: #ea6c0a; }}
         """)
