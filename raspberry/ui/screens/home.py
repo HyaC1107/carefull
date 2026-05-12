@@ -211,6 +211,10 @@ class HomeScreen(QWidget):
         self._clock_lbl = QLabel()
         self._clock_lbl.setAlignment(Qt.AlignCenter)
         self._clock_lbl.setFont(QFont("Sans Serif", 96, QFont.Bold))
+        self._clock_lbl.setSizePolicy(
+            QSizePolicy.Fixed,
+            QSizePolicy.Fixed
+        )
         self._clock_lbl.setStyleSheet(f"""
             color: {_DARK};
             background-color: {_BG};
