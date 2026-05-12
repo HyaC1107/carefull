@@ -94,6 +94,7 @@ class MedicationStartScreen(QWidget):
         super().__init__(parent)
         self._app = parent
         self._face_thread: _FaceWatchThread = None
+        self._show_time = 0.0  # 화면 표시 시점 기록
         self._build_ui()
 
     def _build_ui(self):
@@ -146,6 +147,7 @@ class MedicationStartScreen(QWidget):
 
     def showEvent(self, event):
         super().showEvent(event)
+        self._show_time = time.time()  # 진입 시점 기록
         _play_voice("med_alarm.mp3")
         self._alarm_loop_timer = QTimer(self)
         self._alarm_loop_timer.setSingleShot(True)
@@ -203,10 +205,19 @@ class MedicationStartScreen(QWidget):
     # ── 시그널 핸들러 ─────────────────────────────────────────────────────────
 
     def _on_face_detected(self):
-        """얼굴 감지 → 알람 끄고 인증 화면으로."""
-        self._go_auth()
+        """얼굴 감지 → 최소 2초 대기 후 알람 끄고 인증 화면으로."""
+        elapsed = time.time() - self._show_time
+        if elapsed < 2.0:
+            # 아직 2초가 안 지났으면, 남은 시간만큼 타이머 후 실행
+            remaining = int((2.0 - elapsed) * 1000)
+            QTimer.singleShot(remaining, self._go_auth)
+        else:
+            self._go_auth()
 
     def _go_auth(self):
+        # 화면이 바뀌었을 수도 있으므로(취소 등) 현재 활성 상태인지 체크
+        if not self.isVisible():
+            return
         self._stop_face_watch()
         self._stop_alarm()
         if self._app:
