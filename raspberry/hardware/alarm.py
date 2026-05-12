@@ -106,7 +106,7 @@ def play_alarm(filename: str = None, loop: bool = False):
     파일 탐색 순서:
       1. filename 지정 시 전체 폴더 탐색
       2. assets/sounds/alarm.mp3   (보호자 업로드 알림음)
-      3. assets/voices/voice.mp3   (보호자 TTS 음성)
+      3. assets/voices/voice.mp3   (TTS 음성)
       4. assets/sounds/default_alarm.mp3  (기본 알림음)
 
     loop=True 이면 stop_alarm() 호출 전까지 반복.
