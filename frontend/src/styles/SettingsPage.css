@@ -587,6 +587,25 @@ select.settings-form-field__input {
   color: #6b7280;
 }
 
+.voice-current__play {
+  display: inline-block;
+  margin-top: 8px;
+  background: #ffffff;
+  border: 1px solid #16a34a;
+  color: #16a34a;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.voice-current__play:hover {
+  background: #16a34a;
+  color: #fff;
+}
+
 .voice-current__badge {
   flex-shrink: 0;
   background: #dcfce7;
@@ -637,6 +656,25 @@ select.settings-form-field__input {
   margin: 0;
   font-size: 0.76rem;
   color: #3b82f6;
+}
+
+.voice-done__play {
+  display: inline-block;
+  margin-top: 8px;
+  background: #ffffff;
+  border: 1px solid #2563eb;
+  color: #2563eb;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.voice-done__play:hover {
+  background: #2563eb;
+  color: #fff;
 }
 
 .voice-done__retry {

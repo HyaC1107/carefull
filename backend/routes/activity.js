@@ -533,43 +533,68 @@ router.post('/device-event', async (req, res) => {
     let transaction_started = false;
 
     try {
-        const schedule_query = `
-            SELECT
-                s.sche_id,
-                s.patient_id,
-                s.time_to_take,
-                s.start_date,
-                s.end_date,
-                s.status AS schedule_status,
-                m.medi_name,
-                p.mem_id,
-                d.device_uid
-            FROM schedules s
-            INNER JOIN patients p
-                ON s.patient_id = p.patient_id
-            INNER JOIN devices d
-                ON d.patient_id = s.patient_id
-            LEFT JOIN medications m
-                ON s.medi_id = m.medi_id
-            WHERE s.sche_id = $1
-              AND d.device_uid = $2
-            LIMIT 1
-        `;
+        let schedule_row;
+        
+        if (numeric_fields.sche_id === 0) {
+            // 테스트 모드 (sche_id=0): 기기에 할당된 환자 중 첫 번째 정보를 임시로 사용
+            const test_query = `
+                SELECT 
+                    0 as sche_id,
+                    p.patient_id,
+                    '00:00:00'::time as time_to_take,
+                    '2000-01-01'::date as start_date,
+                    '2099-12-31'::date as end_date,
+                    'ACTIVE' as schedule_status,
+                    '테스트 약물' as medi_name,
+                    p.mem_id,
+                    d.device_uid
+                FROM devices d
+                INNER JOIN patients p ON d.patient_id = p.patient_id
+                WHERE d.device_uid = $1
+                LIMIT 1
+            `;
+            const test_result = await client.query(test_query, [String(device_uid).trim()]);
+            if (test_result.rows.length === 0) {
+                return sendError(res, 404, 'Device is not assigned to any patient. Test event ignored.');
+            }
+            schedule_row = test_result.rows[0];
+        } else {
+            const schedule_query = `
+                SELECT
+                    s.sche_id,
+                    s.patient_id,
+                    s.time_to_take,
+                    s.start_date,
+                    s.end_date,
+                    s.status AS schedule_status,
+                    m.medi_name,
+                    p.mem_id,
+                    d.device_uid
+                FROM schedules s
+                INNER JOIN patients p
+                    ON s.patient_id = p.patient_id
+                INNER JOIN devices d
+                    ON d.patient_id = s.patient_id
+                LEFT JOIN medications m
+                    ON s.medi_id = m.medi_id
+                WHERE s.sche_id = $1
+                  AND d.device_uid = $2
+                LIMIT 1
+            `;
+            const schedule_result = await client.query(schedule_query, [
+                numeric_fields.sche_id,
+                String(device_uid).trim()
+            ]);
 
-        const schedule_result = await client.query(schedule_query, [
-            numeric_fields.sche_id,
-            String(device_uid).trim()
-        ]);
-
-        if (schedule_result.rows.length === 0) {
-            return sendError(
-                res,
-                404,
-                'Schedule or device not found, or device is not assigned to the schedule patient.'
-            );
+            if (schedule_result.rows.length === 0) {
+                return sendError(
+                    res,
+                    404,
+                    'Schedule or device not found, or device is not assigned to the schedule patient.'
+                );
+            }
+            schedule_row = schedule_result.rows[0];
         }
-
-        const schedule_row = schedule_result.rows[0];
         const sche_time = build_schedule_timestamp(schedule_row.time_to_take, parsed_event_time);
 
         if (!is_schedule_active_on_date(schedule_row, get_kst_date_string(sche_time))) {

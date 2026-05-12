@@ -150,22 +150,18 @@ class RegisterScreen(QWidget):
 
     def showEvent(self, event):
         super().showEvent(event)
-        _play_voice("reg_start.mp3")
+        _play_voice("reg_start.mp3")  # 사용자의 요청으로 안내 음성 제거
 
     def _start(self):
-        """'등록 시작' 버튼 클릭 시: 음성 안내 완료를 위해 짧은 대기 후 카메라 화면으로 이동."""
+        """'등록 시작' 버튼 클릭 시 즉시 카메라 화면으로 이동."""
         if not self._app:
             return
 
         # 버튼 중복 클릭 방지
         self.sender().setEnabled(False)
         
-        # 1. 안내 음성 다시 한 번 강조 (재생 중이 아니면 시작)
-        _play_voice("reg_start.mp3")
-        
-        # 2. 음성 안내를 들을 시간을 주기 위해 3.5초 후 화면 전환
-        from PyQt5.QtCore import QTimer
-        QTimer.singleShot(3500, self._proceed_to_camera)
+        # 즉시 화면 전환
+        self._proceed_to_camera()
 
     def _proceed_to_camera(self):
         if self._app:

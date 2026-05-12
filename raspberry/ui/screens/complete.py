@@ -43,7 +43,7 @@ class _EventSendWorker(QThread):
 
     def run(self):
         sche_id = self._session.get("sche_id")
-        if sche_id is None:
+        if sche_id is None: # None means not even a test
             return
         from api.client import send_device_event
         send_device_event(

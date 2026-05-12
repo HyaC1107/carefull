@@ -22,7 +22,8 @@ from ui.screens.settings import SettingsScreen
 
 def _new_session() -> dict:
     return {
-        "sche_id": None,
+        "sche_id": 0,           # 0 means test/idle
+        "is_test": False,
         "face_verified": False,
         "dispensed": False,
         "action_verified": False,

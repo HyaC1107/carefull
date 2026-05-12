@@ -83,7 +83,7 @@ router.get('/', verifyToken, async (req, res) => {
         if (!patient_id) return sendError(res, 404, '환자 정보를 찾을 수 없습니다');
 
         const { rows } = await pool.query(
-            `SELECT voice_id, file_name, file_size, mime_type, status, uploaded_at, updated_at
+            `SELECT voice_id, file_name, file_path, file_size, mime_type, status, uploaded_at, updated_at
              FROM voice_samples
              WHERE patient_id = $1
              ORDER BY uploaded_at DESC
@@ -160,14 +160,14 @@ router.post('/generate', verifyToken, async (req, res) => {
         const output_abs  = path.join(SOUNDS_DIR, filename);
         await elevenlabs.generate_tts(voice_id, text.trim(), output_abs);
 
-        const relative_sound = `uploads/sounds/${filename}`;
+        const relative_sound = `/uploads/sounds/${filename}`;
 
         // voice_samples 저장
         const { rows } = await pool.query(
             `INSERT INTO voice_samples
                (patient_id, file_name, file_path, file_size, mime_type, status)
              VALUES ($1, $2, $3, $4, 'audio/mpeg', 'ready')
-             RETURNING voice_id, file_name, status, uploaded_at, updated_at`,
+             RETURNING voice_id, file_name, file_path, status, uploaded_at, updated_at`,
             [
                 patient_id,
                 filename,

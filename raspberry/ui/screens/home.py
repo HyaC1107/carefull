@@ -417,4 +417,6 @@ class HomeScreen(QWidget):
         if self._app:
             from ui.app import _new_session
             self._app.current_session = _new_session()
+            self._app.current_session["is_test"] = True
+            self._app.current_session["sche_id"] = 0 # 0 for test
             self._app.show_screen("medication_start")

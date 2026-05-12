@@ -130,10 +130,31 @@ function VoiceUploadTab() {
       const data = await res.json()
       setSavedVoice(data.voice)
       setMode('done')
+      // 저장 직후에도 바로 들어볼 수 있게 미리보기 URL 업데이트
+      if (data.voice.file_path) {
+        const path = data.voice.file_path.startsWith('/') ? data.voice.file_path : `/${data.voice.file_path}`
+        setPreviewUrl(`${API_BASE}${path}`)
+      }
     } catch (err) {
       setErrorMsg(err.message)
       setMode('idle')
     }
+  }
+
+  function playSavedVoice() {
+    if (!savedVoice?.file_path) return
+    
+    const path = savedVoice.file_path.startsWith('/') ? savedVoice.file_path : `/${savedVoice.file_path}`
+    const url = `${API_BASE}${path}`
+    setPreviewUrl(url)
+    
+    setTimeout(() => {
+      if (audioRef.current) {
+        audioRef.current.pause()
+        audioRef.current.load()
+        audioRef.current.play().catch(() => {})
+      }
+    }, 50)
   }
 
   const voiceOptionLabel = (v) => {
@@ -157,6 +178,13 @@ function VoiceUploadTab() {
                 등록일: {new Date(savedVoice.updated_at).toLocaleDateString('ko-KR')}
               </p>
             )}
+            <button 
+              className="voice-current__play"
+              onClick={playSavedVoice}
+              title="현재 음성 듣기"
+            >
+              ▶ 재생해보기
+            </button>
           </div>
           <span className="voice-current__badge">적용 완료</span>
         </div>
@@ -169,6 +197,12 @@ function VoiceUploadTab() {
           <div className="voice-done__text">
             <p className="voice-done__title">알림 음성 저장 완료</p>
             <p className="voice-done__desc">30초 이내 기기에 자동 반영됩니다</p>
+            <button 
+              className="voice-done__play"
+              onClick={playSavedVoice}
+            >
+              ▶ 저장된 음성 확인하기
+            </button>
           </div>
           <button className="voice-done__retry" onClick={() => setMode('idle')}>
             다시 설정

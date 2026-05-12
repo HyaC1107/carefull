@@ -446,6 +446,17 @@ class CameraViewScreen(QWidget):
         self._sub_lbl.setText(f"촬영 중...  {phase_in_count} / 4")
 
     def _on_phase_changed(self, phase_idx: int, direction: str):
+        _DIRECTION_VOICE = {
+            "정면": "reg_face_front.mp3",
+            "위": "reg_face_up.mp3",
+            "아래": "reg_face_down.mp3",
+            "왼쪽": "reg_face_left.mp3",
+            "오른쪽": "reg_face_right.mp3",
+        }
+        voice = _DIRECTION_VOICE.get(direction)
+        if voice:
+            _play_voice(voice)
+
         if phase_idx < 0:
             # 카운트다운 중 (-2, -1 순서로 옴)
             countdown = abs(phase_idx)
@@ -454,16 +465,6 @@ class CameraViewScreen(QWidget):
         else:
             self._sub_lbl.setText(f"{direction}을(를) 바라봐 주세요")
             self._sub_lbl.setStyleSheet("color: #93c5fd; background: transparent;")
-            _DIRECTION_VOICE = {
-                "정면": "reg_face_front.mp3",
-                "위": "reg_face_up.mp3",
-                "아래": "reg_face_down.mp3",
-                "왼쪽": "reg_face_left.mp3",
-                "오른쪽": "reg_face_right.mp3",
-            }
-            voice = _DIRECTION_VOICE.get(direction)
-            if voice:
-                _play_voice(voice)
 
     def _on_save_done(self, ok: bool):
         if ok:
