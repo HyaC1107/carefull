@@ -105,70 +105,140 @@ def _next_medication() -> str:
 
 
 class _MenuButton(QWidget):
-    """아이콘(PNG 또는 텍스트) + 레이블 세로 배치 버튼.
-    icon_size, font_size 파라미터로 메인/테스트 버튼 크기를 분리."""
+    """아이콘(PNG 또는 텍스트) + 레이블 세로 배치 버튼."""
 
-    _STYLE_NORMAL   = "QWidget { background-color: white; border: 2px solid #d0d5dd; border-radius: 16px; }"
-    _STYLE_PRESS    = "QWidget { background-color: #f0f4ff; border: 2px solid #aab0bb; border-radius: 16px; }"
-    _STYLE_DISABLED = "QWidget { background-color: #f1f5f9; border: 2px solid #e2e8f0; border-radius: 16px; }"
+    _STYLE_NORMAL = """
+    #menuButton {
+        background-color: white;
+        border: 3px solid #cbd5e1;
+        border-radius: 20px;
+    }
+    """
 
-    def __init__(self, png_name: str, fallback: str, text: str, callback,
-                 icon_size: int = 76, font_size: int = 42, parent=None):
+    _STYLE_PRESS = """
+    #menuButton {
+        background-color: #eff6ff;
+        border: 3px solid #60a5fa;
+        border-radius: 20px;
+    }
+    """
+
+    _STYLE_DISABLED = """
+    #menuButton {
+        background-color: #f1f5f9;
+        border: 3px solid #e2e8f0;
+        border-radius: 20px;
+    }
+    """
+
+    def __init__(
+        self,
+        png_name: str,
+        fallback: str,
+        text: str,
+        callback,
+        icon_size: int = 76,
+        font_size: int = 42,
+        parent=None
+    ):
         super().__init__(parent)
+
+        self.setObjectName("menuButton")
+        self.setAttribute(Qt.WA_StyledBackground, True)
         self._callback = callback
-        self._enabled  = True
-        self._icon_size = icon_size
-        self._font_size = font_size
+        self._enabled = True
+
         self.setCursor(Qt.PointingHandCursor)
         self.setStyleSheet(self._STYLE_NORMAL)
 
         lay = QVBoxLayout(self)
-        lay.setContentsMargins(18, 20, 18, 20)
-        lay.setSpacing(10)
+        lay.setContentsMargins(24, 24, 24, 24)
+        lay.setSpacing(14)
 
+        # ── 아이콘 ─────────────────────────────
         icon_lbl = QLabel()
         icon_lbl.setAlignment(Qt.AlignCenter)
-        icon_lbl.setStyleSheet("background: transparent; border: none;")
+        icon_lbl.setStyleSheet("""
+            background: transparent;
+            border: none;
+        """)
+
         png_path = os.path.join(_ICONS_DIR, png_name)
+
         if os.path.exists(png_path):
             pix = QPixmap(png_path).scaled(
-                icon_size, icon_size, Qt.KeepAspectRatio, Qt.SmoothTransformation
+                icon_size,
+                icon_size,
+                Qt.KeepAspectRatio,
+                Qt.SmoothTransformation,
             )
             icon_lbl.setPixmap(pix)
+
         else:
             icon_lbl.setText(fallback)
             icon_lbl.setFont(QFont("Sans Serif", font_size))
 
+        # ── 텍스트 ─────────────────────────────
         self._text_lbl = QLabel(text)
-        self._text_lbl.setFont(QFont("Sans Serif", font_size, QFont.Bold))
         self._text_lbl.setAlignment(Qt.AlignCenter)
-        self._text_lbl.setStyleSheet(f"background: transparent; border: none; color: {_DARK};")
+        self._text_lbl.setFont(
+            QFont("Sans Serif", font_size, QFont.Bold)
+        )
 
+        self._text_lbl.setStyleSheet(f"""
+            background: transparent;
+            border: none;
+            color: {_DARK};
+        """)
+
+        # ── 레이아웃 ───────────────────────────
+        lay.addStretch(1)
         lay.addWidget(icon_lbl)
+        lay.addSpacing(8)
         lay.addWidget(self._text_lbl)
+        lay.addStretch(1)
 
     def set_enabled(self, enabled: bool):
         self._enabled = enabled
+
         if enabled:
             self.setStyleSheet(self._STYLE_NORMAL)
-            self._text_lbl.setStyleSheet(f"background: transparent; border: none; color: {_DARK};")
+
+            self._text_lbl.setStyleSheet(f"""
+                background: transparent;
+                border: none;
+                color: {_DARK};
+            """)
+
             self.setCursor(Qt.PointingHandCursor)
+
         else:
             self.setStyleSheet(self._STYLE_DISABLED)
-            self._text_lbl.setStyleSheet("background: transparent; border: none; color: #94a3b8;")
+
+            self._text_lbl.setStyleSheet("""
+                background: transparent;
+                border: none;
+                color: #94a3b8;
+            """)
+
             self.setCursor(Qt.ArrowCursor)
 
     def mousePressEvent(self, event):
         if not self._enabled:
             return
+
         self.setStyleSheet(self._STYLE_PRESS)
         super().mousePressEvent(event)
 
     def mouseReleaseEvent(self, event):
         if not self._enabled:
             return
+
         self.setStyleSheet(self._STYLE_NORMAL)
-        self._callback()
+
+        if callable(self._callback):
+            self._callback()
+
         super().mouseReleaseEvent(event)
 
 
@@ -217,7 +287,6 @@ class HomeScreen(QWidget):
         self._clock_lbl.setFont(QFont("Sans Serif", _fs(96), QFont.Bold))
         self._clock_lbl.setStyleSheet(f"""
             color: {_DARK};
-            background-color: {_BG};
             border-radius: 16px;
             padding: 6px 16px;
         """)
@@ -268,8 +337,9 @@ class HomeScreen(QWidget):
             lambda: self._on_register_click(),
             icon_size=_fs(90), font_size=_fs(42),
         )
-        self._btn_register.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
-        self._btn_register.setMinimumHeight(_fs(280))
+        self._btn_register.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)
+        self._btn_register.setMinimumHeight(280)
+        self._btn_register.setMaximumWidth(420)
         self._btn_register.hide()
 
         btn_settings = _MenuButton(
@@ -277,9 +347,10 @@ class HomeScreen(QWidget):
             lambda: self._go("settings"),
             icon_size=_fs(90), font_size=_fs(42),
         )
-        btn_settings.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
-        btn_settings.setMinimumHeight(_fs(280))
-
+        btn_settings.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)
+        btn_settings.setMinimumHeight(280)
+        btn_settings.setMaximumWidth(420)
+        
         btn_row.addWidget(self._btn_register)
         btn_row.addWidget(btn_settings)
         root.addLayout(btn_row)
@@ -296,8 +367,8 @@ class HomeScreen(QWidget):
                 lambda: self._go_auth_test(),
                 icon_size=_fs(56), font_size=_fs(28),
             )
-            btn_face_test.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
-            btn_face_test.setMinimumHeight(_fs(130))
+            btn_face_test.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)
+            btn_face_test.setMinimumHeight(130)
             btn_face_test.setStyleSheet(
                 "QWidget { background-color: #eff6ff; border: 2px solid #93c5fd; border-radius: 14px; }"
             )
@@ -307,8 +378,8 @@ class HomeScreen(QWidget):
                 lambda: self._go_full_med_test(),
                 icon_size=_fs(56), font_size=_fs(28),
             )
-            btn_full_med_test.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
-            btn_full_med_test.setMinimumHeight(_fs(130))
+            btn_full_med_test.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)
+            btn_full_med_test.setMinimumHeight(130)
             btn_full_med_test.setStyleSheet(
                 "QWidget { background-color: #fff8e8; border: 2px solid #fcd34d; border-radius: 14px; }"
             )
