@@ -434,21 +434,43 @@ class HomeScreen(QWidget):
         self._status_worker.start()
 
     def _on_status_ready(self, is_paired: bool, has_face: bool):
+        self._is_paired = is_paired
         self._has_face = has_face
+
+        # 기기가 대시보드에 등록(페어링)되지 않았어도 버튼은 항상 보여줍니다.
+        # (그래야 등록 프로세스가 있다는 것을 인지할 수 있습니다.)
+        self._btn_register.show()
+
         if not is_paired:
-            self._btn_register.hide()
+            # 미페어링 상태: 활성화는 해두되 클릭 시 안내 예정
+            self._btn_register.set_enabled(True)
         elif has_face:
-            # 등록 완료 → 버튼 비활성화(회색)
-            self._btn_register.show()
+            # 페어링됨 + 이미 등록 완료: 비활성화(회색)
             self._btn_register.set_enabled(False)
         else:
-            # 페어링됨 + 미등록 → 활성화
-            self._btn_register.show()
+            # 페어링됨 + 미등록: 활성화
             self._btn_register.set_enabled(True)
 
     def _on_register_click(self):
-        """등록 버튼 클릭 — 이미 등록된 경우 안내 메시지 후 홈 유지."""
-        # user_db.json 동기 재확인 (비활성화 상태에서 눌린 예외 케이스 방어)
+        """등록 버튼 클릭 시 상태(미페어링/이미등록/등록가능)에 따라 안내."""
+        # 1. 기기 미페어링 상태 (대시보드 등록 필요)
+        if not getattr(self, "_is_paired", False):
+            _play_voice("reg_error_device.mp3")  # 파일이 없으면 무시됨
+            from PyQt5.QtWidgets import QMessageBox
+            dlg = QMessageBox(self)
+            dlg.setWindowTitle("기기 등록 필요")
+            dlg.setText("기기가 아직 등록되지 않았습니다.")
+            dlg.setInformativeText("웹 대시보드에서 기기를 환자에게\n연결한 후 다시 시도해 주세요.")
+            dlg.setStandardButtons(QMessageBox.Ok)
+            dlg.setStyleSheet(
+                "QLabel { font-size: 22pt; }"
+                "QLabel#qt_msgbox_informativelabel { font-size: 16pt; color: #64748b; }"
+                "QPushButton { font-size: 18pt; min-width: 120px; min-height: 48px; }"
+            )
+            dlg.exec_()
+            return
+
+        # 2. 이미 얼굴 정보가 등록된 상태
         already = self._has_face
         if not already:
             try:
@@ -472,6 +494,7 @@ class HomeScreen(QWidget):
             dlg.exec_()
             return
 
+        # 3. 등록 가능 상태
         self._go("register")
 
     def _go(self, screen: str):
