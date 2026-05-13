@@ -6,7 +6,7 @@ from PyQt5.QtCore import QThread, pyqtSignal
 
 from config.settings import UI_TEST_MODE, BASE_DIR
 
-_DIST_THRESHOLD = 0.3   # 정규화 거리 (코 ↔ 손목)
+_DIST_THRESHOLD = 0.35   # 정규화 거리 (코 ↔ 손목)
 _SUCCESS_FRAMES = 4      # 연속 감지 프레임 수
 
 _LOG_PATH = os.path.join(BASE_DIR, "logs", "behavior_log.csv")

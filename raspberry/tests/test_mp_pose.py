@@ -273,8 +273,8 @@ class TuneWindow(QWidget):
 
         # BGR → RGB for Qt
         h, w  = frame.shape[:2]
-        rgb   = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        qimg  = QImage(rgb.data, w, h, w * 3, QImage.Format_RGB888)
+        
+        qimg  = QImage(frame.data, w, h, w * 3, QImage.Format_RGB888)
         self._pixmap = QPixmap.fromImage(qimg.copy())
         self.update()
 
