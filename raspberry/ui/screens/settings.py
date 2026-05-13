@@ -625,6 +625,26 @@ class _VolumeCard(QFrame):
         self._test_btn.clicked.connect(self._on_test_sound)
         lay.addWidget(self._test_btn)
 
+        self._tts_btn = QPushButton("TTS 안내음 확인")
+        self._tts_btn.setFont(QFont("Sans Serif", _fs(20), QFont.Bold))
+        self._tts_btn.setFixedHeight(_fs(68))
+        self._tts_btn.setStyleSheet(f"""
+            QPushButton {{
+                background-color: #f0fdf4;
+                color: {_GREEN};
+                border: 2px solid #bbf7d0;
+                border-radius: {_fs(14)}px;
+            }}
+            QPushButton:pressed {{ background-color: #dcfce7; }}
+            QPushButton:disabled {{
+                background-color: #f1f5f9;
+                color: #94a3b8;
+                border-color: #e2e8f0;
+            }}
+        """)
+        self._tts_btn.clicked.connect(self._on_test_tts)
+        lay.addWidget(self._tts_btn)
+
     @staticmethod
     def _read_volume() -> int:
         for ctrl in ("Master", "PCM"):
@@ -668,6 +688,25 @@ class _VolumeCard(QFrame):
             pass
         self._test_btn.setEnabled(True)
         self._test_btn.setText("소리 확인")
+
+    def _on_test_tts(self):
+        self._tts_btn.setEnabled(False)
+        self._tts_btn.setText("재생 중...")
+        try:
+            from hardware.alarm import play_voice
+            play_voice("voice.mp3")
+        except Exception:
+            pass
+        QTimer.singleShot(5000, self._stop_test_tts)
+
+    def _stop_test_tts(self):
+        try:
+            from hardware.alarm import stop_alarm
+            stop_alarm()
+        except Exception:
+            pass
+        self._tts_btn.setEnabled(True)
+        self._tts_btn.setText("TTS 안내음 확인")
 
 
 class _FontSizeCard(QFrame):
