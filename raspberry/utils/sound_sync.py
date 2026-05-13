@@ -1,5 +1,6 @@
 import logging
 import os
+import subprocess
 
 from config.settings import DEVICE_UID, ALARM_SOUND_PATH, TTS_VOICE_PATH, SOUNDS_DIR, VOICES_DIR
 
@@ -7,6 +8,26 @@ logger = logging.getLogger(__name__)
 
 _ALARM_STAMP = os.path.join(SOUNDS_DIR, ".alarm_updated_at")
 _VOICE_STAMP = os.path.join(VOICES_DIR, ".voice_updated_at")
+
+
+def _normalize_audio(file_path: str):
+    """ffmpeg loudnorm으로 음량 정규화 (-14 LUFS). ffmpeg 없거나 실패하면 원본 유지."""
+    tmp = file_path + ".norm.mp3"
+    try:
+        subprocess.run(
+            ["ffmpeg", "-i", file_path,
+             "-filter:a", "loudnorm=I=-14:LRA=11:TP=-1.5",
+             "-ar", "44100", "-y", tmp],
+            check=True, capture_output=True,
+        )
+        os.replace(tmp, file_path)
+        logger.info("loudnorm 정규화 완료: %s", file_path)
+    except Exception as e:
+        logger.warning("loudnorm 실패, 원본 유지: %s", e)
+        try:
+            os.remove(tmp)
+        except OSError:
+            pass
 
 
 def _read_stamp(path: str) -> str:
@@ -70,6 +91,7 @@ def sync_tts_voice() -> bool:
         return False
 
     if download_sound(meta["url"], TTS_VOICE_PATH):
+        _normalize_audio(TTS_VOICE_PATH)
         _write_stamp(_VOICE_STAMP, stamp)
         logger.info("tts voice updated: %s", TTS_VOICE_PATH)
         return True
