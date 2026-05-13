@@ -16,7 +16,7 @@ def _normalize_audio(file_path: str):
     try:
         subprocess.run(
             ["ffmpeg", "-i", file_path,
-             "-filter:a", "loudnorm=I=-14:LRA=11:TP=-1.5",
+             "-filter:a", "volume=20dB",
              "-ar", "44100", "-y", tmp],
             check=True, capture_output=True,
         )
