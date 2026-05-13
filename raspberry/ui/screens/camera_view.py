@@ -86,30 +86,36 @@ class _AuthWorker(QThread):
         self._face_imgs = face_imgs
 
     def run(self):
+        import csv, datetime
+        from config.settings import BASE_DIR
+
         if not self._face_imgs:
             self.failed.emit()
             return
-            
+
         from auth.authenticate import authenticate
-        
+
         results = {}  # {user_name: [scores]}
         total_count = len(self._face_imgs)
-        
+        frame_logs = []  # CSV 저장용
+        session_ts = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
         print(f"[AUTH_WORKER] Analyzing {total_count} frames (Multi-Template Mode)...")
 
         for i, img in enumerate(self._face_imgs):
             user, score = authenticate(img)
-            # --- 고도화: 콘솔에 실시간 점수 출력 ---
             status = "MATCH" if user else "FAIL"
             print(f"[AUTH_FRAME] {i+1:02d}/{total_count} | Score: {score:.4f} ({status})")
-            
+            frame_logs.append((session_ts, i + 1, total_count, round(score, 4), status))
+
             if user:
                 if user not in results:
                     results[user] = []
                 results[user].append(score)
-        
+
         if not results:
             print("[AUTH_WORKER] Access Denied: No matching user found.")
+            _append_face_log(BASE_DIR, frame_logs, final_result="DENIED", match_ratio=0.0, avg_score=0.0)
             self.failed.emit()
             return
 
@@ -122,9 +128,9 @@ class _AuthWorker(QThread):
             votes = len(scores)
             avg_score = sum(scores) / votes
             match_ratio = votes / total_count
-            
+
             print(f"  - Candidate: {user} | Ratio: {match_ratio*100:.1f}% ({votes}/{total_count}) | Avg: {avg_score:.4f}")
-            
+
             if votes > max_votes:
                 max_votes = votes
                 best_user = user
@@ -138,10 +144,34 @@ class _AuthWorker(QThread):
 
         if final_ratio >= STRICT_RATIO_THRESHOLD:
             print(f"[AUTH_WORKER] SUCCESS: {best_user} verified with {final_ratio*100:.1f}% confidence.")
+            _append_face_log(BASE_DIR, frame_logs, final_result="SUCCESS",
+                             match_ratio=round(final_ratio, 4), avg_score=round(highest_avg, 4))
             self.success.emit(best_user, float(highest_avg))
         else:
             print(f"[AUTH_WORKER] FAILED: Consistency too low ({final_ratio*100:.1f}%). Requires {STRICT_RATIO_THRESHOLD*100:.1f}%.")
+            _append_face_log(BASE_DIR, frame_logs, final_result="FAILED",
+                             match_ratio=round(final_ratio, 4), avg_score=round(highest_avg, 4))
             self.failed.emit()
+
+
+def _append_face_log(base_dir: str, frame_logs: list, final_result: str, match_ratio: float, avg_score: float):
+    """얼굴 인증 결과를 CSV에 추가."""
+    import csv, os
+    log_dir = os.path.join(base_dir, "logs")
+    os.makedirs(log_dir, exist_ok=True)
+    log_path = os.path.join(log_dir, "face_auth_log.csv")
+    write_header = not os.path.exists(log_path)
+    try:
+        with open(log_path, "a", newline="", encoding="utf-8") as f:
+            w = csv.writer(f)
+            if write_header:
+                w.writerow(["session_time", "frame_no", "total_frames",
+                            "similarity_score", "frame_result",
+                            "match_ratio", "avg_score", "final_result"])
+            for row in frame_logs:
+                w.writerow(list(row) + [match_ratio, avg_score, final_result])
+    except Exception as e:
+        print(f"[AUTH_LOG] 로그 저장 실패: {e}")
 
 
 _THEMES = {
