@@ -1,4 +1,5 @@
 import os
+import json
 
 from PyQt5.QtCore import Qt, QThread, QTimer, QRectF
 from PyQt5.QtGui import QColor, QFont, QPainter, QPen, QPixmap
@@ -270,6 +271,15 @@ class FingerprintRegisterScreen(QWidget):
             QPushButton:pressed {{ background-color: #f0fdf4; }}
         """)
         self._btn_done.clicked.connect(self._go_complete)
+
+        btn_row.addWidget(self._btn_more, 1) # 1:1 비율
+        btn_row.addWidget(self._btn_done, 1)
+        prompt_layout.addLayout(btn_row)
+
+        self._prompt_widget.hide()
+        root.addWidget(self._prompt_widget)
+
+        root.addStretch(2)
 
     # ── 생명주기 ─────────────────────────────────────────────────────────────
 
