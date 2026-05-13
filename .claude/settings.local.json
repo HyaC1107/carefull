@@ -46,7 +46,11 @@
       "PowerShell(\\(Get-ChildItem \"C:\\\\Users\\\\smhrd\\\\Desktop\\\\carefull\\\\backend\\\\node_modules\" -Directory | Measure-Object\\).Count)",
       "PowerShell(Get-ChildItem \"C:\\\\Users\\\\smhrd\\\\Desktop\\\\carefull\\\\backend\\\\node_modules\" -Directory | Where-Object { $_.Name -match \"eleven|elev\" })",
       "PowerShell(Get-ChildItem -Path \"C:\\\\Users\\\\smhrd\\\\Desktop\\\\carefull\" -Recurse | Select-Object FullName | ForEach-Object { $_.FullName })",
-      "Bash(Select-Object -ExpandProperty FullName)"
+      "Bash(Select-Object -ExpandProperty FullName)",
+      "PowerShell(cmd /c \"dir C:\\\\Users\\\\smhrd\\\\Desktop\\\\carefull\\\\raspberry /b\")",
+      "PowerShell(cmd /c \"dir C:\\\\Users\\\\smhrd\\\\Desktop\\\\carefull\\\\raspberry\\\\tests /b\")",
+      "PowerShell(cmd /c \"dir C:\\\\Users\\\\smhrd\\\\Desktop\\\\carefull\\\\raspberry\\\\behavior /b\")",
+      "PowerShell(findstr *)"
     ]
   }
 }

@@ -34,7 +34,7 @@ class _FailEventSendWorker(QThread):
 
     def run(self):
         sche_id = self._session.get("sche_id")
-        if sche_id is None:
+        if not sche_id:  # None or 0 (test mode) — skip server event
             return
         from api.client import send_device_event
         send_device_event(
