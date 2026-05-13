@@ -238,8 +238,9 @@ class TuneWindow(QWidget):
         self._log_f.flush()
 
         h, w = frame.shape[:2]
-        qimg = QImage(frame.data, w, h, w * 3, QImage.Format_BGR888)
-        self._pixmap = QPixmap.fromImage(qimg)
+        frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        qimg = QImage(frame_rgb.data, w, h, w * 3, QImage.Format_RGB888)
+        self._pixmap = QPixmap.fromImage(qimg.copy())  # .copy()로 버퍼 소유권 확보
         self.update()   # paintEvent 호출
 
     # ── 전체화면 렌더링 ──────────────────────────────────────────────────
