@@ -128,8 +128,41 @@ def _pose_worker(log_writer, log_file):
                     vis_mr = lm[_MOUTH_R].visibility
                     ref_ok = (vis_ml >= VIS_THRESHOLD and vis_mr >= VIS_THRESHOLD)
 
-                if ref_ok:
-                    landmarks_ok = True
+# ── 포즈 처리 스레드 ─────────────────────────────────────────────────────
+class PoseThread(QThread):
+    frame_ready = pyqtSignal(object, float, float, bool, int)
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._running = False
+
+    def run(self):
+        self._running = True
+        from camera.camera import get_frame
+
+        pose = mp.solutions.pose.Pose(
+            static_image_mode=False,
+            model_complexity=1,
+            min_detection_confidence=0.5,
+            min_tracking_confidence=0.5,
+        )
+        counter = 0
+
+        try:
+            while self._running:
+                frame = get_frame()
+                if frame is None:
+                    self.msleep(30)
+                    continue
+
+                rgb    = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                results = pose.process(rgb)
+
+                dist_l = dist_r = -1.0
+                is_near = False
+
+                if results.pose_landmarks:
+                    lm = results.pose_landmarks.landmark
                     if USE_MOUTH:
                         rx = (lm[_MOUTH_L].x + lm[_MOUTH_R].x) / 2
                         ry = (lm[_MOUTH_L].y + lm[_MOUTH_R].y) / 2
