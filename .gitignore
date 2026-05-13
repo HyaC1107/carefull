@@ -107,3 +107,5 @@ raspberry/db/
 raspberry/logs/
 raspberry/assets/sounds/.alarm_updated_at
 raspberry/assets/voices
+./데이터베이스 DDL.txt
+./database.md
