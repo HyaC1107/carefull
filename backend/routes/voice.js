@@ -160,7 +160,7 @@ router.post('/generate', verifyToken, async (req, res) => {
         const output_abs  = path.join(SOUNDS_DIR, filename);
         await elevenlabs.generate_tts(voice_id, text.trim(), output_abs);
 
-        const relative_sound = `/uploads/sounds/${filename}`;
+        const relative_sound = `uploads/sounds/${filename}`;
 
         // voice_samples 저장
         const { rows } = await pool.query(

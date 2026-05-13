@@ -86,7 +86,7 @@ def sync_tts_voice() -> bool:
     if not meta or not meta.get("url"):
         return False
 
-    stamp = str(meta.get("updated_at", ""))
+    stamp = str(meta.get("file_path") or meta.get("updated_at") or "")
     if stamp and stamp == _read_stamp(_VOICE_STAMP):
         return False
 
