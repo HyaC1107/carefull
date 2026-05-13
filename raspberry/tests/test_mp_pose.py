@@ -140,7 +140,7 @@ class PoseThread(QThread):
                     self.msleep(30)
                     continue
 
-                rgb    = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                rgb = frame
                 results = pose.process(rgb)
 
                 dist_l = dist_r = -1.0
