@@ -1,21 +1,21 @@
 """
-복약행위 감지 파라미터 튜닝 도구 (SSH 터미널 버전)
---------------------------------------------------
-실행:  python tests/test_mp_pose.py
+Medication behavior detection tuning tool (SSH terminal version)
+----------------------------------------------------------------
+Run:  python tests/test_mp_pose.py
 
-키 조작 (SSH 터미널에서 바로 입력):
-  + / =       임계값 +0.01
-  -           임계값 -0.01
-  ]           연속 프레임 수 +1
-  [           연속 프레임 수 -1
-  v           visibility 임계값 +0.05 (오감지 줄이기)
-  V           visibility 임계값 -0.05
-  m           기준점 토글 (코 ↔ 입)
-  r           카운터 리셋
-  s           현재 설정을 behavior_thread.py 에 저장
-  q           종료
+Keys:
+  + / =   threshold +0.01
+  -       threshold -0.01
+  ]       success frames +1
+  [       success frames -1
+  v       visibility threshold +0.05
+  V       visibility threshold -0.05
+  m       toggle reference point (nose / mouth)
+  r       reset counter
+  s       save settings to behavior_thread.py
+  q       quit
 
-로그:  logs/tune_pose_log.csv
+Log: logs/tune_pose_log.csv
 """
 
 import csv
@@ -35,11 +35,11 @@ import cv2
 import mediapipe as mp
 import numpy as np
 
-# ── 파라미터 ─────────────────────────────────────────────────────────────
-DIST_THRESHOLD  = 0.3
-SUCCESS_FRAMES  = 4
-USE_MOUTH       = False
-VIS_THRESHOLD   = 0.5   # 랜드마크 visibility 최소값 (낮으면 오감지 필터)
+# ── parameters (same defaults as behavior_thread.py) ─────────────────────
+DIST_THRESHOLD = 0.3
+SUCCESS_FRAMES = 4
+USE_MOUTH      = False
+VIS_THRESHOLD  = 0.5   # landmark visibility minimum — raise to reduce false detections
 
 _NOSE    = 0
 _MOUTH_L = 9
@@ -50,40 +50,38 @@ _R_WRIST = 16
 _LOG_PATH = os.path.normpath(
     os.path.join(os.path.dirname(__file__), "..", "logs", "tune_pose_log.csv")
 )
-_BEHAVIOR_THREAD_PATH = os.path.normpath(
+_BEHAVIOR_PATH = os.path.normpath(
     os.path.join(os.path.dirname(__file__), "..", "ui", "threads", "behavior_thread.py")
 )
 
-# ── ANSI 색상 ─────────────────────────────────────────────────────────────
-_R  = "\033[91m"   # 빨강
-_G  = "\033[92m"   # 초록
-_Y  = "\033[93m"   # 노랑
-_B  = "\033[94m"   # 파랑
-_C  = "\033[96m"   # 시안
-_W  = "\033[97m"   # 흰색
+# ── ANSI colors ───────────────────────────────────────────────────────────
+_R   = "\033[91m"
+_G   = "\033[92m"
+_Y   = "\033[93m"
+_B   = "\033[94m"
+_C   = "\033[96m"
 _DIM = "\033[2m"
 _RST = "\033[0m"
-_CLR = "\033[2J\033[H"   # 화면 클리어 + 커서 홈
+_CLR = "\033[2J\033[H"
 
-
-# ── 공유 상태 ─────────────────────────────────────────────────────────────
+# ── shared state ──────────────────────────────────────────────────────────
 _state = {
-    "dist_l":    -1.0,
-    "dist_r":    -1.0,
-    "vis_nose":  -1.0,
-    "vis_lw":    -1.0,
-    "vis_rw":    -1.0,
-    "is_near":   False,
-    "counter":   0,
-    "detected":  False,
+    "dist_l":       -1.0,
+    "dist_r":       -1.0,
+    "vis_nose":     -1.0,
+    "vis_lw":       -1.0,
+    "vis_rw":       -1.0,
+    "is_near":      False,
+    "counter":      0,
+    "detected":     False,
     "landmarks_ok": False,
-    "frame_no":  0,
-    "running":   True,
+    "frame_no":     0,
+    "running":      True,
 }
 _lock = threading.Lock()
 
 
-# ── 카메라 + 포즈 처리 스레드 ─────────────────────────────────────────────
+# ── pose worker thread ────────────────────────────────────────────────────
 def _pose_worker(log_writer, log_file):
     from camera.camera import get_frame
 
@@ -114,55 +112,22 @@ def _pose_worker(log_writer, log_file):
             if results.pose_landmarks:
                 lm = results.pose_landmarks.landmark
 
-                vis_nose = lm[_NOSE].visibility
-                vis_lw   = lm[_L_WRIST].visibility
-                vis_rw   = lm[_R_WRIST].visibility
+                vis_nose = float(lm[_NOSE].visibility)
+                vis_lw   = float(lm[_L_WRIST].visibility)
+                vis_rw   = float(lm[_R_WRIST].visibility)
 
-                # visibility 통과한 랜드마크만 사용
                 ref_ok = vis_nose >= VIS_THRESHOLD
                 lw_ok  = vis_lw   >= VIS_THRESHOLD
                 rw_ok  = vis_rw   >= VIS_THRESHOLD
 
                 if USE_MOUTH:
-                    vis_ml = lm[_MOUTH_L].visibility
-                    vis_mr = lm[_MOUTH_R].visibility
-                    ref_ok = (vis_ml >= VIS_THRESHOLD and vis_mr >= VIS_THRESHOLD)
+                    ref_ok = (
+                        lm[_MOUTH_L].visibility >= VIS_THRESHOLD and
+                        lm[_MOUTH_R].visibility >= VIS_THRESHOLD
+                    )
 
-# ── 포즈 처리 스레드 ─────────────────────────────────────────────────────
-class PoseThread(QThread):
-    frame_ready = pyqtSignal(object, float, float, bool, int)
-
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self._running = False
-
-    def run(self):
-        self._running = True
-        from camera.camera import get_frame
-
-        pose = mp.solutions.pose.Pose(
-            static_image_mode=False,
-            model_complexity=1,
-            min_detection_confidence=0.5,
-            min_tracking_confidence=0.5,
-        )
-        counter = 0
-
-        try:
-            while self._running:
-                frame = get_frame()
-                if frame is None:
-                    self.msleep(30)
-                    continue
-
-                rgb    = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-                results = pose.process(rgb)
-
-                dist_l = dist_r = -1.0
-                is_near = False
-
-                if results.pose_landmarks:
-                    lm = results.pose_landmarks.landmark
+                if ref_ok:
+                    landmarks_ok = True
                     if USE_MOUTH:
                         rx = (lm[_MOUTH_L].x + lm[_MOUTH_R].x) / 2
                         ry = (lm[_MOUTH_L].y + lm[_MOUTH_R].y) / 2
@@ -174,8 +139,8 @@ class PoseThread(QThread):
                     if rw_ok:
                         dist_r = float(np.hypot(lm[_R_WRIST].x - rx, lm[_R_WRIST].y - ry))
 
-                    valid_dists = [d for d in [dist_l, dist_r] if d >= 0]
-                    if valid_dists and min(valid_dists) < DIST_THRESHOLD:
+                    valid = [d for d in [dist_l, dist_r] if d >= 0]
+                    if valid and min(valid) < DIST_THRESHOLD:
                         is_near = True
 
             if is_near:
@@ -193,15 +158,16 @@ class PoseThread(QThread):
                 _state["counter"]      = counter
                 _state["landmarks_ok"] = landmarks_ok
                 _state["frame_no"]    += 1
-                fn = _state["frame_no"]
+                fn                     = _state["frame_no"]
 
                 if counter >= SUCCESS_FRAMES and not _state["detected"]:
                     _state["detected"] = True
 
                 detected = _state["detected"]
 
-            # CSV 로그
-            min_d = round(min(d for d in [dist_l, dist_r] if d >= 0), 4) if any(d >= 0 for d in [dist_l, dist_r]) else -1.0
+            # CSV log
+            valid_dists = [d for d in [dist_l, dist_r] if d >= 0]
+            min_d = round(min(valid_dists), 4) if valid_dists else -1.0
             log_writer.writerow([
                 session_ts, fn,
                 "mouth" if USE_MOUTH else "nose",
@@ -215,18 +181,18 @@ class PoseThread(QThread):
         pose.close()
 
 
-# ── 화면 출력 ─────────────────────────────────────────────────────────────
+# ── terminal render ───────────────────────────────────────────────────────
 def _render():
     with _lock:
-        dist_l      = _state["dist_l"]
-        dist_r      = _state["dist_r"]
-        vis_nose    = _state["vis_nose"]
-        vis_lw      = _state["vis_lw"]
-        vis_rw      = _state["vis_rw"]
-        counter     = _state["counter"]
-        detected    = _state["detected"]
+        dist_l       = _state["dist_l"]
+        dist_r       = _state["dist_r"]
+        vis_nose     = _state["vis_nose"]
+        vis_lw       = _state["vis_lw"]
+        vis_rw       = _state["vis_rw"]
+        counter      = _state["counter"]
+        detected     = _state["detected"]
         landmarks_ok = _state["landmarks_ok"]
-        frame_no    = _state["frame_no"]
+        frame_no     = _state["frame_no"]
 
     def fmt_dist(d):
         if d < 0:
@@ -240,102 +206,106 @@ def _render():
         col = _G if v >= VIS_THRESHOLD else _R
         return f"{col}{v:.2f}{_RST}"
 
-    ref_label = f"{_Y}입(Mouth){_RST}" if USE_MOUTH else f"{_Y}코(Nose ){_RST}"
-
-    bar_on  = int(min(counter, SUCCESS_FRAMES))
-    bar_off = SUCCESS_FRAMES - bar_on
-    bar_col = _G if detected else _B
-    bar = f"{bar_col}{'█' * bar_on}{_DIM}{'░' * bar_off}{_RST}"
-
-    lm_status = f"{_G}감지됨{_RST}" if landmarks_ok else f"{_R}없음  {_RST}"
-    det_str   = f"  {_G}★ DETECTED!{_RST}" if detected else ""
+    ref_label  = f"{_Y}mouth{_RST}" if USE_MOUTH else f"{_Y}nose {_RST}"
+    bar_filled = min(counter, SUCCESS_FRAMES)
+    bar_empty  = SUCCESS_FRAMES - bar_filled
+    bar_col    = _G if detected else _B
+    bar        = f"{bar_col}{'#' * bar_filled}{_DIM}{'.' * bar_empty}{_RST}"
+    lm_status  = f"{_G}OK   {_RST}" if landmarks_ok else f"{_R}none {_RST}"
+    det_str    = f"  {_G}*** DETECTED ***{_RST}" if detected else ""
 
     lines = [
-        f"{_C}{'─'*50}{_RST}",
-        f"  복약행위 감지 튜닝   frame #{frame_no}",
-        f"{_C}{'─'*50}{_RST}",
-        f"  기준점   : {ref_label}              [m]",
-        f"  임계값   : {_Y}{DIST_THRESHOLD:.2f}{_RST}                  [+ / -]",
-        f"  연속프레임: {_Y}{SUCCESS_FRAMES}{_RST}                    [] / []",
-        f"  vis 임계값: {_Y}{VIS_THRESHOLD:.2f}{_RST}                  [v / V]",
-        f"{_C}{'─'*50}{_RST}",
-        f"  랜드마크  : {lm_status}",
-        f"  vis nose : {fmt_vis(vis_nose)}   L wrist: {fmt_vis(vis_lw)}   R wrist: {fmt_vis(vis_rw)}",
-        f"  dist  L  : {fmt_dist(dist_l)}   R: {fmt_dist(dist_r)}",
-        f"  counter  : {bar} ({counter}/{SUCCESS_FRAMES}){det_str}",
-        f"{_C}{'─'*50}{_RST}",
-        f"  {_DIM}r=리셋  s=저장  q=종료{_RST}",
+        f"{_C}{'=' * 52}{_RST}",
+        f"  Behavior detection tuning    frame #{frame_no}",
+        f"{_C}{'=' * 52}{_RST}",
+        f"  ref point  : {ref_label}                  [m]",
+        f"  threshold  : {_Y}{DIST_THRESHOLD:.2f}{_RST}                      [+ / -]",
+        f"  frames     : {_Y}{SUCCESS_FRAMES}{_RST}                        [] / []",
+        f"  visibility : {_Y}{VIS_THRESHOLD:.2f}{_RST}                      [v / V]",
+        f"{_C}{'-' * 52}{_RST}",
+        f"  landmarks  : {lm_status}",
+        f"  vis  nose  : {fmt_vis(vis_nose)}"
+        f"   L wrist: {fmt_vis(vis_lw)}"
+        f"   R wrist: {fmt_vis(vis_rw)}",
+        f"  dist L     : {fmt_dist(dist_l)}   R: {fmt_dist(dist_r)}",
+        f"  counter    : {bar} ({counter}/{SUCCESS_FRAMES}){det_str}",
+        f"{_C}{'=' * 52}{_RST}",
+        f"  {_DIM}r=reset  s=save  q=quit{_RST}",
     ]
 
-    sys.stdout.write(_CLR)
-    sys.stdout.write("\n".join(lines) + "\n")
+    sys.stdout.write(_CLR + "\n".join(lines) + "\n")
     sys.stdout.flush()
 
 
-# ── 키 입력 처리 ─────────────────────────────────────────────────────────
+# ── key handler ───────────────────────────────────────────────────────────
 def _handle_key(key):
     global DIST_THRESHOLD, SUCCESS_FRAMES, USE_MOUTH, VIS_THRESHOLD
 
     if key in ('+', '='):
         DIST_THRESHOLD = round(min(DIST_THRESHOLD + 0.01, 0.99), 2)
-        _reset_counter()
+        _reset()
     elif key == '-':
         DIST_THRESHOLD = round(max(DIST_THRESHOLD - 0.01, 0.05), 2)
-        _reset_counter()
+        _reset()
     elif key == ']':
         SUCCESS_FRAMES = min(SUCCESS_FRAMES + 1, 30)
-        _reset_counter()
+        _reset()
     elif key == '[':
         SUCCESS_FRAMES = max(SUCCESS_FRAMES - 1, 1)
-        _reset_counter()
+        _reset()
     elif key == 'v':
         VIS_THRESHOLD = round(min(VIS_THRESHOLD + 0.05, 1.0), 2)
-        _reset_counter()
+        _reset()
     elif key == 'V':
         VIS_THRESHOLD = round(max(VIS_THRESHOLD - 0.05, 0.0), 2)
-        _reset_counter()
+        _reset()
     elif key == 'm':
         USE_MOUTH = not USE_MOUTH
-        _reset_counter()
+        _reset()
     elif key == 'r':
-        _reset_counter()
+        _reset()
     elif key == 's':
-        _save_to_behavior_thread(DIST_THRESHOLD, SUCCESS_FRAMES)
-    elif key in ('q', 'Q', '\x03'):   # q, Q, Ctrl+C
+        _save()
+    elif key in ('q', 'Q', '\x03'):
         _state["running"] = False
         return False
     return True
 
 
-def _reset_counter():
+def _reset():
     with _lock:
         _state["counter"]  = 0
         _state["detected"] = False
 
 
-# ── behavior_thread.py 저장 ──────────────────────────────────────────────
-def _save_to_behavior_thread(threshold: float, frames: int):
+def _save():
     try:
-        with open(_BEHAVIOR_THREAD_PATH, "r", encoding="utf-8") as f:
+        with open(_BEHAVIOR_PATH, "r", encoding="utf-8") as f:
             src = f.read()
-        src = re.sub(r"(_DIST_THRESHOLD\s*=\s*)[\d.]+", lambda m: f"{m.group(1)}{threshold}", src)
-        src = re.sub(r"(_SUCCESS_FRAMES\s*=\s*)\d+",   lambda m: f"{m.group(1)}{frames}",    src)
-        with open(_BEHAVIOR_THREAD_PATH, "w", encoding="utf-8") as f:
+        src = re.sub(
+            r"(_DIST_THRESHOLD\s*=\s*)[\d.]+",
+            lambda m: f"{m.group(1)}{DIST_THRESHOLD}",
+            src,
+        )
+        src = re.sub(
+            r"(_SUCCESS_FRAMES\s*=\s*)\d+",
+            lambda m: f"{m.group(1)}{SUCCESS_FRAMES}",
+            src,
+        )
+        with open(_BEHAVIOR_PATH, "w", encoding="utf-8") as f:
             f.write(src)
-        # 저장 메시지는 다음 render에서 덮이므로 별도 출력
-        sys.stdout.write(f"\n{_G}[SAVED] TH={threshold:.2f}  FRAMES={frames}{_RST}\n")
+        sys.stdout.write(f"\n{_G}[SAVED] TH={DIST_THRESHOLD:.2f}  FRAMES={SUCCESS_FRAMES}{_RST}\n")
         sys.stdout.flush()
     except Exception as e:
         sys.stdout.write(f"\n{_R}[SAVE ERROR] {e}{_RST}\n")
         sys.stdout.flush()
 
 
-# ── 메인 ─────────────────────────────────────────────────────────────────
+# ── main ──────────────────────────────────────────────────────────────────
 def run():
-    # CSV 준비
     os.makedirs(os.path.dirname(_LOG_PATH), exist_ok=True)
     write_header = not os.path.exists(_LOG_PATH)
-    log_file = open(_LOG_PATH, "a", newline="", encoding="utf-8")
+    log_file   = open(_LOG_PATH, "a", newline="", encoding="utf-8")
     log_writer = csv.writer(log_file)
     if write_header:
         log_writer.writerow([
@@ -345,26 +315,22 @@ def run():
             "is_near", "counter", "detected",
         ])
 
-    # 포즈 처리 스레드 시작
-    worker = threading.Thread(target=_pose_worker, args=(log_writer, log_file), daemon=True)
+    worker = threading.Thread(
+        target=_pose_worker, args=(log_writer, log_file), daemon=True
+    )
     worker.start()
 
-    # 터미널 raw 모드로 전환 (SSH 키 입력을 즉시 받기 위해)
     old_settings = termios.tcgetattr(sys.stdin)
     tty.setraw(sys.stdin.fileno())
 
     try:
         while _state["running"]:
-            # 화면 갱신
             _render()
-
-            # 키 입력 확인 (0.1초 타임아웃)
             readable, _, _ = select.select([sys.stdin], [], [], 0.1)
             if readable:
                 key = sys.stdin.read(1)
                 if not _handle_key(key):
                     break
-
     finally:
         termios.tcsetattr(sys.stdin, termios.TCSADRAIN, old_settings)
         _state["running"] = False
@@ -372,9 +338,9 @@ def run():
         log_file.close()
 
         sys.stdout.write(_CLR)
-        print(f"최종 설정 — TH: {DIST_THRESHOLD:.2f}  FRAMES: {SUCCESS_FRAMES}"
-              f"  VIS: {VIS_THRESHOLD:.2f}  기준점: {'입' if USE_MOUTH else '코'}")
-        print(f"로그: {_LOG_PATH}")
+        print(f"Final — TH: {DIST_THRESHOLD:.2f}  FRAMES: {SUCCESS_FRAMES}"
+              f"  VIS: {VIS_THRESHOLD:.2f}  ref: {'mouth' if USE_MOUTH else 'nose'}")
+        print(f"Log: {_LOG_PATH}")
 
 
 if __name__ == "__main__":
