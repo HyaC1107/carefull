@@ -364,6 +364,12 @@ class CameraViewScreen(QWidget):
     def showEvent(self, event):
         super().showEvent(event)
         self._auth_result_handled = False
+        
+        # [FIX] 오버레이 상태 초기화: 이전 실패 잔상이 남지 않도록 기본값으로 복원
+        self._processing_overlay.setStyleSheet("background-color: #1e293b;")
+        self._proc_msg.setText("사용자 확인 중입니다...\n잠시만 기다려 주세요")
+        self._proc_msg.setStyleSheet("color: white;")
+        
         self._processing_overlay.hide()
         self._upload_error_overlay.hide()
         self._last_face_imgs = []
@@ -455,6 +461,12 @@ class CameraViewScreen(QWidget):
         else:
             # 이전 AuthWorker 시그널 끊기 (capture_done 중복 호출 방어)
             self._stop_auth_worker()
+            
+            # [FIX] 인증 시작 전 오버레이 스타일 초기화 (재시도 시 잔상 방지)
+            self._processing_overlay.setStyleSheet("background-color: #1e293b;")
+            self._proc_msg.setText("사용자 확인 중입니다...\n잠시만 기다려 주세요")
+            self._proc_msg.setStyleSheet("color: white;")
+            
             # 인증 모드: 카메라 숨기고 추론 시작
             self._processing_overlay.show()
             self._auth_worker = _AuthWorker(face_imgs, parent=self)
