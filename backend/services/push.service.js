@@ -205,25 +205,9 @@ const register_push_token = async ({ mem_id, fcm_token, device_type = 'web' }) =
     `;
 
     try {
-        await client.query('BEGIN');
         const { rows } = await client.query(query, [mem_id, fcm_token, normalized_device_type]);
-        await client.query(
-            `
-                UPDATE push_tokens
-                SET
-                    is_active = FALSE,
-                    updated_at = CURRENT_TIMESTAMP
-                WHERE mem_id = $1
-                  AND device_type = $2
-                  AND fcm_token <> $3
-                  AND is_active = TRUE
-            `,
-            [mem_id, normalized_device_type, fcm_token]
-        );
-        await client.query('COMMIT');
         return rows[0] || null;
     } catch (error) {
-        await client.query('ROLLBACK');
         throw error;
     } finally {
         client.release();
