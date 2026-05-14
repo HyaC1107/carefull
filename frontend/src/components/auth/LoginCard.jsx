@@ -15,7 +15,7 @@ function LoginCard({ onKakaoLogin, onNaverLogin, onGoogleLogin, onAdminLogin }) 
         />
       </div>
 
-      <p className="login-card__subtitle">Care-full 스마트 복약 관리 서비스</p>
+      <p className="login-card__subtitle">Care-full 스마트 복약 관리 서비스^^</p>
 
       <div className="login-card__actions">
         <SocialLoginButton
