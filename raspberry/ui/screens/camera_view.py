@@ -212,15 +212,17 @@ class _GradientOverlay(QWidget):
 class CameraViewScreen(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
-        self._app             = parent
-        self._mode            = MODE_AUTH
-        self._thread          = None
-        self._save_worker     = None
-        self._auth_worker     = None
-        self._countdown_timer = None
-        self._remaining       = 0
-        self._frame_count     = 0
-        self._auth_started    = False
+        self._app                  = parent
+        self._mode                 = MODE_AUTH
+        self._thread               = None
+        self._save_worker          = None
+        self._auth_worker          = None
+        self._countdown_timer      = None
+        self._fingerprint_timer    = None   # 취소 가능한 지문 전환 타이머
+        self._auth_result_handled  = False  # success/failed 중복 처리 방지
+        self._remaining            = 0
+        self._frame_count          = 0
+        self._auth_started         = False
         self._build_ui()
 
     def set_mode(self, mode: str, **kwargs):
@@ -361,6 +363,7 @@ class CameraViewScreen(QWidget):
 
     def showEvent(self, event):
         super().showEvent(event)
+        self._auth_result_handled = False
         self._processing_overlay.hide()
         self._upload_error_overlay.hide()
         self._last_face_imgs = []
@@ -428,6 +431,16 @@ class CameraViewScreen(QWidget):
         self._stop_thread()
         if self._app: self._app.show_screen("home")
 
+    def _stop_auth_worker(self):
+        """이전 AuthWorker 시그널 연결 해제 및 정리."""
+        if self._auth_worker is not None:
+            try:
+                self._auth_worker.success.disconnect(self._on_auth_success)
+                self._auth_worker.failed.disconnect(self._on_auth_failed)
+            except RuntimeError:
+                pass
+            self._auth_worker = None
+
     def _on_capture_done(self, face_imgs: list):
         """[중요] 캡처 완료 시 모드에 따라 처리."""
         self._stop_thread()
@@ -440,6 +453,8 @@ class CameraViewScreen(QWidget):
             self._save_worker.done.connect(self._on_save_done)
             self._save_worker.start()
         else:
+            # 이전 AuthWorker 시그널 끊기 (capture_done 중복 호출 방어)
+            self._stop_auth_worker()
             # 인증 모드: 카메라 숨기고 추론 시작
             self._processing_overlay.show()
             self._auth_worker = _AuthWorker(face_imgs, parent=self)
@@ -448,6 +463,17 @@ class CameraViewScreen(QWidget):
             self._auth_worker.start()
 
     def _on_auth_success(self, user: str, score: float):
+        if self._auth_result_handled:
+            return
+        self._auth_result_handled = True
+        # 실패 후 뒤늦게 성공 신호가 오는 경우 지문 전환 타이머 취소
+        if self._fingerprint_timer is not None:
+            self._fingerprint_timer.stop()
+            self._fingerprint_timer = None
+        # 실패 오버레이가 잠깐 표시됐을 수 있으므로 원래 스타일로 복원
+        self._processing_overlay.setStyleSheet("background-color: #1e293b;")
+        self._proc_msg.setStyleSheet("color: white;")
+        self._processing_overlay.hide()
         print(f"\n[AUTH_RESULT] 성공: {user} (최종 점수: {score:.4f})")
         if self._app:
             self._app.current_session["face_verified"] = True
@@ -463,10 +489,15 @@ class CameraViewScreen(QWidget):
         self._proc_msg.setText("얼굴 인증에 실패했습니다\n지문 인증으로 전환합니다...")
         self._proc_msg.setStyleSheet("color: #fca5a5;")
         self._processing_overlay.show()
-        from PyQt5.QtCore import QTimer
-        QTimer.singleShot(2000, self._go_fingerprint_auth)
+        self._fingerprint_timer = QTimer(self)
+        self._fingerprint_timer.setSingleShot(True)
+        self._fingerprint_timer.timeout.connect(self._go_fingerprint_auth)
+        self._fingerprint_timer.start(2000)
 
     def _go_fingerprint_auth(self):
+        self._fingerprint_timer = None
+        if self._auth_result_handled:  # success가 먼저 처리된 경우 무시
+            return
         self._processing_overlay.hide()
         self._processing_overlay.setStyleSheet("background-color: #1e293b;")
         self._proc_msg.setStyleSheet("color: white;")
