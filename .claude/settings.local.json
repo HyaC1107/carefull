@@ -51,7 +51,8 @@
       "PowerShell(cmd /c \"dir C:\\\\Users\\\\smhrd\\\\Desktop\\\\carefull\\\\raspberry\\\\tests /b\")",
       "PowerShell(cmd /c \"dir C:\\\\Users\\\\smhrd\\\\Desktop\\\\carefull\\\\raspberry\\\\behavior /b\")",
       "PowerShell(findstr *)",
-      "PowerShell(Get-Content \"C:\\\\Users\\\\smhrd\\\\Desktop\\\\carefull\\\\raspberry\\\\tests\\\\test_mp_pose.py\" | Select-Object -First 300 | ForEach-Object { $i++; \"$i`t$_\" })"
+      "PowerShell(Get-Content \"C:\\\\Users\\\\smhrd\\\\Desktop\\\\carefull\\\\raspberry\\\\tests\\\\test_mp_pose.py\" | Select-Object -First 300 | ForEach-Object { $i++; \"$i`t$_\" })",
+      "PowerShell(Get-ChildItem -Recurse \"C:\\\\Users\\\\smhrd\\\\Desktop\\\\carefull\\\\raspberry\" | Where-Object { $_.Extension -eq \".mp3\" } | Select-Object FullName)"
     ]
   }
 }
